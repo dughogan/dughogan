@@ -1,4 +1,4 @@
-![Banner Image](https://tinyurl.com/2p8rjjff)
+![Banner Image](https://media-exp1.licdn.com/dms/image/C5616AQGe7c6YznPAwA/profile-displaybackgroundimage-shrink_350_1400/0/1645030463607?e=1675296000&v=beta&t=RoV27KuCO1DmBTowpwZ51HCCrYn9DkzX-eL_7S0wqjs)
 
 Hi everyone, my name is Doug...
 
