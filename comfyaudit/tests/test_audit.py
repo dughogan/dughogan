@@ -276,8 +276,25 @@ def test_markdown_escapes_pipes_so_tables_do_not_break():
 def test_html_report_is_self_contained(beauty):
     page = html_report.render(beauty)
     assert page.startswith("<!doctype html>")
-    assert "src=\"http" not in page and "href='http" in page  # links yes, assets no
+    # No scripts and no remotely loaded assets: the file has to survive being
+    # archived next to the show and opened years later on an offline machine.
+    assert "<script" not in page
+    assert 'src="http' not in page and "src='http" not in page
+    assert "<img" not in page
+
+
+def test_html_report_defines_both_themes_at_token_level(beauty):
+    page = html_report.render(beauty)
     assert "prefers-color-scheme" in page
+    assert '[data-theme="dark"]' in page
+    assert ':root:not([data-theme="light"])' in page
+
+
+def test_html_body_fragment_omits_the_document_skeleton(beauty):
+    fragment = html_report.render(beauty, standalone=False)
+    for tag in ("<!doctype", "<html", "<head>", "<body"):
+        assert tag not in fragment.lower()
+    assert "<style>" in fragment
 
 
 def test_json_report_round_trips(beauty):
