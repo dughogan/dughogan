@@ -8,6 +8,7 @@ from typing import Any, Iterable
 from .. import __version__
 from ..audit import AuditReport
 from ..records import Finding, ModelRef
+from . import review as review_section
 
 VERDICT_LABEL = {
     "blocked": "BLOCKED - not deliverable commercially as it stands",
@@ -267,6 +268,12 @@ def render(report: AuditReport) -> str:
             if finding.recommendation:
                 w(f"**What to do:** {finding.recommendation}")
                 w("")
+
+    # -- claude review -----------------------------------------------------
+    review = review_section.get_review(report)
+    if review:
+        w(review_section.markdown(review))
+        w("")
 
     # -- appendix ----------------------------------------------------------
     _appendix(w, report)

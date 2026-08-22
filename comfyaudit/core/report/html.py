@@ -18,6 +18,7 @@ from typing import Any, Iterable
 
 from .. import __version__
 from ..audit import AuditReport
+from . import review as review_section
 
 FONTS = ("https://fonts.googleapis.com/css2?"
          "family=Chivo:wght@600;700;900&"
@@ -361,6 +362,11 @@ def _body(report: AuditReport) -> str:
     _dependencies_section(w, report)
     _automation_section(w, report)
     _risk_section(w, report)
+
+    review = review_section.get_review(report)
+    if review:
+        w(review_section.html(review))
+
     _colophon(w, report)
 
     w("</div>")

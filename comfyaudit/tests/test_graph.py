@@ -9,7 +9,7 @@ import zlib
 
 import pytest
 
-from comfyaudit import graph
+from comfyaudit.core import graph
 
 EXAMPLES = os.path.join(os.path.dirname(__file__), "..", "examples")
 

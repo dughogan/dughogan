@@ -49,6 +49,21 @@ def build_parser() -> argparse.ArgumentParser:
                        help="exit non-zero if a finding at this severity or worse is present, "
                             "for use as a pipeline gate")
     audit.add_argument("--quiet", action="store_true", help="suppress the console summary")
+    audit.add_argument("--claude", nargs="?", const="full", default="",
+                       choices=["", "full", "identify", "clearance", "remediate"],
+                       help="have Claude investigate the audit as well: identify models "
+                            "the rules could not, review prompt text for trademark and "
+                            "likeness risk, and propose commercially clear replacements")
+    audit.add_argument("--claude-model", default="claude-opus-5",
+                       help="model for the review (default: claude-opus-5)")
+    audit.add_argument("--claude-effort", default="high",
+                       choices=["low", "medium", "high", "xhigh", "max"])
+    audit.add_argument("--no-web-search", action="store_true",
+                       help="stop the review looking models up on the web; use this "
+                            "when the workflow content is confidential")
+    audit.add_argument("--ask", default="",
+                       help="ask Claude a specific question about the workflow "
+                            "instead of running a review mode")
 
     listing = sub.add_parser("models", help="list just the models a workflow references")
     listing.add_argument("workflow")
@@ -98,6 +113,10 @@ def _cmd_audit(args: argparse.Namespace) -> int:
             print(f"{path}: {exc}", file=sys.stderr)
             failures += 1
             continue
+
+        if args.claude or args.ask:
+            _add_claude_review(report, args)
+
         reports.append((path, report))
         _emit(report, path, args, multiple)
 
@@ -117,6 +136,26 @@ def _cmd_audit(args: argparse.Namespace) -> int:
                 if SEVERITY_ORDER.index(finding.severity) <= threshold:
                     return 1
     return 0 if not failures else 2
+
+
+def _add_claude_review(report: AuditReport, args: argparse.Namespace) -> None:
+    """Run the agent and attach the result so every format renders it."""
+    from ..agent import reviewer as reviewer_mod
+
+    if not args.quiet:
+        print("running the Claude review...", file=sys.stderr)
+    result = reviewer_mod.review(
+        report,
+        mode=args.claude or "full",
+        model=args.claude_model,
+        effort=args.claude_effort,
+        web_search=not args.no_web_search,
+        question=args.ask,
+    )
+    reviewer_mod.apply_to_report(report, result)
+    report.diagnostics["claude_review"] = result.as_dict()
+    if result.error and not args.quiet:
+        print(f"claude review: {result.error}", file=sys.stderr)
 
 
 def _emit(report: AuditReport, path: str, args: argparse.Namespace, multiple: bool) -> None:

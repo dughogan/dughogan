@@ -7,7 +7,7 @@ import os
 
 import pytest
 
-from comfyaudit import cli
+from comfyaudit.core import cli
 
 EXAMPLES = os.path.join(os.path.dirname(__file__), "..", "examples")
 BEAUTY = os.path.join(EXAMPLES, "beauty-pass.json")

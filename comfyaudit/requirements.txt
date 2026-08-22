@@ -1,0 +1,4 @@
+# The auditor itself needs nothing beyond the standard library.
+# This is only for the Claude review node; without it the plugin still loads and
+# every other node works, and the review node explains that it was skipped.
+anthropic>=0.40

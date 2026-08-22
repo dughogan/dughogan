@@ -81,7 +81,32 @@ def comfyui_version() -> str:
     return str(core_nodes().get("comfyui_version", "unknown"))
 
 
+#: Optional callable that resolves a node schema from a *live* ComfyUI process.
+#: The bundled catalog only knows core nodes from one ComfyUI release; running
+#: inside ComfyUI we can read the real INPUT_TYPES of every installed node,
+#: custom packs included, which turns widget names on custom nodes from a guess
+#: into a fact.  Injected by the plugin layer so core stays ComfyUI-free.
+_live_provider: Any = None
+
+
+def set_live_provider(provider: Any) -> None:
+    """Install (or clear, with ``None``) the live node-schema resolver."""
+    global _live_provider
+    _live_provider = provider
+    get_node_schema.cache_clear()
+    is_core_node.cache_clear()
+
+
+def has_live_provider() -> bool:
+    return _live_provider is not None
+
+
+@lru_cache(maxsize=8192)
 def get_node_schema(class_type: str) -> dict[str, Any] | None:
+    if _live_provider is not None:
+        live = _live_provider(class_type)
+        if live is not None:
+            return live
     return core_nodes()["nodes"].get(class_type)
 
 
@@ -94,7 +119,13 @@ FRONTEND_CORE_TYPES = {
 }
 
 
+@lru_cache(maxsize=8192)
 def is_core_node(class_type: str) -> bool:
+    """Whether the node ships with ComfyUI itself rather than a custom pack.
+
+    A live schema does not imply core - custom packs are live too - so this
+    stays anchored to the bundled catalog and the frontend's own node types.
+    """
     return class_type in core_nodes()["nodes"] or class_type in FRONTEND_CORE_TYPES
 
 

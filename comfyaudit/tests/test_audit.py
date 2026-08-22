@@ -7,13 +7,13 @@ import os
 
 import pytest
 
-from comfyaudit import graph
-from comfyaudit.audit import AuditOptions, run
-from comfyaudit.extract import assets, models, packs, prompts
-from comfyaudit.knowledge.licences import LicenceMatcher
-from comfyaudit.records import ModelRef
-from comfyaudit.report import html as html_report
-from comfyaudit.report import markdown as md_report
+from comfyaudit.core import graph
+from comfyaudit.core.audit import AuditOptions, run
+from comfyaudit.core.extract import assets, models, packs, prompts
+from comfyaudit.core.knowledge.licences import LicenceMatcher
+from comfyaudit.core.records import ModelRef
+from comfyaudit.core.report import html as html_report
+from comfyaudit.core.report import markdown as md_report
 
 EXAMPLES = os.path.join(os.path.dirname(__file__), "..", "examples")
 

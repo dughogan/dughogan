@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build the bundled catalog data shipped inside ``comfyaudit.knowledge.data``.
+"""Build the bundled catalog data shipped inside ``comfyaudit.core.knowledge.data``.
 
 Three sources are consumed:
 
@@ -724,7 +724,7 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--comfyui", required=True, help="path to a ComfyUI checkout")
     ap.add_argument("--manager", required=True, help="dir holding ComfyUI-Manager json files")
-    ap.add_argument("--out", default=os.path.join(os.path.dirname(__file__), "..", "comfyaudit", "knowledge", "data"))
+    ap.add_argument("--out", default=os.path.join(os.path.dirname(__file__), "..", "core", "knowledge", "data"))
     args = ap.parse_args()
 
     out_dir = os.path.abspath(args.out)
