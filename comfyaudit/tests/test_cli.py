@@ -60,9 +60,10 @@ def test_multiple_workflows_write_one_report_each(tmp_path):
 
 
 def test_a_directory_argument_is_expanded(tmp_path):
+    workflows = [name for name in os.listdir(EXAMPLES) if name.endswith(".json")]
     out_dir = tmp_path / "audits"
     assert cli.main(["audit", EXAMPLES, "-o", str(out_dir), "--quiet"]) == 0
-    assert len(list(out_dir.iterdir())) == 3
+    assert len(list(out_dir.iterdir())) == len(workflows)
 
 
 def test_an_unreadable_workflow_reports_and_exits_non_zero(tmp_path, capsys):
