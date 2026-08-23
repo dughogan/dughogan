@@ -85,11 +85,27 @@ VERDICTS = ["no-go", "conditions", "go", "unknown"]
 VERDICT_RANK = {"no-go": 0, "conditions": 1, "unknown": 2, "go": 3}
 
 VERDICT_LABELS = {
-    "go": "Clear to use as-is",
-    "conditions": "Usable, with conditions to meet",
-    "no-go": "Not usable as-is",
-    "unknown": "Cannot be determined",
+    "go": "Clear as-is",
+    "conditions": "Clear once conditions are met",
+    "no-go": "Needs changes first",
+    "unknown": "Needs more information",
 }
+
+#: The kind of work that lifts a finding, which is what a supervisor is actually
+#: deciding about. "Not usable" reads as a wall; most of these are an afternoon.
+#: Ordered by how much they cost to do.
+ACTIONS = {
+    "confirm": "a confirmation",
+    "information": "information to find",
+    "configure": "a configuration change",
+    "attribute": "a credit to add",
+    "licence": "a licence to buy",
+    "relocate": "a change of where it runs",
+    "swap": "a model or pack to swap",
+}
+
+ACTION_ORDER = ["confirm", "information", "configure", "attribute", "licence",
+                "relocate", "swap"]
 
 
 @dataclass
@@ -157,6 +173,7 @@ class Reason:
     term: str = ""          # the condition key it came from
     fact: str = ""          # the profile fact it was applied to
     remedy: str = ""        # what would turn this into a yes
+    action: str = ""        # the shape of that remedy: a key from ACTIONS
 
 
 @dataclass
@@ -190,6 +207,8 @@ class ClearanceResult:
     conditions: list[str] = field(default_factory=list)
     unresolved: list[str] = field(default_factory=list)
     missing_facts: list[str] = field(default_factory=list)
+    #: How many distinct jobs of each kind are outstanding, keyed by ACTIONS.
+    actions: dict[str, int] = field(default_factory=dict)
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -204,6 +223,9 @@ class ClearanceResult:
             "conditions": self.conditions,
             "unresolved": self.unresolved,
             "missing_facts": self.missing_facts,
+            "actions": self.actions,
+            "actions_described": _describe_actions(self.actions),
+            "total_actions": sum(self.actions.values()),
         }
 
     def by_verdict(self, verdict: str) -> list[Determination]:
@@ -281,6 +303,7 @@ def _judge_model(model: ModelRef, profile: StudioProfile) -> Determination:
             verdict="unknown",
             text="No licence could be identified for this file, so nothing can be "
                  "concluded about it either way.",
+            action="information",
             remedy="Establish where this file came from and what it was released under."))
         return out
 
@@ -320,6 +343,7 @@ def _judge_pack(pack: PackRef, profile: StudioProfile) -> Determination | None:
             text=f"{pack.title or pack.repo} is {pack.licence}. Exposing it over a "
                  "network counts as distribution, so the source of anything it is "
                  "combined with must be released under the same licence.",
+            action="swap",
             remedy="Replace the pack, isolate it behind a process boundary, or "
                    "release the surrounding source."))
     elif profile.ships == "software":
@@ -328,6 +352,7 @@ def _judge_pack(pack: PackRef, profile: StudioProfile) -> Determination | None:
             verdict="conditions", term="copyleft_reach", fact=SHIPS[profile.ships],
             text=f"{pack.title or pack.repo} is {pack.licence} and the workflow is "
                  "distributed, so its terms reach the code shipped with it.",
+            action="swap",
             remedy="Replace the pack, or release the surrounding source under the "
                    "same licence."))
     else:
@@ -350,6 +375,7 @@ def _judge_hosted(node_type: str, profile: StudioProfile) -> Determination:
             text=f"{node_type} sends material to a third-party service. What may be "
                  "done with it is set by that vendor's terms and your agreement with "
                  "them, not by a model licence.",
+            action="confirm",
             remedy="Check the vendor's data-retention and training terms against the "
                    "show's NDA before real footage goes through it.")])
 
@@ -373,6 +399,7 @@ def _apply_conditions(lic: Any, profile: StudioProfile, subject: str) -> list[Re
                 verdict="no-go", term="territory_excluded", fact=where,
                 text=f"{lic.name} does not grant rights in {where}, which is where "
                      "this studio operates.",
+                action="relocate",
                 remedy="Run the model in a territory the grant covers, or negotiate "
                        "directly with the rights holder."))
         else:
@@ -387,17 +414,19 @@ def _apply_conditions(lic: Any, profile: StudioProfile, subject: str) -> list[Re
             verdict="unknown", term="territory_excluded", fact="territory not stated",
             text=f"{lic.name} excludes " + _join(TERRITORIES.get(t, t) for t in excluded)
                  + ", and no territory was given for this studio.",
+            action="information",
             remedy="Set the studio's territory."))
 
     # -- outright non-commercial ---------------------------------------------
     if lic.commercial_use == "no":
         reaches_outputs = cond.get("outputs_commercial") == "no"
         holder = cond.get("separate_licence_holder")
-        remedy = (f"Obtain a commercial licence from {holder}."
-                  if cond.get("commercial_licence_available") and holder
+        purchasable = bool(cond.get("commercial_licence_available") and holder)
+        remedy = (f"Obtain a commercial licence from {holder}." if purchasable
                   else "Replace this model with one licensed for commercial use.")
         out.append(Reason(
             verdict="no-go", term="commercial_use", fact="commercial work",
+            action="licence" if purchasable else "swap",
             text=f"{lic.name} does not permit commercial use"
                  + (", and the restriction is written to cover the outputs as well "
                     "as the weights." if reaches_outputs else "."),
@@ -413,6 +442,7 @@ def _apply_conditions(lic: Any, profile: StudioProfile, subject: str) -> list[Re
                 text=f"{lic.name} is free only below {_usd(cap)} "
                      f"({cond.get('revenue_basis', 'annual revenue')}), and no revenue "
                      "band was given.",
+                action="information",
                 remedy="Set the studio's revenue band."))
         elif floor >= cap:
             holder = cond.get("separate_licence_holder", "the rights holder")
@@ -422,6 +452,7 @@ def _apply_conditions(lic: Any, profile: StudioProfile, subject: str) -> list[Re
                 text=f"{lic.name} is free only below {_usd(cap)} "
                      f"({cond.get('revenue_basis', 'annual revenue')}). This studio is "
                      "above that, so free use does not apply.",
+                action="licence",
                 remedy=f"Negotiate a separate agreement with {holder}."))
         else:
             out.append(Reason(
@@ -438,6 +469,7 @@ def _apply_conditions(lic: Any, profile: StudioProfile, subject: str) -> list[Re
                 fact=f"{profile.monthly_active_users:,} monthly active users",
                 text=f"{lic.name} requires a separate licence above "
                      f"{mau_cap:,} monthly active users.",
+                action="licence",
                 remedy="Negotiate with "
                        + cond.get("separate_licence_holder", "the rights holder") + "."))
 
@@ -452,6 +484,7 @@ def _apply_conditions(lic: Any, profile: StudioProfile, subject: str) -> list[Re
                 text=f"{lic.name} reaches the code it is combined with"
                      + (f": {note}." if note else ".")
                      + " This studio distributes software, so that obligation applies.",
+                action="licence",
                 remedy=f"Buy the commercial licence from {holder}, or release the "
                        "surrounding source under the same terms."))
         elif profile.ships in ("deliverable-only", "internal-only"):
@@ -463,6 +496,7 @@ def _apply_conditions(lic: Any, profile: StudioProfile, subject: str) -> list[Re
                     text=f"Only finished work leaves the building, so {lic.name}'s "
                          f"distribution obligation is not triggered by delivery. "
                          f"However, {vendor}.",
+                    action="confirm",
                     remedy="Confirm the position with "
                            + cond.get("separate_licence_holder", "the vendor")
                            + ", or budget for their commercial licence."))
@@ -477,6 +511,7 @@ def _apply_conditions(lic: Any, profile: StudioProfile, subject: str) -> list[Re
                 verdict="unknown", term="copyleft_reach", fact="not stated",
                 text=f"{lic.name} is copyleft and whether anything ships was not "
                      "stated, which is what decides whether it bites.",
+                action="information",
                 remedy="State what leaves the building."))
 
     # -- training other models ------------------------------------------------
@@ -486,6 +521,7 @@ def _apply_conditions(lic: Any, profile: StudioProfile, subject: str) -> list[Re
             fact="outputs train other models",
             text=f"{lic.name} forbids using outputs to train a competing model, and "
                  "this studio does exactly that.",
+            action="configure",
             remedy="Exclude this model's outputs from any training set."))
 
     # -- obligations that do not block, but must be met -----------------------
@@ -495,6 +531,7 @@ def _apply_conditions(lic: Any, profile: StudioProfile, subject: str) -> list[Re
             verdict="conditions", term="attribution_visible", fact=SHIPS[profile.ships],
             text=f"{lic.name} requires '{visible}' to be displayed in a shipped "
                  "product's interface.",
+            action="attribute",
             remedy=f"Add the '{visible}' notice before release."))
 
     prohibited = cond.get("prohibited_uses") or []
@@ -502,6 +539,7 @@ def _apply_conditions(lic: Any, profile: StudioProfile, subject: str) -> list[Re
         out.append(Reason(
             verdict="conditions", term="prohibited_uses", fact="use restrictions",
             text=f"{lic.name} carries a use schedule: " + _join(prohibited) + ".",
+            action="confirm",
             remedy="Confirm the intended use is not on that list, and pass the "
                    "schedule on with any redistribution."))
 
@@ -545,6 +583,7 @@ def _judge_likeness(models: Iterable[ModelRef], node_types: Iterable[str],
                  + _join(evidence[:3]) + (", among others" if len(evidence) > 3 else "")
                  + ") and real performers are involved. No model licence grants "
                    "rights in a performer's face; that comes from their contract.",
+            action="confirm",
             remedy="Confirm written consent covers synthetic reproduction, and check "
                    "the relevant union agreement - several now require separate "
                    "consent and payment for digital replicas.")])
@@ -556,10 +595,17 @@ def _judge_likeness(models: Iterable[ModelRef], node_types: Iterable[str],
 
 
 def _roll_up(result: ClearanceResult, profile: StudioProfile) -> None:
+    """What the determinations add up to, said as work rather than as judgement.
+
+    "Not usable" reads as a wall, and most of the time it is an afternoon: swap
+    one model, buy one licence, confirm one thing with the vendor. The headline
+    counts the jobs outstanding and names their shape, because that is what a
+    supervisor is actually deciding about.
+    """
     verdicts = [d.verdict for d in result.determinations]
     if not verdicts:
         result.verdict = "go"
-        result.headline = "No licensed models were found in this workflow."
+        result.headline = "No models were found in this workflow."
         return
 
     result.verdict = min(verdicts, key=lambda v: VERDICT_RANK[v])
@@ -573,26 +619,77 @@ def _roll_up(result: ClearanceResult, profile: StudioProfile) -> None:
             elif reason.verdict == "unknown":
                 result.unresolved.append(f"{det.subject}: {reason.text}")
 
-    counts = {v: verdicts.count(v) for v in VERDICTS if verdicts.count(v)}
-    tally = ", ".join(f"{n} {VERDICT_LABELS[v].lower()}" for v, n in counts.items())
+    result.actions = _actions(result)
+    total = sum(result.actions.values())
+    shape = _describe_actions(result.actions)
 
+    if result.verdict == "go":
+        result.headline = (
+            f"Every one of {len(verdicts)} item(s) checks out against this "
+            "profile, with nothing outstanding.")
+        return
+
+    if not total:
+        result.headline = (
+            f"{len(verdicts)} item(s) assessed; nothing here is settled either "
+            "way from what is known.")
+        return
+
+    jobs = "One thing" if total == 1 else f"{total} things"
     if result.verdict == "no-go":
         result.headline = (
-            f"Not usable as-is by this studio. {len(result.blockers)} blocking "
-            f"term(s) across {counts.get('no-go', 0)} item(s); nothing else in the "
-            "workflow changes that until they are resolved.")
+            f"{jobs} to resolve before this goes on a paid job: {shape}. "
+            "Each one names what lifts it.")
     elif result.verdict == "conditions":
         result.headline = (
-            f"Usable, provided {len(result.conditions)} condition(s) are met. "
-            f"Nothing here blocks outright. ({tally}.)")
-    elif result.verdict == "unknown":
-        result.headline = (
-            f"Cannot be settled from what is known. {len(result.unresolved)} item(s) "
-            f"need a fact that is missing. ({tally}.)")
+            f"Nothing here blocks outright. {jobs} to see to before delivery: "
+            f"{shape}.")
     else:
         result.headline = (
-            f"Clear to use as-is by this studio: every one of {len(verdicts)} item(s) "
-            "checks out against the profile given.")
+            f"{jobs} outstanding, mostly missing facts rather than "
+            f"restrictions: {shape}.")
+
+
+def _actions(result: ClearanceResult) -> dict[str, int]:
+    """How many distinct jobs of each kind the workflow implies.
+
+    Distinct by remedy, not by file: four weights failing one territory clause
+    are one relocation to arrange, not four.
+    """
+    seen: dict[str, set[str]] = {}
+    for det in result.determinations:
+        for reason in det.reasons:
+            if reason.verdict == "go" or not reason.action:
+                continue
+            seen.setdefault(reason.action, set()).add(reason.remedy)
+    return {action: len(remedies) for action, remedies in seen.items()}
+
+
+def _describe_actions(actions: dict[str, int]) -> str:
+    """The outstanding jobs as a phrase: "a licence to buy and 2 confirmations"."""
+    parts = []
+    for action in ACTION_ORDER:
+        count = actions.get(action, 0)
+        if not count:
+            continue
+        # The singular labels carry their own article, so a leading "1" would
+        # produce "1 a licence to buy".
+        parts.append(ACTIONS[action] if count == 1
+                     else f"{count} {_plural_action(action)}")
+    return _join(parts) if parts else "nothing outstanding"
+
+
+def _plural_action(action: str) -> str:
+    """"2 a licence to buy" is not English."""
+    return {
+        "confirm": "confirmations",
+        "information": "facts to find",
+        "configure": "configuration changes",
+        "attribute": "credits to add",
+        "licence": "licences to buy",
+        "relocate": "changes of where it runs",
+        "swap": "models or packs to swap",
+    }[action]
 
 
 def _missing_facts(profile: StudioProfile, models: Iterable[ModelRef]) -> list[str]:

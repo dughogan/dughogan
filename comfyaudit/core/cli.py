@@ -352,11 +352,15 @@ def _print_summary(report: AuditReport) -> None:
     print(line, file=sys.stderr)
     clr = report.clearance
     if clr.determined:
-        print(f" VERDICT              : {clearance.VERDICT_LABELS[clr.verdict].upper()}",
+        outstanding = sum(clr.actions.values())
+        print(f" Assessment           : {clearance.VERDICT_LABELS[clr.verdict]}",
               file=sys.stderr)
         print(f"   for                : {clr.profile.describe()}", file=sys.stderr)
+        if outstanding:
+            print(f"   to resolve         : {clearance._describe_actions(clr.actions)}",
+                  file=sys.stderr)
         for blocker in clr.distinct_blockers()[:3]:
-            print(f"   blocking           : {blocker}", file=sys.stderr)
+            print(f"   has to change      : {blocker}", file=sys.stderr)
     print(f" Licences             : {report.licensing.headline}", file=sys.stderr)
     print(f" Operational risk     : {risk.score}/100 ({risk.band})", file=sys.stderr)
     print(f" Automation index     : {auto.index}/100 ({auto.band})", file=sys.stderr)

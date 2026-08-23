@@ -304,7 +304,7 @@ def test_a_determination_inserts_a_section_and_renumbers_the_rest(beauty):
     """Numbering has to survive a section that is only sometimes there."""
     determined = md_report.render(_with_profile(beauty, territory="US",
                                                 revenue_band="over-100m"))
-    assert "## 1. Determination" in determined
+    assert "## 1. What has to happen" in determined
     assert "## 2. Licence summary" in determined
     assert "## 8. Operational risks" in determined
     # ...and the profile-less report keeps its original numbering.
@@ -432,16 +432,17 @@ def test_a_report_without_a_profile_explains_itself_in_prose(beauty):
         assert label.lower() not in text.lower()
 
 
-def test_the_narrative_appears_at_the_top_only_without_a_profile(beauty):
+def test_the_narrative_leads_every_report(beauty):
+    """It runs with or without a profile - an assessment still needs explaining."""
     text = md_report.render(beauty)
     assert "### In plain terms" in text
     assert text.index("### In plain terms") < text.index("## 1. Licence summary")
 
     determined = md_report.render(_with_profile(beauty, territory="US",
                                                 revenue_band="over-100m"))
-    # With a profile the verdict leads instead, and saying both would be noise.
-    assert "### In plain terms" not in determined
-    assert "## 1. Determination" in determined
+    assert "### In plain terms" in determined
+    assert determined.index("### In plain terms") < determined.index(
+        "## 1. What has to happen")
 
 
 def test_the_narrative_counts_agree_with_their_nouns(beauty):

@@ -118,22 +118,36 @@ h1{
 .plainly p:last-child{ margin-bottom:0; }
 
 /* -- determination ------------------------------------------------------ */
-.stamp{
-  border:2px solid currentColor; border-radius:3px; padding:14px 18px;
-  min-width:220px; align-self:flex-start;
+/* -- outstanding work --------------------------------------------------- */
+/* Deliberately quieter than the old verdict stamp: this is the fragment that
+   gets cropped and forwarded, so it should read as a work list, not a ruling. */
+.outstanding{
+  border:1px solid var(--rule); border-left:3px solid currentColor;
+  border-radius:3px; padding:14px 18px; min-width:210px; align-self:flex-start;
 }
-.stamp .lbl{
+.outstanding .head{
   font:600 10px/1 ui-monospace,monospace; letter-spacing:.16em;
-  text-transform:uppercase; opacity:.75;
+  text-transform:uppercase; color:var(--ink-3);
 }
-.stamp .v{
-  font:700 19px/1.15 var(--display,inherit); margin-top:8px; letter-spacing:-.01em;
+.outstanding .lead{
+  font:600 15px/1.2 inherit; margin:7px 0 10px; color:currentColor;
 }
-.stamp .who{ font-size:11px; line-height:1.5; margin-top:9px; opacity:.85; }
-.stamp.ok{ color:var(--ok); background:var(--ok-bg); }
-.stamp.warn{ color:var(--warn); background:var(--warn-bg); }
-.stamp.stop{ color:var(--stop); background:var(--stop-bg); }
-.stamp.flat{ color:var(--ink-3); }
+.outstanding .row{
+  display:flex; gap:9px; align-items:baseline; font-size:12.5px;
+  color:var(--ink-2); padding:1px 0;
+}
+.outstanding .row .n{
+  font:600 12px ui-monospace,monospace; min-width:1.4em; text-align:right;
+  color:var(--ink-1);
+}
+.outstanding .who{
+  font-size:11px; line-height:1.5; margin-top:11px; padding-top:9px;
+  border-top:1px solid var(--rule); color:var(--ink-3);
+}
+.outstanding.ok{ color:var(--ok); }
+.outstanding.warn{ color:var(--warn); }
+.outstanding.stop{ color:var(--warn); }
+.outstanding.flat{ color:var(--ink-3); }
 
 .det{ border-left:3px solid var(--rule); padding:2px 0 2px 16px; margin:18px 0; }
 .det.stop{ border-left-color:var(--stop); }
@@ -378,6 +392,14 @@ def _body(report: AuditReport) -> str:
           "profile above and nothing else; change the profile and it changes. It is "
           "a reading of published terms with the reasoning shown, not legal advice."
           "</span></p>")
+        # The narrative is what makes the verdict legible when the reasoning
+        # gets skimmed, which it will be.
+        paragraphs = narrative_section.summarise(report)
+        if paragraphs:
+            w("<div class='plainly'><h2>In plain terms</h2>")
+            for paragraph in paragraphs:
+                w(f"<p>{_e(paragraph)}</p>")
+            w("</div>")
     else:
         w(f"<p class='verdict-note flat'><span><strong>Licences.</strong> "
           f"{_e(report.licensing.headline)} This report describes what those licences "
@@ -448,16 +470,16 @@ def _clearance_section(w, section, report: AuditReport) -> None:
     if not clr.determined:
         return
 
-    section("Determination", clearance.VERDICT_LABELS[clr.verdict])
+    section("What has to happen", clearance.VERDICT_LABELS[clr.verdict])
     w(f"<p class='lede'>{_e(clr.headline)}</p>")
     w(f"<p class='muted'>Assessed for {_e(clr.profile.describe())}"
       + (f" &middot; {_e(clr.profile.label)}" if clr.profile.label else "")
       + "</p>")
 
     for verdict, heading, lead in (
-        ("no-go", "Blocking",
-         "These stop the workflow being used as it stands. Each names what "
-         "would lift it."),
+        ("no-go", "Has to change",
+         "These need resolving before the workflow goes on a paid job. Each "
+         "names what lifts it, and most are one swap or one purchase."),
         ("conditions", "Conditions to meet",
          "None of these block. Each is something to do, budget for or confirm "
          "before delivery."),
@@ -525,15 +547,39 @@ def _subjects(subjects: list[str]) -> str:
 
 
 def _stamp(clr: Any) -> str:
-    """The verdict, as the thing the eye lands on first."""
+    """The masthead block, sized to the work rather than to the judgement.
+
+    An earlier version put NOT USABLE AS-IS in a large red box, which is exactly
+    the fragment that gets screenshotted and forwarded without the reasoning
+    underneath it. Most "no" answers here are one model swap or one licence
+    away, so what leads now is the count of jobs outstanding and their shape.
+    """
     tone = _verdict_tone(clr.verdict)
-    counts = {v: len(clr.by_verdict(v)) for v in clearance.VERDICTS}
-    detail = ", ".join(f"{n} {v}" for v, n in counts.items() if n)
-    return ("<div class='stamp " + tone + "'>"
-            "<div class='lbl'>Determination</div>"
-            f"<div class='v'>{_e(clearance.VERDICT_LABELS[clr.verdict])}</div>"
-            f"<div class='who'>{_e(clr.profile.describe())}"
-            + (f"<br>{_e(detail)}" if detail else "") + "</div></div>")
+    total = sum(clr.actions.values())
+    rows = []
+    for action in clearance.ACTION_ORDER:
+        count = clr.actions.get(action, 0)
+        if count:
+            rows.append(f"<div class='row'><span class='n'>{count}</span>"
+                        f"<span class='lbl'>{_e(_action_noun(action, count))}</span>"
+                        "</div>")
+
+    head = ("Outstanding" if total else "Assessed")
+    lead = (f"{total} to resolve" if total else
+            clearance.VERDICT_LABELS[clr.verdict])
+    return ("<div class='outstanding " + tone + "'>"
+            f"<div class='head'>{_e(head)}</div>"
+            f"<div class='lead'>{_e(lead)}</div>"
+            + "".join(rows)
+            + f"<div class='who'>{_e(clr.profile.describe())}</div></div>")
+
+
+def _action_noun(action: str, count: int) -> str:
+    """The job's name without its article, since the count supplies the number."""
+    if count == 1:
+        label = clearance.ACTIONS[action]
+        return label[2:] if label.startswith("a ") else label
+    return clearance._plural_action(action)
 
 
 def _verdict_tone(verdict: str) -> str:

@@ -55,8 +55,10 @@ def render(report: AuditReport) -> str:
     w("| | |")
     w("|---|---|")
     if clr.determined:
-        w(f"| **Verdict** | **{clearance.VERDICT_LABELS[clr.verdict].upper()}** "
-          f"for {clr.profile.describe()} |")
+        outstanding = sum(clr.actions.values())
+        w(f"| **Assessment** | {clearance.VERDICT_LABELS[clr.verdict]}"
+          + (f" - {outstanding} thing(s) to resolve" if outstanding else "")
+          + f", for {clr.profile.describe()} |")
     w(f"| **Licences** | {lic.headline or 'No models found.'} |")
     w(f"| **Operational risk** | {report.risk.score}/100 - {report.risk.band} |")
     w(f"| **Automation index** | {report.automation.index}/100 - {report.automation.band} |")
@@ -69,23 +71,27 @@ def render(report: AuditReport) -> str:
     if clr.determined:
         w(f"{clr.headline}")
         w("")
-        w("*This determination applies the licence terms to the studio profile "
-          "given above, and nothing else. Change the profile and it changes. It "
-          "is not legal advice; it is a reading of published terms, with the "
-          "reasoning shown so it can be checked.*")
+
+    # The plain-language summary runs either way. Without a profile it is the
+    # only thing standing between a reader and a stack of tables; with one it is
+    # what keeps the assessment legible when the reasoning gets skimmed, which
+    # it will be.
+    w("### In plain terms")
+    w("")
+    for paragraph in narrative_section.summarise(report):
+        w(paragraph)
         w("")
+
+    if clr.determined:
+        w("*This applies the licence terms to the studio profile given above, and "
+          "nothing else. Change the profile and it changes. It is not legal "
+          "advice; it is a reading of published terms, with the reasoning shown "
+          "so it can be checked.*")
     else:
-        # No profile, so no verdict - but the tables below are only useful to
-        # someone who already knows how to read them. Say what they amount to.
-        w("### In plain terms")
-        w("")
-        for paragraph in narrative_section.summarise(report):
-            w(paragraph)
-            w("")
         w("*This report describes what the licences say. It does not decide whether "
           "they suit your job - that depends on the client, the territory and any "
           "agreements you already hold.*")
-        w("")
+    w("")
 
     counts = report.risk.counts()
     if counts:
@@ -333,16 +339,17 @@ def _clearance_section(w, section, report: AuditReport) -> None:
         # would settle it are appended to that section instead.
         return
 
-    section("Determination")
-    w(f"**{clearance.VERDICT_LABELS[clr.verdict].upper()}** - {clr.headline}")
+    section("What has to happen")
+    w(f"**{clearance.VERDICT_LABELS[clr.verdict]}.** {clr.headline}")
     w("")
     w(f"*Assessed for: {clr.profile.describe()}*"
       + (f" *({clr.profile.label})*" if clr.profile.label else ""))
     w("")
 
     for verdict, heading, lead in (
-        ("no-go", "Blocking", "These stop the workflow being used as it stands. "
-                              "Each names what would lift it."),
+        ("no-go", "Has to change", "These need resolving before the workflow "
+                                   "goes on a paid job. Each names what lifts it, "
+                                   "and most are one swap or one purchase."),
         ("conditions", "Conditions to meet", "None of these block. Each is "
                                              "something to do, budget for or confirm."),
         ("unknown", "Unresolved", "Not enough is known to say either way."),
