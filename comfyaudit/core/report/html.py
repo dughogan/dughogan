@@ -19,7 +19,7 @@ from typing import Any, Iterable
 from .. import __version__
 from ..audit import AuditReport
 from . import review as review_section
-from ..score import licensing
+from ..score import clearance, licensing
 
 FONTS = ("https://fonts.googleapis.com/css2?"
          "family=Chivo:wght@600;700;900&"
@@ -102,6 +102,34 @@ h1{
 }
 .slate dt{color:var(--ink-3);letter-spacing:.06em;text-transform:uppercase;font-size:11px;padding-top:2px}
 .slate dd{margin:0;color:var(--ink-2);overflow-wrap:anywhere}
+
+/* -- determination ------------------------------------------------------ */
+.stamp{
+  border:2px solid currentColor; border-radius:3px; padding:14px 18px;
+  min-width:220px; align-self:flex-start;
+}
+.stamp .lbl{
+  font:600 10px/1 ui-monospace,monospace; letter-spacing:.16em;
+  text-transform:uppercase; opacity:.75;
+}
+.stamp .v{
+  font:700 19px/1.15 var(--display,inherit); margin-top:8px; letter-spacing:-.01em;
+}
+.stamp .who{ font-size:11px; line-height:1.5; margin-top:9px; opacity:.85; }
+.stamp.ok{ color:var(--ok); background:var(--ok-bg); }
+.stamp.warn{ color:var(--warn); background:var(--warn-bg); }
+.stamp.stop{ color:var(--stop); background:var(--stop-bg); }
+.stamp.flat{ color:var(--ink-3); }
+
+.det{ border-left:3px solid var(--rule); padding:2px 0 2px 16px; margin:18px 0; }
+.det.stop{ border-left-color:var(--stop); }
+.det.warn{ border-left-color:var(--warn); }
+.det.ok{ border-left-color:var(--ok); }
+.det .subj{ font:600 13px/1.4 ui-monospace,monospace; margin-bottom:6px; }
+.det p{ margin:6px 0; }
+.det .lift{ font-size:12.5px; color:var(--ink-2); }
+.det .lift b{ font-weight:600; color:var(--ink-1); }
+.det .later{ color:var(--ink-2); }
 
 /* -- licence composition ------------------------------------------------- */
 .composition{
@@ -303,6 +331,7 @@ def _body(report: AuditReport) -> str:
     risk, auto = report.risk, report.automation
     out: list[str] = []
     w = out.append
+    section = _Sections(w)
 
     w("<div class='sheet'>")
 
@@ -322,13 +351,24 @@ def _body(report: AuditReport) -> str:
     w(f"<dt>Audited</dt><dd>{_dt.datetime.now().astimezone().strftime('%Y-%m-%d %H:%M %Z')} "
       f"&middot; comfyaudit {__version__}</dd>")
     w("</dl></div>")
-    w(_composition(report.licensing))
+    if report.clearance.determined:
+        w(_stamp(report.clearance))
+    else:
+        w(_composition(report.licensing))
     w("</header>")
 
-    w(f"<p class='verdict-note flat'><span><strong>Licences.</strong> "
-      f"{_e(report.licensing.headline)} This report describes what those licences "
-      "say; it does not decide whether they suit your job, which depends on the "
-      "client, the territory and any agreements you already hold.</span></p>")
+    if report.clearance.determined:
+        w(f"<p class='verdict-note {_verdict_tone(report.clearance.verdict)}'>"
+          f"<span><strong>{_e(clearance.VERDICT_LABELS[report.clearance.verdict])}.</strong> "
+          f"{_e(report.clearance.headline)} This applies the licence terms to the "
+          "profile above and nothing else; change the profile and it changes. It is "
+          "a reading of published terms with the reasoning shown, not legal advice."
+          "</span></p>")
+    else:
+        w(f"<p class='verdict-note flat'><span><strong>Licences.</strong> "
+          f"{_e(report.licensing.headline)} This report describes what those licences "
+          "say; it does not decide whether they suit your job, which depends on the "
+          "client, the territory and any agreements you already hold.</span></p>")
 
     # -- readouts ----------------------------------------------------------
     counts = risk.counts()
@@ -358,13 +398,14 @@ def _body(report: AuditReport) -> str:
               f"{_e(finding.recommendation or finding.detail)}</span></li>")
         w("</ol>")
 
-    _licence_section(w, report)
-    _models_section(w, report)
-    _prompts_section(w, report)
-    _assets_section(w, report)
-    _dependencies_section(w, report)
-    _automation_section(w, report)
-    _risk_section(w, report)
+    _clearance_section(w, section, report)
+    _licence_section(w, section, report)
+    _models_section(w, section, report)
+    _prompts_section(w, section, report)
+    _assets_section(w, section, report)
+    _dependencies_section(w, section, report)
+    _automation_section(w, section, report)
+    _risk_section(w, section, report)
 
     review = review_section.get_review(report)
     if review:
@@ -379,10 +420,108 @@ def _body(report: AuditReport) -> str:
 # --------------------------------------------------------------------------
 
 
-def _licence_section(w, report: AuditReport) -> None:
+def _clearance_section(w, section, report: AuditReport) -> None:
+    """What the licences mean for this studio, and how that was worked out."""
+    clr = report.clearance
+    if not clr.determined:
+        return
+
+    section("Determination", clearance.VERDICT_LABELS[clr.verdict])
+    w(f"<p class='lede'>{_e(clr.headline)}</p>")
+    w(f"<p class='muted'>Assessed for {_e(clr.profile.describe())}"
+      + (f" &middot; {_e(clr.profile.label)}" if clr.profile.label else "")
+      + "</p>")
+
+    for verdict, heading, lead in (
+        ("no-go", "Blocking",
+         "These stop the workflow being used as it stands. Each names what "
+         "would lift it."),
+        ("conditions", "Conditions to meet",
+         "None of these block. Each is something to do, budget for or confirm "
+         "before delivery."),
+        ("unknown", "Unresolved",
+         "Not enough is known about these to say either way."),
+    ):
+        items = clr.by_verdict(verdict)
+        if not items:
+            continue
+        tone = _verdict_tone(verdict)
+        w(f"<h3>{_e(heading)}</h3>")
+        w(f"<p class='muted'>{_e(lead)}</p>")
+        for reasons, subjects, also in _group_determinations(items, verdict):
+            w(f"<div class='det {tone}'>")
+            w(f"<div class='subj'>{_e(_subjects(subjects))}</div>")
+            for reason in reasons:
+                w(f"<p>{_e(reason.text)}</p>")
+                if reason.remedy:
+                    w(f"<p class='lift'><b>What lifts it:</b> {_e(reason.remedy)}</p>")
+            for reason in also:
+                w(f"<p class='later'>Once that is resolved: {_e(reason.text)}</p>")
+                if reason.remedy:
+                    w(f"<p class='lift'><b>What lifts it:</b> {_e(reason.remedy)}</p>")
+            w("</div>")
+
+    cleared = clr.by_verdict("go")
+    if cleared:
+        w("<h3>Clear</h3>")
+        w("<p class='muted'>No condition in these licences is triggered by this "
+          "studio's circumstances.</p>")
+        w(_table(("Item", "Licence"),
+                 [f"<tr><td>{_e(d.subject)}</td><td>{_e(d.licence)}</td></tr>"
+                  for d in cleared]))
+
+
+def _group_determinations(items, verdict):
+    """Collapse determinations that turn on identical reasoning.
+
+    Four weights that all fail the same territory clause are one thing to fix,
+    and printing the clause four times buries that.
+    """
+    def split(det):
+        primary = [r for r in det.reasons if r.verdict == verdict]
+        also = [r for r in det.reasons if r.verdict not in (verdict, "go")]
+        return primary, also
+
+    buckets: dict[tuple, list[str]] = {}
+    for det in items:
+        primary, also = split(det)
+        buckets.setdefault(tuple((r.text, r.remedy) for r in primary + also),
+                           []).append(det.subject)
+    out = []
+    for det in items:
+        primary, also = split(det)
+        key = tuple((r.text, r.remedy) for r in primary + also)
+        if key in buckets:
+            out.append((primary, buckets.pop(key), also))
+    return out
+
+
+def _subjects(subjects: list[str]) -> str:
+    if len(subjects) <= 3:
+        return ", ".join(subjects)
+    return ", ".join(subjects[:3]) + f" and {len(subjects) - 3} more"
+
+
+def _stamp(clr: Any) -> str:
+    """The verdict, as the thing the eye lands on first."""
+    tone = _verdict_tone(clr.verdict)
+    counts = {v: len(clr.by_verdict(v)) for v in clearance.VERDICTS}
+    detail = ", ".join(f"{n} {v}" for v, n in counts.items() if n)
+    return ("<div class='stamp " + tone + "'>"
+            "<div class='lbl'>Determination</div>"
+            f"<div class='v'>{_e(clearance.VERDICT_LABELS[clr.verdict])}</div>"
+            f"<div class='who'>{_e(clr.profile.describe())}"
+            + (f"<br>{_e(detail)}" if detail else "") + "</div></div>")
+
+
+def _verdict_tone(verdict: str) -> str:
+    return {"no-go": "stop", "conditions": "warn", "go": "ok"}.get(verdict, "flat")
+
+
+def _licence_section(w, section, report: AuditReport) -> None:
     """What the licences say, grouped, with a source for each claim."""
     lic = report.licensing
-    w(_h2("1", "Licence summary", f"{len(lic.groups)} distinct"))
+    section("Licence summary", f"{len(lic.groups)} distinct")
     if not lic.groups:
         w("<p class='empty'>No models were found, so there is nothing to report.</p>")
         return
@@ -439,8 +578,8 @@ def _licence_section(w, report: AuditReport) -> None:
           + "</ul>")
 
 
-def _models_section(w, report: AuditReport) -> None:
-    w(_h2("2", "Models", f"{len(report.models)} referenced"))
+def _models_section(w, section, report: AuditReport) -> None:
+    section("Models", f"{len(report.models)} referenced")
     if not report.models:
         w("<p class='empty'>No model references found.</p>")
         return
@@ -496,8 +635,8 @@ def _models_section(w, report: AuditReport) -> None:
         w("</div>")
 
 
-def _prompts_section(w, report: AuditReport) -> None:
-    w(_h2("3", "Prompts", f"{len(report.prompts)} found"))
+def _prompts_section(w, section, report: AuditReport) -> None:
+    section("Prompts", f"{len(report.prompts)} found")
     if not report.prompts:
         w("<p class='empty'>No prompt text found.</p>")
     for polarity in ("positive", "negative", "both", "system", "unknown"):
@@ -537,8 +676,8 @@ def _prompts_section(w, report: AuditReport) -> None:
               f"<pre>{_e(note.text.strip()[:900])}</pre></div>")
 
 
-def _assets_section(w, report: AuditReport) -> None:
-    w(_h2("4", "Assets", f"{len(report.inputs)} in, {len(report.outputs)} out"))
+def _assets_section(w, section, report: AuditReport) -> None:
+    section("Assets", f"{len(report.inputs)} in, {len(report.outputs)} out")
     if report.inputs:
         rows = []
         for asset in report.inputs:
@@ -562,10 +701,10 @@ def _assets_section(w, report: AuditReport) -> None:
         w("</ul>")
 
 
-def _dependencies_section(w, report: AuditReport) -> None:
+def _dependencies_section(w, section, report: AuditReport) -> None:
     installable = [p for p in report.packs if p.identified]
-    w(_h2("5", "Node dependencies",
-          f"{len(report.core_node_types)} core &middot; {len(installable)} custom"))
+    section("Node dependencies",
+            f"{len(report.core_node_types)} core &middot; {len(installable)} custom")
 
     if not report.packs:
         w("<div class='block ok'><p>Core ComfyUI nodes only &mdash; the strongest "
@@ -607,9 +746,9 @@ def _dependencies_section(w, report: AuditReport) -> None:
         w("</ul>")
 
 
-def _automation_section(w, report: AuditReport) -> None:
+def _automation_section(w, section, report: AuditReport) -> None:
     auto = report.automation
-    w(_h2("6", "Automation vs human intervention", f"{auto.index}/100"))
+    section("Automation vs human intervention", f"{auto.index}/100")
     w(f"<div class='block {_auto_tone(auto.index)}'>"
       f"<div class='block-head'><span class='name'>{_e(auto.band)}</span>"
       f"<span class='tag'>index {auto.index}/100</span></div>"
@@ -640,9 +779,9 @@ def _automation_section(w, report: AuditReport) -> None:
         w("</ul>")
 
 
-def _risk_section(w, report: AuditReport) -> None:
+def _risk_section(w, section, report: AuditReport) -> None:
     risk = report.risk
-    w(_h2("7", "Operational risks", f"{len(risk.findings)} findings"))
+    section("Operational risks", f"{len(risk.findings)} findings")
     if not risk.findings:
         w("<div class='block ok'><p>No risks identified.</p></div>")
         return
@@ -710,6 +849,22 @@ def _colophon(w, report: AuditReport) -> None:
 def _h2(num: str, title: str, count: str = "") -> str:
     tail = f"<span class='count'>{_e(count)}</span>" if count else ""
     return (f"<h2><span class='num'>{_e(num)}</span>{_e(title)}{tail}</h2>")
+
+
+class _Sections:
+    """Numbers sections in the order they are written, not by hand.
+
+    The determination section exists only when a studio profile was supplied,
+    so any fixed numbering would leave a hole in every report without one.
+    """
+
+    def __init__(self, write):
+        self._write = write
+        self._n = 0
+
+    def __call__(self, title: str, count: str = "") -> None:
+        self._n += 1
+        self._write(_h2(str(self._n), title, count))
 
 
 def _composition(lic: Any) -> str:

@@ -89,7 +89,8 @@ def build_parser() -> argparse.ArgumentParser:
                          help="read the above from a JSON file instead, so a "
                               "facility states its circumstances once")
     audit.add_argument("--claude", nargs="?", const="full", default="",
-                       choices=["", "full", "identify", "clearance", "remediate"],
+                       choices=["", "full", "identify", "clearance", "remediate",
+                                "narrative"],
                        help="have Claude investigate the audit as well: identify models "
                             "the rules could not, review prompt text for trademark and "
                             "likeness risk, and propose commercially clear replacements")
@@ -349,6 +350,13 @@ def _print_summary(report: AuditReport) -> None:
     print(line, file=sys.stderr)
     print(f" {report.source.get('name', 'workflow')}", file=sys.stderr)
     print(line, file=sys.stderr)
+    clr = report.clearance
+    if clr.determined:
+        print(f" VERDICT              : {clearance.VERDICT_LABELS[clr.verdict].upper()}",
+              file=sys.stderr)
+        print(f"   for                : {clr.profile.describe()}", file=sys.stderr)
+        for blocker in clr.distinct_blockers()[:3]:
+            print(f"   blocking           : {blocker}", file=sys.stderr)
     print(f" Licences             : {report.licensing.headline}", file=sys.stderr)
     print(f" Operational risk     : {risk.score}/100 ({risk.band})", file=sys.stderr)
     print(f" Automation index     : {auto.index}/100 ({auto.band})", file=sys.stderr)

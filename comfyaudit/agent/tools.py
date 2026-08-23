@@ -396,15 +396,37 @@ def build_tools(report: AuditReport, collector: Collector,
             return f"No GitHub repository at {repo}."
         return _json(_facts_dict(facts))
 
+    @decorator
+    def read_determination() -> str:
+        """Read the go/no-go the rule engine reached, and its reasoning.
+
+        Each determination carries the licence terms that were applied, the
+        studio fact each was applied to, and what would lift it. Read this
+        before writing a narrative: the chain is the evidence, and the narrative
+        must not contradict it.
+
+        Returns a note instead when no studio profile was supplied, in which
+        case no determination exists and none should be invented.
+        """
+        note("read_determination()")
+        clr = report.clearance
+        if not clr.determined:
+            return _json({
+                "determined": False,
+                "why": "No studio profile was supplied, so no verdict was reached.",
+                "facts_that_would_settle_it": clr.missing_facts,
+            })
+        return _json(clr.as_dict())
+
     tools = [
         describe_workflow, list_models, get_prompts, list_findings,
-        list_custom_node_packs, search_licence_knowledge_base,
+        list_custom_node_packs, search_licence_knowledge_base, read_determination,
         list_models_available_locally,
         record_model_identification, record_content_risk,
         record_substitution, record_action,
     ]
     if resolver is not None and resolver.enabled:
-        tools[7:7] = [lookup_huggingface, lookup_civitai, lookup_github]
+        tools[8:8] = [lookup_huggingface, lookup_civitai, lookup_github]
     return tools
 
 

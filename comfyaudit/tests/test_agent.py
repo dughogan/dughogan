@@ -318,3 +318,28 @@ def test_the_model_is_told_its_licence_recall_may_be_stale(fake_api, monkeypatch
     system = FakeAPI.seen[0]["system"][0]["text"]
     assert "may be out of date" in system
     assert "hash lookup on Civitai is exact" in system
+
+
+def test_the_cli_offers_every_review_mode_the_agent_supports():
+    """The CLI lists modes literally so it need not import the agent at start-up.
+
+    That means the two can drift, and a mode the agent grew would simply be
+    unreachable from the command line without anyone noticing.
+    """
+    from comfyaudit.agent import reviewer
+    from comfyaudit.core import cli
+
+    parser = cli.build_parser()
+    action = next(a for a in parser._subparsers._group_actions[0].choices["audit"]._actions
+                  if "--claude" in getattr(a, "option_strings", []))
+    assert set(action.choices) - {""} == set(reviewer.MODES)
+
+
+def test_the_narrative_mode_is_told_not_to_invent_a_verdict():
+    """Its whole job is explaining a determination, never making one."""
+    from comfyaudit.agent import reviewer
+
+    prompt = reviewer.MODE_PROMPTS["narrative"]
+    assert "read_determination" in prompt
+    assert "do not invent" in prompt.lower()
+    assert "must not contradict" in prompt.lower()

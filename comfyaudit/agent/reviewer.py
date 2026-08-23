@@ -36,7 +36,7 @@ FALLBACK_BETA = "server-side-fallback-2026-07-01"
 #: Dynamic-filtering web search. Only the current model generation supports it.
 WEB_SEARCH_TOOL = {"type": "web_search_20260209", "name": "web_search", "max_uses": 8}
 
-MODES = ["full", "identify", "clearance", "remediate"]
+MODES = ["full", "identify", "clearance", "remediate", "narrative"]
 
 SYSTEM = """\
 You are auditing a ComfyUI workflow on behalf of a VFX facility that has to \
@@ -91,6 +91,27 @@ MODE_PROMPTS = {
         "workflow, checking what is already installed locally first, and record it with "
         "record_substitution. Then record the ordered steps with record_action, most "
         "important first."
+    ),
+    "narrative": (
+        "Write the go/no-go brief a supervisor or producer will actually read.\n\n"
+        "Start with read_determination. If a verdict was reached, that chain is "
+        "your evidence and your narrative must not contradict it: you are "
+        "explaining a determination, not making a new one. Check the reasoning "
+        "against the licence knowledge base and, where lookups are available, "
+        "against the source pages - if you find the engine has a term wrong, say "
+        "so plainly rather than writing around it.\n\n"
+        "If no profile was supplied, do not invent one. Explain what the licences "
+        "in this workflow turn on, and which facts about the facility would settle "
+        "it.\n\n"
+        "Write for someone deciding whether to put this on a show, not for a "
+        "lawyer. Lead with the answer. Say what blocks it and what that would "
+        "cost to resolve - a territory carve-out is not the same problem as a fee, "
+        "and a fee is not the same problem as an obligation to open-source. "
+        "Distinguish what is certain from what is a reading. Name files, licences "
+        "and rights holders; never write 'check your licences'.\n\n"
+        "Record any concrete step with record_action, most important first. Then "
+        "write the brief itself as your final message: plain prose, no headings, "
+        "no bullet lists, under 350 words."
     ),
     "full": (
         "Work through all three of these in order.\n\n"

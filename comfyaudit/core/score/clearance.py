@@ -209,6 +209,20 @@ class ClearanceResult:
     def by_verdict(self, verdict: str) -> list[Determination]:
         return [d for d in self.determinations if d.verdict == verdict]
 
+    def distinct_blockers(self) -> list[str]:
+        """One line per distinct reason, not per affected file.
+
+        Four weights sharing a licence share its blocking clause, and listing it
+        four times hides how few things actually have to be resolved.
+        """
+        seen: dict[str, list[str]] = {}
+        for det in self.by_verdict("no-go"):
+            for reason in det.reasons:
+                if reason.verdict == "no-go":
+                    seen.setdefault(reason.text, []).append(det.subject)
+        return [f"{text} ({len(subjects)} file(s))" if len(subjects) > 1 else
+                f"{text} ({subjects[0]})" for text, subjects in seen.items()]
+
 
 def determine(models: Iterable[ModelRef],
               packs: Iterable[PackRef] = (),

@@ -422,7 +422,10 @@ class ComfyAuditClaudeReview:
                 "mode": (reviewer_mod.MODES, {"default": "full", "tooltip":
                     "full: all three. identify: name the unknown models. "
                     "clearance: review prompt text for naming risk. "
-                    "remediate: propose replacements and an ordered plan."}),
+                    "remediate: propose replacements and an ordered plan. "
+                    "narrative: write the go/no-go brief a producer reads, "
+                    "explaining the determination in plain prose (needs a "
+                    "Studio Profile to have something to explain)."}),
                 "model": (reviewer_mod.MODELS, {"default": reviewer_mod.DEFAULT_MODEL}),
                 "effort": (reviewer_mod.EFFORTS, {"default": "high", "tooltip":
                     "How hard the model works. Lower is cheaper and faster."}),

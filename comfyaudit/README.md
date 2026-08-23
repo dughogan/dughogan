@@ -7,14 +7,21 @@ from, the prompts, the external assets, the custom node packs and their versions
 how much of it a human has to babysit, and what would stop it running on another
 machine.
 
-It reports. It doesn't rule. Whether a non-commercial model is a problem depends
-on the job, the client, the territory and whatever agreements you already hold —
-none of which a workflow file knows about. So ComfyAudit lays out the terms with
-a source for every claim, and the person who makes that call gets something to
-make it from.
+Then, if you tell it about your facility, it works out what all of that means
+for **you** — go, no-go, or go-with-conditions, with the reasoning shown.
+
+That second part matters because a licence grants rights to *someone, somewhere,
+doing something*. MiniMax H3 is a no in London and a yes in Toronto: the licence
+excludes the United Kingdom by territory and says nothing about Canada. Same
+file, same terms, opposite answers. So ComfyAudit doesn't ship an opinion about
+what your studio can live with — it takes your circumstances as input and applies
+the published terms to them.
+
+Give it no profile and it stays descriptive: here are the terms, here's a source
+for every claim, here are the facts that would settle it.
 
 Built for the moment a workflow arrives from an artist, a vendor or a Discord
-link, and someone has to write down what's in it.
+link, and someone has to decide whether it can go on a show.
 
 ---
 
@@ -54,10 +61,56 @@ prompt and the UI workflow. Nothing to configure.
 
 | Node | What it does |
 |---|---|
+| **Studio Profile** | Where you are, what you earn, what ships. Set it once, keep it in a template. Feeding it to the audit is what turns a description of the licences into a verdict. |
 | **Audit This Workflow** | Documents the running graph. Outputs the report as Markdown and JSON, plus the risk score, automation index and a one-line licence summary as separate sockets. |
 | **Claude Review** | Optional second pass for the judgement calls — see below. |
 | **Audit Gate** | Stops the queue on conditions **you** choose. Nothing is enforced by default. |
 | **Save Audit Report** | Writes the report into your output folder as HTML, Markdown or JSON. |
+
+## Go / no-go
+
+Four facts decide most licence questions, and none of them are in the workflow
+file:
+
+| Fact | Why it decides things |
+|---|---|
+| **Territory** | Where you render and deploy. MiniMax H3 excludes the US, EU, UK and South Korea outright; Hunyuan and Kolors carve out the EU, UK and Korea. No fee lifts a territory exclusion. |
+| **Revenue band** | Free use is capped at $1M by Stability, $20M by MiniMax, and at user counts by Llama and Kolors. Above the cap you need an agreement, which is a budget line, not a blocker. |
+| **What ships** | Copyleft only reaches your own code when something is distributed. An AGPL node pack is a non-issue for frame delivery and a serious problem for a product. |
+| **Output use** | Several licences forbid training other models on the outputs, worldwide, with no fee that lifts it. |
+
+Set them and every model, copyleft node pack and hosted API node gets a
+determination with its chain of reasoning attached:
+
+```
+NOT USABLE AS-IS — the United States · over $100M annual revenue ·
+finished frames to a client · real performers involved
+
+Blocking
+  minimax_h3_ref2va…, minimax_h3_video_vae…, and 2 more
+    MiniMax Community License does not grant rights in the United States,
+    which is where this studio operates.
+      What lifts it: run it in a territory the grant covers, or negotiate
+      directly with the rights holder.
+    Once that is resolved: free use is capped at USD $20M annual revenue.
+      What lifts it: negotiate a separate agreement with MiniMax.
+```
+
+The same workflow, assessed for a small Toronto facility, comes back
+**usable with conditions** — the territory clause doesn't reach Canada and the
+revenue cap isn't met.
+
+Nothing here is a policy the tool invented. Every determination names the term it
+applied, the fact it applied it to, and what would lift it, so you can check the
+reasoning instead of trusting the label. It is a reading of published terms, not
+legal advice.
+
+**Performer likeness is judged separately**, because it isn't a licence question
+at all. No model licence grants rights in a face. If you tell it real performers
+are involved and the graph does identity work, it says so — and it detects that
+from the node types, not just filenames, because the face swap in a real
+workflow is often done by a general video model and a segmenter with unrevealing
+names.
 
 ## What the report contains
 
@@ -227,9 +280,23 @@ when an upscaler turns out to be non-commercial.
 It *investigates* — reads the models, prompts, findings and packs through tools,
 checks the auditor's own knowledge base so its answers stay consistent, and looks
 models up on HuggingFace, Civitai and GitHub rather than recalling them. Modes:
-`identify`, `clearance` (prompt text: real people, trademarks, characters, living
-artists named as a style), `remediate`, or `full`. You can also just ask it
-something.
+
+| Mode | What it does |
+|---|---|
+| `identify` | Works out what the unnamed models actually are, and what their lineage inherits |
+| `clearance` | Reads the prompt text for real people, trademarks, characters, living artists named as a style |
+| `remediate` | Proposes specific replacements and an ordered plan |
+| `narrative` | Writes the go/no-go brief a supervisor reads — plain prose, leading with the answer |
+| `full` | The first three in order |
+
+You can also just ask it something.
+
+`narrative` is the one that turns a determination into something you can forward.
+It reads the chain the rule engine produced, checks it against the knowledge base
+and the source pages, and explains it — distinguishing a territory carve-out (no
+fee lifts it) from a revenue cap (a budget line) from an open-source obligation.
+It is explicitly told not to invent a verdict: with no Studio Profile it explains
+what the licences turn on and which facts would settle them.
 
 Everything it concludes is kept separate from the rule findings, labelled
 model-derived, and carries its own confidence.
@@ -249,6 +316,32 @@ python -m comfyaudit.core.cli audit workflow.json --models-dir /opt/ComfyUI/mode
 python -m comfyaudit.core.cli audit workflow.json --online --claude
 python -m comfyaudit.core.cli audit shots/ -o audits/ --fail-on critical
 python -m comfyaudit.core.cli info                                     # what's bundled
+```
+
+Supply the facility's circumstances and it reaches a verdict:
+
+```bash
+python -m comfyaudit.core.cli audit workflow.json \
+    --territory US --revenue over-100m --ships deliverable-only \
+    --likeness --studio "Example Post, Los Angeles"
+
+# or keep them in a file, since they describe the facility and not the workflow
+python -m comfyaudit.core.cli audit shots/ --profile studio.json -o audits/
+python -m comfyaudit.core.cli audit workflow.json --profile studio.json \
+    --claude narrative
+```
+
+`studio.json` is just the same fields:
+
+```json
+{
+  "territory": "US",
+  "revenue_band": "over-100m",
+  "ships": "deliverable-only",
+  "trains_models": false,
+  "likeness_involved": true,
+  "label": "Example Post, Los Angeles"
+}
 ```
 
 Reads both workflow formats — the UI graph from **Save**, the API format from
