@@ -44,6 +44,11 @@ TAG_ALIASES = {
 }
 
 
+def bundled_kb_path() -> str:
+    """Where the shipped licence knowledge base lives, for updating in place."""
+    return DEFAULT_KB
+
+
 @lru_cache(maxsize=1)
 def load_base_models() -> dict[str, Any]:
     """Base model -> licence identity, derived from Civitai's own table."""

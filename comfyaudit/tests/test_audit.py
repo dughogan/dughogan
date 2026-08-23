@@ -293,7 +293,7 @@ def test_markdown_report_covers_every_section(beauty):
     text = md_report.render(beauty)
     for heading in ("## Summary", "## 1. Licence summary", "## 2. Models",
                     "## 3. Prompts", "## 4. Assets", "## 5. Node dependencies",
-                    "## 6. Automation vs human intervention",
+                    "## 6. Where a human has to be",
                     "## 7. Operational risks"):
         assert heading in text
     assert "not legal advice" in text

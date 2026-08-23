@@ -59,11 +59,15 @@ def render(report: AuditReport) -> str:
     if clr.determined:
         outstanding = sum(clr.actions.values())
         w(f"| **Assessment** | {clearance.VERDICT_LABELS[clr.verdict]}"
-          + (f" - {outstanding} thing(s) to resolve" if outstanding else "")
+          + (f" - {outstanding} thing{'' if outstanding == 1 else 's'} to resolve"
+             if outstanding else "")
           + f", for {clr.profile.describe()} |")
     w(f"| **Licences** | {lic.headline or 'No models found.'} |")
     w(f"| **Operational risk** | {report.risk.score}/100 - {report.risk.band} |")
-    w(f"| **Automation index** | {report.automation.index}/100 - {report.automation.band} |")
+    auto = report.automation
+    w(f"| **Human touchpoints** | {len(auto.per_run_touchpoints)} per run"
+      + (f", {len(auto.setup_touchpoints)} at setup" if auto.setup_touchpoints else "")
+      + f" - {auto.band.lower()} |")
     w(f"| **Graph** | {src.get('nodes_total', 0)} nodes "
       f"({src.get('nodes_disabled', 0)} disabled), {len(report.models)} models, "
       f"{len(report.packs)} custom packs |")
@@ -94,6 +98,10 @@ def render(report: AuditReport) -> str:
           "they suit your job - that depends on the client, the territory and any "
           "agreements you already hold.*")
     w("")
+
+    if report.freshness.state in ("old", "unknown"):
+        w(f"> **Check this at source.** {report.freshness.message}")
+        w("")
 
     counts = report.risk.counts()
     if counts:
@@ -251,7 +259,7 @@ def render(report: AuditReport) -> str:
         w("")
 
     # -- automation --------------------------------------------------------
-    section("Automation vs human intervention")
+    section("Where a human has to be")
     auto = report.automation
     w(f"**{auto.index}/100 - {auto.band}.** {auto.band_detail}")
     w("")
@@ -637,6 +645,8 @@ def _appendix(w, report: AuditReport) -> None:
     w("")
 
     w("**Reading this report**")
+    w("")
+    w(report.freshness.message)
     w("")
     w("Licence findings are derived by matching model filenames against a curated "
       "knowledge base. Filenames are not authoritative - anyone can rename a weight - "

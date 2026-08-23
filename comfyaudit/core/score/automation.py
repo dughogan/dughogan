@@ -10,9 +10,16 @@ have to act.
 * ``review``     - a human has to look at the result to decide anything
 * ``per-output`` - a human has to save or pick the keeper
 
-Only ``per-run``, ``review`` and ``per-output`` drive the headline index, because
-setup cost is paid once and then amortised.  Setup is reported separately rather
-than folded in, so a workflow is not punished forever for needing an install.
+Only ``per-run``, ``review`` and ``per-output`` drive the index, because setup
+cost is paid once and then amortised.  Setup is reported separately rather than
+folded in, so a workflow is not punished forever for needing an install.
+
+The index itself is deliberately not the headline any more.  A supervisor
+usually knows whether their own workflow needs babysitting before they run any
+tool on it, and a number out of a hundred is not something anyone acts on.  What
+is worth reading is the list underneath: *which* points need a person, and
+whether each one could be wired up instead.  So the reports lead with the
+touchpoint count and keep the index as context.
 """
 
 from __future__ import annotations

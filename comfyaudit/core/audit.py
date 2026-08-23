@@ -12,6 +12,7 @@ from .extract import assets as assets_extract
 from .extract import models as models_extract
 from .extract import packs as packs_extract
 from .extract import prompts as prompts_extract
+from .knowledge import freshness as freshness_mod
 from .knowledge import licences as licences_mod
 from .records import AssetRef, ModelRef, PackRef, PromptRef, to_jsonable
 from .resolve import local as local_mod
@@ -68,6 +69,8 @@ class AuditReport:
         default_factory=registry_mod.RegistryCheck)
     prompt_dependencies: dict[str, Any] = field(default_factory=dict)
     knowledge: dict[str, Any] = field(default_factory=dict)
+    freshness: freshness_mod.Freshness = field(
+        default_factory=freshness_mod.Freshness)
     diagnostics: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -235,9 +238,12 @@ def run_workflow(wf: graph.Workflow, opts: AuditOptions) -> AuditReport:
         "groups": [g.title for g in wf.groups if g.title],
         "frontend_version": wf.extra.get("frontend") or "",
     }
+    licence_meta = licences_mod.kb_metadata(opts.licences_path or None)
+    report.freshness = freshness_mod.assess(licence_meta)
     report.knowledge = {
         "comfyui_catalog_version": catalog.comfyui_version(),
-        "licences": licences_mod.kb_metadata(opts.licences_path or None),
+        "licences": licence_meta,
+        "freshness": report.freshness.as_dict(),
         "node_packs_indexed": len(catalog.node_packs()["packs"]),
         "base_models": len(licences_mod.load_base_models().get("base_models", {})),
     }

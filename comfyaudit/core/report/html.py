@@ -414,16 +414,18 @@ def _body(report: AuditReport) -> str:
                 w(f"<p>{_e(paragraph)}</p>")
             w("</div>")
 
+    if report.freshness.state in ("old", "unknown"):
+        w(f"<p class='verdict-note warn'><span><strong>Check this at source.</strong> "
+          f"{_e(report.freshness.message)}</span></p>")
+
     # -- readouts ----------------------------------------------------------
     counts = risk.counts()
     w("<div class='readouts'>")
     w(_readout("Operational risk", f"{risk.score}<small>/100</small>", risk.band,
                _risk_tone(risk.score), risk.score))
-    w(_readout("Automation", f"{auto.index}<small>/100</small>", auto.band,
-               _auto_tone(auto.index), auto.index))
-    w(_readout("Human cost per run", f"{auto.per_run_cost:.1f}",
-               f"{len(auto.per_run_touchpoints)} recurring touchpoints, "
-               f"{len(auto.setup_touchpoints)} one-off",
+    w(_readout("Human touchpoints", str(len(auto.per_run_touchpoints)),
+               f"per run, plus {len(auto.setup_touchpoints)} one-off at setup"
+               if auto.setup_touchpoints else "per run",
                _auto_tone(auto.index)))
     w(_readout("Findings", str(sum(counts.values())),
                ", ".join(f"{counts[s]} {s}" for s in
@@ -867,7 +869,7 @@ def _dependencies_section(w, section, report: AuditReport) -> None:
 
 def _automation_section(w, section, report: AuditReport) -> None:
     auto = report.automation
-    section("Automation vs human intervention", f"{auto.index}/100")
+    section("Where a human has to be", f"{len(auto.per_run_touchpoints)} per run")
     w(f"<div class='block {_auto_tone(auto.index)}'>"
       f"<div class='block-head'><span class='name'>{_e(auto.band)}</span>"
       f"<span class='tag'>index {auto.index}/100</span></div>"

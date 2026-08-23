@@ -9,6 +9,8 @@ import sys
 from typing import Any
 
 from . import __version__, catalog, graph
+from .knowledge import freshness
+from .knowledge import licences as licences_mod
 from .audit import AuditOptions, AuditReport, run
 from .report import markdown as md_report
 from .records import Finding
@@ -117,6 +119,21 @@ def build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("info", help="show what the bundled knowledge base contains")
 
+    update = sub.add_parser(
+        "update-knowledge",
+        help="fetch a newer licence knowledge base",
+        description="Licences move - Stability relicensed SD3 mid-flight, Black "
+                    "Forest Labs revised the FLUX dev terms - so the bundled "
+                    "knowledge has a shelf life. This replaces it, keeping the "
+                    "old file alongside and printing what changed.")
+    update.add_argument("--source", default=freshness.DEFAULT_SOURCE,
+                        help="where to fetch from; defaults to the project repo")
+    update.add_argument("--to", default="", metavar="PATH",
+                        help="write here instead of over the bundled file, for a "
+                             "facility that keeps its own copy")
+    update.add_argument("--dry-run", action="store_true",
+                        help="show what would change without writing anything")
+
     # -- registry ----------------------------------------------------------
     reg = sub.add_parser(
         "registry",
@@ -179,6 +196,8 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_models(args)
     if args.command == "registry":
         return _cmd_registry(args)
+    if args.command == "update-knowledge":
+        return _cmd_update_knowledge(args)
     return _cmd_audit(args)
 
 
@@ -420,9 +439,51 @@ def _registry_remove(args) -> int:
     return 0
 
 
-def _cmd_info() -> int:
-    from .knowledge import licences as licences_mod
+def _cmd_update_knowledge(args) -> int:
+    """Replace the licence knowledge base, showing what moved."""
+    current_path = args.to or licences_mod.bundled_kb_path()
+    try:
+        current = licences_mod.load_kb(current_path if os.path.isfile(current_path)
+                                       else None)
+    except (OSError, ValueError):
+        current = {"licences": {}, "models": []}
 
+    print(f"fetching {args.source}", file=sys.stderr)
+    try:
+        fetched = freshness.fetch(args.source)
+    except Exception as exc:  # noqa: BLE001 - the reason matters more than the type
+        print(f"could not fetch a knowledge base: {exc}", file=sys.stderr)
+        return 1
+
+    diff = freshness.compare(current, fetched)
+    print(f"{diff['from_version'] or 'unknown'} -> {diff['to_version'] or 'unknown'}")
+    if diff["added"]:
+        print(f"  added   : {', '.join(diff['added'])}")
+    if diff["removed"]:
+        print(f"  removed : {', '.join(diff['removed'])}")
+    for change in diff["changed"]:
+        print(f"  changed : {change['name']}")
+        for field in change["fields"]:
+            print(f"              {field}: {change['was'][field]!r} -> "
+                  f"{change['now'][field]!r}")
+    if diff["model_rules"]:
+        print(f"  model rules: {diff['model_rules']:+d}")
+    if not (diff["added"] or diff["removed"] or diff["changed"]
+            or diff["model_rules"]):
+        print("  no substantive changes")
+
+    if args.dry_run:
+        print("\ndry run - nothing written")
+        return 0
+
+    written = freshness.install(fetched, current_path)
+    print(f"\nwrote {written}")
+    if os.path.isfile(written + ".previous"):
+        print(f"previous version kept at {written}.previous")
+    return 0
+
+
+def _cmd_info() -> int:
     packs = catalog.node_packs()
     meta = licences_mod.kb_metadata()
     print(f"comfyaudit {__version__}")
@@ -498,7 +559,8 @@ def _print_summary(report: AuditReport) -> None:
             print(f"   has to change      : {blocker}", file=sys.stderr)
     print(f" Licences             : {report.licensing.headline}", file=sys.stderr)
     print(f" Operational risk     : {risk.score}/100 ({risk.band})", file=sys.stderr)
-    print(f" Automation index     : {auto.index}/100 ({auto.band})", file=sys.stderr)
+    print(f" Human touchpoints    : {len(auto.per_run_touchpoints)} per run, "
+          f"{len(auto.setup_touchpoints)} at setup ({auto.band})", file=sys.stderr)
     print(f" Models / packs       : {len(report.models)} / {len(report.packs)}", file=sys.stderr)
     if counts:
         parts = [f"{counts[s]} {s}" for s in SEVERITY_ORDER if counts.get(s)]
