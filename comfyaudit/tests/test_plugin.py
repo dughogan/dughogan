@@ -604,3 +604,56 @@ def test_the_overlay_only_reads_summary_keys_the_route_sends(comfy):
 
     assert read, "the overlay reads nothing from the summary - has it moved?"
     assert read <= sent, f"overlay reads keys the route never sends: {sorted(read - sent)}"
+
+
+# --------------------------------------------------------------------------
+# The studio profile, and the determination it makes possible
+# --------------------------------------------------------------------------
+
+
+def test_no_profile_means_no_determination(comfy):
+    from comfyaudit.nodes.audit_nodes import run_audit
+
+    report = run_audit(WORKFLOW, online=False)
+    assert report.clearance.determined is False
+    assert report.clearance.verdict == "unknown"
+    # It should still say what would settle it, rather than going quiet.
+    assert report.clearance.missing_facts
+
+
+def test_the_profile_node_maps_its_widgets_onto_engine_keys(comfy):
+    from comfyaudit.nodes.audit_nodes import ComfyAuditStudioProfile
+
+    profile = ComfyAuditStudioProfile().build(
+        territory="United Kingdom", annual_revenue="$10M - $20M",
+        what_ships="software containing this workflow",
+        real_performers=True, studio_name="Example Post")[0]
+    assert (profile.territory, profile.revenue_band, profile.ships) == (
+        "GB", "10m-20m", "software")
+    assert profile.likeness_involved is True
+    assert profile.is_set
+
+
+def test_every_profile_widget_choice_is_a_key_the_engine_knows(comfy):
+    """The canvas shows English; the engine wants keys. Guard the mapping."""
+    from comfyaudit.core.score import clearance
+    from comfyaudit.nodes import audit_nodes as n
+
+    assert set(n.TERRITORY_CHOICES_MAP.values()) - {""} <= set(clearance.TERRITORIES)
+    assert set(n.REVENUE_CHOICES_MAP.values()) <= set(clearance.REVENUE_BANDS)
+    assert set(n.SHIP_CHOICES_MAP.values()) <= set(clearance.SHIPS)
+
+
+def test_a_stricter_profile_is_never_given_a_kinder_verdict(comfy):
+    """The whole point: a licence grants rights to someone, somewhere."""
+    from comfyaudit.core.score.clearance import VERDICT_RANK, StudioProfile
+    from comfyaudit.nodes.audit_nodes import run_audit
+
+    def verdict(**profile):
+        return run_audit(WORKFLOW, online=False,
+                         profile=StudioProfile.from_dict(profile)).clearance
+
+    strict = verdict(territory="US", revenue_band="over-100m", ships="service")
+    lenient = verdict(territory="CA", revenue_band="under-1m", ships="internal-only")
+    assert strict.determined and lenient.determined
+    assert VERDICT_RANK[strict.verdict] <= VERDICT_RANK[lenient.verdict]

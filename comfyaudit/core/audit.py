@@ -18,6 +18,7 @@ from .resolve import local as local_mod
 from .resolve.http import Credentials, HttpClient
 from .resolve.resolver import ALL_SOURCES, Resolver
 from .score import automation as automation_mod
+from .score import clearance as clearance_mod
 from .score import licensing as licensing_mod
 from .score import risk as risk_mod
 
@@ -35,6 +36,10 @@ class AuditOptions:
     github_token: str = ""
     hash_models: bool = True
     cache_ttl: int | None = None
+    #: The facility's own circumstances. Without one, the report describes the
+    #: licence terms and stops there; with one, it also works out what they mean
+    #: for this studio.
+    profile: clearance_mod.StudioProfile | None = None
 
 
 @dataclass
@@ -53,6 +58,8 @@ class AuditReport:
     risk: risk_mod.RiskScore = field(default_factory=risk_mod.RiskScore)
     licensing: licensing_mod.LicenceSummary = field(
         default_factory=licensing_mod.LicenceSummary)
+    clearance: clearance_mod.ClearanceResult = field(
+        default_factory=clearance_mod.ClearanceResult)
     prompt_dependencies: dict[str, Any] = field(default_factory=dict)
     knowledge: dict[str, Any] = field(default_factory=dict)
     diagnostics: dict[str, Any] = field(default_factory=dict)
@@ -65,12 +72,15 @@ class AuditReport:
             "summary": {
                 "licences": self.licensing.headline,
                 "licence_counts": self.licensing.counts,
+                "verdict": self.clearance.verdict if self.clearance.determined else "",
+                "verdict_headline": self.clearance.headline,
                 "risk_score": self.risk.score,
                 "risk_band": self.risk.band,
                 "automation_index": self.automation.index,
                 "automation_band": self.automation.band,
             },
             "licensing": self.licensing.as_dict(),
+            "clearance": self.clearance.as_dict(),
             "models": to_jsonable(self.models),
             "prompts": to_jsonable(self.prompts),
             "notes": to_jsonable(self.notes),
@@ -183,6 +193,9 @@ def run_workflow(wf: graph.Workflow, opts: AuditOptions) -> AuditReport:
         missing_models=report.missing_models,
     )
     report.licensing = licensing_mod.summarise(models, api_types)
+    report.clearance = clearance_mod.determine(
+        models, packs=packs, profile=opts.profile, api_node_types=api_types,
+        node_types=[n.type for n in wf.active()])
     report.risk = risk_mod.assess(
         wf, models=models, packs=packs, prompts=prompts, assets=inputs,
         outputs=outputs, api_node_types=api_types,

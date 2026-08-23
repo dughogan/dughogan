@@ -25,6 +25,7 @@ from ..core.report import markdown as md_report
 from ..core.report import review as review_section
 from ..core.resolve.http import Credentials, HttpClient
 from ..core.resolve.resolver import ALL_SOURCES, Resolver
+from ..core.score import clearance as clearance_mod
 from ..server import live
 
 SEVERITIES = ["critical", "high", "medium", "low", "info"]
@@ -66,7 +67,9 @@ def parse_sources(value: str) -> tuple[str, ...]:
 
 def run_audit(workflow_doc: dict[str, Any], *, online: bool = False,
               check_local_models: bool = True, licences_path: str = "",
-              sources: str = "", hash_models: bool = False) -> audit_mod.AuditReport:
+              sources: str = "", hash_models: bool = False,
+              profile: clearance_mod.StudioProfile | None = None,
+              ) -> audit_mod.AuditReport:
     """Audit a workflow document using whatever the live ComfyUI can tell us."""
     live.install()
     wf = graph_mod.from_dict(workflow_doc)
@@ -75,6 +78,7 @@ def run_audit(workflow_doc: dict[str, Any], *, online: bool = False,
         online=online,
         sources=parse_sources(sources),
         licences_path=licences_path.strip(),
+        profile=profile,
         # Hashing multi-gigabyte weights mid-queue is rude, so it is opt-in -
         # but it is also the only way to identify a renamed checkpoint.
         hash_models=hash_models,
@@ -185,6 +189,107 @@ class _RiskGraphStub:
 # --------------------------------------------------------------------------
 
 
+
+# The profile widgets read as English on the canvas; the engine wants keys.
+TERRITORY_CHOICES_MAP = {
+    "not set": "",
+    "United States": "US",
+    "European Union": "EU",
+    "United Kingdom": "GB",
+    "South Korea": "KR",
+    "Canada": "CA",
+    "Australia": "AU",
+    "Japan": "JP",
+    "China": "CN",
+    "India": "IN",
+    "elsewhere": "OTHER",
+}
+TERRITORY_CHOICES = list(TERRITORY_CHOICES_MAP)
+
+REVENUE_CHOICES_MAP = {
+    "not set": "unknown",
+    "under $1M": "under-1m",
+    "$1M - $10M": "1m-10m",
+    "$10M - $20M": "10m-20m",
+    "$20M - $100M": "20m-100m",
+    "over $100M": "over-100m",
+}
+REVENUE_CHOICES = list(REVENUE_CHOICES_MAP)
+
+SHIP_CHOICES_MAP = {
+    "not set": "unknown",
+    "finished frames to a client": "deliverable-only",
+    "nothing leaves the building": "internal-only",
+    "software containing this workflow": "software",
+    "a network service": "service",
+}
+SHIP_CHOICES = list(SHIP_CHOICES_MAP)
+
+
+class ComfyAuditStudioProfile:
+    """The facts about a facility that licence terms actually turn on.
+
+    A licence grants rights to someone, somewhere, doing something. Without
+    knowing which someone, "can we use this?" has no answer - so this node is
+    what turns a description of the terms into a determination. Set it once and
+    keep it in a template; it is a property of the facility, not the workflow.
+    """
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "territory": (TERRITORY_CHOICES, {"default": TERRITORY_CHOICES[0],
+                    "tooltip": "Where the work is rendered and deployed. Several "
+                    "open-weight licences exclude regions by name - MiniMax H3 "
+                    "excludes the US, EU, UK and South Korea outright - so this "
+                    "is often the fact that decides everything."}),
+                "annual_revenue": (REVENUE_CHOICES, {"default": REVENUE_CHOICES[0],
+                    "tooltip": "Total company revenue, not AI-derived revenue. "
+                    "Free use is capped at $1M by Stability, $20M by MiniMax and "
+                    "$100M-equivalents elsewhere; above the cap a separate "
+                    "agreement is needed."}),
+                "what_ships": (SHIP_CHOICES, {"default": SHIP_CHOICES[0],
+                    "tooltip": "What leaves the building. Copyleft licences only "
+                    "reach your own code when something is distributed, so this "
+                    "decides whether an AGPL node pack is a problem or a "
+                    "non-issue."}),
+            },
+            "optional": {
+                "outputs_train_models": ("BOOLEAN", {"default": False, "tooltip":
+                    "Outputs are used to train other models. Several licences "
+                    "forbid this outright and worldwide, with no fee that lifts it."}),
+                "real_performers": ("BOOLEAN", {"default": False, "tooltip":
+                    "Real people appear in the material. No model licence grants "
+                    "rights in a performer's face - that comes from their contract "
+                    "and, increasingly, their union agreement."}),
+                "studio_name": ("STRING", {"default": "", "tooltip":
+                    "A label for the report: a facility, a show or a client."}),
+            },
+        }
+
+    RETURN_TYPES = ("AUDIT_PROFILE",)
+    RETURN_NAMES = ("profile",)
+    OUTPUT_TOOLTIPS = ("Feed this into Audit This Workflow to get a determination.",)
+    FUNCTION = "build"
+    CATEGORY = "audit"
+    DESCRIPTION = ("Describe the facility, so the audit can work out what the "
+                   "licences mean for it. Without this the report lists the terms "
+                   "but reaches no verdict, because a verdict against an unknown "
+                   "studio would be a guess.")
+
+    def build(self, territory, annual_revenue, what_ships,
+              outputs_train_models=False, real_performers=False, studio_name=""):
+        return (clearance_mod.StudioProfile(
+            territory=TERRITORY_CHOICES_MAP[territory],
+            revenue_band=REVENUE_CHOICES_MAP[annual_revenue],
+            ships=SHIP_CHOICES_MAP[what_ships],
+            trains_models=bool(outputs_train_models),
+            likeness_involved=bool(real_performers),
+            label=studio_name.strip(),
+        ),)
+
+
 class ComfyAuditWorkflow:
     """Audit the workflow this node is running inside."""
 
@@ -214,6 +319,10 @@ class ComfyAuditWorkflow:
                     ".json or a PNG that ComfyUI rendered."}),
                 "licence_overrides": ("STRING", {"default": "", "tooltip":
                     "Path to a studio licence file that extends the bundled one."}),
+                "profile": ("AUDIT_PROFILE", {"tooltip":
+                    "A Studio Profile node. Supply one and the report reaches a "
+                    "go / no-go for that facility; leave it empty and the report "
+                    "describes the licence terms without judging them."}),
             },
             "hidden": {"prompt": "PROMPT", "extra_pnginfo": "EXTRA_PNGINFO"},
         }
@@ -256,13 +365,14 @@ class ComfyAuditWorkflow:
         return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
     def run(self, source, check_local_models, online_lookups, hash_models=False,
-            sources="", workflow_path="", licence_overrides="",
+            sources="", workflow_path="", licence_overrides="", profile=None,
             prompt=None, extra_pnginfo=None):
         doc = self._resolve(source, workflow_path, prompt, extra_pnginfo)
         report = run_audit(doc, online=online_lookups,
                            check_local_models=check_local_models,
                            licences_path=licence_overrides,
-                           sources=sources, hash_models=hash_models)
+                           sources=sources, hash_models=hash_models,
+                           profile=profile)
 
         markdown = md_report.render(report)
         payload = json.dumps(report.to_dict(), indent=2)
@@ -494,6 +604,7 @@ def _console_summary(report: audit_mod.AuditReport) -> str:
 
 
 NODE_CLASS_MAPPINGS = {
+    "ComfyAuditStudioProfile": ComfyAuditStudioProfile,
     "ComfyAuditWorkflow": ComfyAuditWorkflow,
     "ComfyAuditClaudeReview": ComfyAuditClaudeReview,
     "ComfyAuditGate": ComfyAuditGate,
@@ -501,6 +612,7 @@ NODE_CLASS_MAPPINGS = {
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
+    "ComfyAuditStudioProfile": "Studio Profile",
     "ComfyAuditWorkflow": "Audit This Workflow",
     "ComfyAuditClaudeReview": "Claude Review",
     "ComfyAuditGate": "Audit Gate",

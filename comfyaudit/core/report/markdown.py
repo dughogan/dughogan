@@ -9,7 +9,7 @@ from .. import __version__
 from ..audit import AuditReport
 from ..records import Finding, ModelRef
 from . import review as review_section
-from ..score import licensing
+from ..score import clearance, licensing
 
 SEVERITY_MARK = {"critical": "CRITICAL", "high": "HIGH", "medium": "MEDIUM",
                  "low": "LOW", "info": "INFO"}
@@ -17,9 +17,27 @@ SEVERITY_MARK = {"critical": "CRITICAL", "high": "HIGH", "medium": "MEDIUM",
 COMMERCIAL_MARK = {"yes": "Yes", "conditional": "Conditional", "no": "No", "unknown": "Unknown"}
 
 
+class _Sections:
+    """Hands out section numbers in the order sections are actually written.
+
+    The determination section only exists when a studio profile was given, so
+    hard-coded numbers would leave a gap in every report without one.
+    """
+
+    def __init__(self, write):
+        self._write = write
+        self._n = 0
+
+    def __call__(self, title: str) -> None:
+        self._n += 1
+        self._write(f"## {self._n}. {title}")
+        self._write("")
+
+
 def render(report: AuditReport) -> str:
     out: list[str] = []
     w = out.append
+    section = _Sections(w)
     src = report.source
 
     w(f"# ComfyUI workflow audit - {src.get('name', 'workflow')}")
@@ -30,10 +48,14 @@ def render(report: AuditReport) -> str:
 
     # -- verdict -----------------------------------------------------------
     lic = report.licensing
+    clr = report.clearance
     w("## Summary")
     w("")
     w("| | |")
     w("|---|---|")
+    if clr.determined:
+        w(f"| **Verdict** | **{clearance.VERDICT_LABELS[clr.verdict].upper()}** "
+          f"for {clr.profile.describe()} |")
     w(f"| **Licences** | {lic.headline or 'No models found.'} |")
     w(f"| **Operational risk** | {report.risk.score}/100 - {report.risk.band} |")
     w(f"| **Automation index** | {report.automation.index}/100 - {report.automation.band} |")
@@ -43,9 +65,18 @@ def render(report: AuditReport) -> str:
     w("")
     w(f"{report.risk.band_detail} {report.automation.band_detail}")
     w("")
-    w("*This report describes what the licences say. It does not decide whether "
-      "they suit your job - that depends on the client, the territory and any "
-      "agreements you already hold.*")
+    if clr.determined:
+        w(f"{clr.headline}")
+        w("")
+        w("*This determination applies the licence terms to the studio profile "
+          "given above, and nothing else. Change the profile and it changes. It "
+          "is not legal advice; it is a reading of published terms, with the "
+          "reasoning shown so it can be checked.*")
+    else:
+        w("*This report describes what the licences say. It does not decide whether "
+          "they suit your job - that depends on the client, the territory and any "
+          "agreements you already hold. Supply a studio profile to get a "
+          "determination.*")
     w("")
 
     counts = report.risk.counts()
@@ -57,12 +88,14 @@ def render(report: AuditReport) -> str:
 
     _headline_actions(w, report)
 
+    # -- determination -----------------------------------------------------
+    _clearance_section(w, section, report)
+
     # -- licence composition -----------------------------------------------
-    _licence_section(w, report)
+    _licence_section(w, section, report)
 
     # -- models ------------------------------------------------------------
-    w("## 2. Models")
-    w("")
+    section("Models")
     if not report.models:
         w("No model references were found in this workflow.")
         w("")
@@ -84,8 +117,7 @@ def render(report: AuditReport) -> str:
         _model_details(w, report.models)
 
     # -- prompts -----------------------------------------------------------
-    w("## 3. Prompts")
-    w("")
+    section("Prompts")
     if not report.prompts:
         w("No prompt text was found.")
         w("")
@@ -135,8 +167,7 @@ def render(report: AuditReport) -> str:
         w("")
 
     # -- assets ------------------------------------------------------------
-    w("## 4. Assets")
-    w("")
+    section("Assets")
     if report.inputs:
         w("**Inputs**")
         w("")
@@ -162,8 +193,7 @@ def render(report: AuditReport) -> str:
         w("")
 
     # -- dependencies ------------------------------------------------------
-    w("## 5. Node dependencies")
-    w("")
+    section("Node dependencies")
     w(f"Core ComfyUI node types used: **{len(report.core_node_types)}**"
       + (f" | Hosted API node types: **{len(report.api_node_types)}**" if report.api_node_types else ""))
     w("")
@@ -204,8 +234,7 @@ def render(report: AuditReport) -> str:
         w("")
 
     # -- automation --------------------------------------------------------
-    w("## 6. Automation vs human intervention")
-    w("")
+    section("Automation vs human intervention")
     auto = report.automation
     w(f"**{auto.index}/100 - {auto.band}.** {auto.band_detail}")
     w("")
@@ -240,8 +269,7 @@ def render(report: AuditReport) -> str:
         w("")
 
     # -- risks -------------------------------------------------------------
-    w("## 7. Operational risks")
-    w("")
+    section("Operational risks")
     if not report.risk.findings:
         w("No risks were identified.")
         w("")
@@ -284,11 +312,108 @@ def render(report: AuditReport) -> str:
 # --------------------------------------------------------------------------
 
 
-def _licence_section(w, report: AuditReport) -> None:
+def _clearance_section(w, section, report: AuditReport) -> None:
+    """What the licences mean for this particular studio.
+
+    Grouped by the reasoning rather than by file: four MiniMax weights that all
+    fail on the same territory clause are one finding, not four.
+    """
+    clr = report.clearance
+    if not clr.determined:
+        # Without a profile there is nothing to determine, and a section saying
+        # so would outrank the licence summary for no reason. The facts that
+        # would settle it are appended to that section instead.
+        return
+
+    section("Determination")
+    w(f"**{clearance.VERDICT_LABELS[clr.verdict].upper()}** - {clr.headline}")
+    w("")
+    w(f"*Assessed for: {clr.profile.describe()}*"
+      + (f" *({clr.profile.label})*" if clr.profile.label else ""))
+    w("")
+
+    for verdict, heading, lead in (
+        ("no-go", "Blocking", "These stop the workflow being used as it stands. "
+                              "Each names what would lift it."),
+        ("conditions", "Conditions to meet", "None of these block. Each is "
+                                             "something to do, budget for or confirm."),
+        ("unknown", "Unresolved", "Not enough is known to say either way."),
+    ):
+        items = clr.by_verdict(verdict)
+        if not items:
+            continue
+        w(f"### {heading}")
+        w("")
+        w(lead)
+        w("")
+        for reasons, subjects, also in _group(items, verdict):
+            w(_join_subjects(subjects))
+            w("")
+            for reason in reasons:
+                w(f"- {reason.text}")
+                if reason.remedy:
+                    w(f"  - *What lifts it:* {reason.remedy}")
+            for reason in also:
+                w(f"- *Also, once that is resolved:* {reason.text}")
+                if reason.remedy:
+                    w(f"  - *What lifts it:* {reason.remedy}")
+            w("")
+
+    cleared = clr.by_verdict("go")
+    if cleared:
+        w("### Clear")
+        w("")
+        w("No condition in these licences is triggered by this studio's "
+          "circumstances.")
+        w("")
+        for det in cleared:
+            w(f"- **{det.subject}** - {det.licence}")
+        w("")
+
+
+def _group(items, verdict):
+    """Collapse determinations that fail for identical reasons.
+
+    Reporting the same territory clause four times because four files share a
+    licence buries the one thing the reader has to act on.
+    """
+    def split(det):
+        primary = [r for r in det.reasons if r.verdict == verdict]
+        # Anything short of a clean pass still costs the reader something.
+        also = [r for r in det.reasons
+                if r.verdict not in (verdict, "go")]
+        return primary, also
+
+    buckets: dict[tuple, list[str]] = {}
+    for det in items:
+        primary, also = split(det)
+        key = tuple((r.text, r.remedy) for r in primary + also)
+        buckets.setdefault(key, []).append(det.subject)
+
+    out = []
+    for det in items:
+        primary, also = split(det)
+        key = tuple((r.text, r.remedy) for r in primary + also)
+        if key in buckets:
+            out.append((primary, buckets.pop(key), also))
+    return out
+
+
+def _join_subjects(subjects: list[str]) -> str:
+    """Filenames read as code; a heading like 'Performer likeness' does not."""
+    def mark(name: str) -> str:
+        return f"`{name}`" if ("." in name or "/" in name) else name
+
+    if len(subjects) <= 3:
+        return "**" + ", ".join(mark(s) for s in subjects) + "**"
+    return ("**" + ", ".join(mark(s) for s in subjects[:3])
+            + f" and {len(subjects) - 3} more**")
+
+
+def _licence_section(w, section, report: AuditReport) -> None:
     """What the licences in this workflow say, grouped and sourced."""
     lic = report.licensing
-    w("## 1. Licence summary")
-    w("")
+    section("Licence summary")
     if not lic.groups:
         w("No models were found, so there is nothing to report here.")
         w("")
@@ -340,6 +465,18 @@ def _licence_section(w, report: AuditReport) -> None:
           "loading local weights. Their terms come from that vendor's contract, "
           "which is not visible in the workflow: "
           + ", ".join(f"`{t}`" for t in lic.hosted_api_types))
+        w("")
+
+    facts = report.clearance.missing_facts
+    if facts and not report.clearance.determined:
+        w("### What would turn this into an answer")
+        w("")
+        w("Whether these terms suit a given job depends on facts about the studio "
+          "that a workflow file cannot contain. Supply them and this report will "
+          "say go, no-go, or go-with-conditions, and show its reasoning:")
+        w("")
+        for fact in facts:
+            w(f"- {fact}")
         w("")
 
 

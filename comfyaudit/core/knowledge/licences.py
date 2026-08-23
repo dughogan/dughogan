@@ -235,6 +235,7 @@ class LicenceMatcher:
             matched_on=matched_on,
             confidence=confidence,
             summary=terms.get("summary", ""),
+            conditions=dict(terms.get("conditions", {})),
         )
 
     def _unmatched(self, ref: ModelRef) -> LicenseInfo:

@@ -12,6 +12,7 @@ from . import __version__, catalog, graph
 from .audit import AuditOptions, AuditReport, run
 from .report import markdown as md_report
 from .records import Finding
+from .score import clearance
 
 SEVERITY_ORDER = ["critical", "high", "medium", "low", "info"]
 
@@ -57,6 +58,36 @@ def build_parser() -> argparse.ArgumentParser:
                        help="exit non-zero if a finding at this severity or worse is present, "
                             "for use as a pipeline gate")
     audit.add_argument("--quiet", action="store_true", help="suppress the console summary")
+
+    # -- the studio's own facts, without which no verdict is possible --------
+    profile = audit.add_argument_group(
+        "studio profile",
+        "Facts about the facility. Licence terms turn on these, so supplying them "
+        "is what turns a description of the terms into a go / no-go. Omit them "
+        "and the report describes the terms and stops there.")
+    profile.add_argument("--territory", default="", metavar="CODE",
+                         choices=[""] + sorted(clearance.TERRITORIES),
+                         help="where the work is rendered and deployed; several "
+                              "licences exclude regions by name")
+    profile.add_argument("--revenue", default="unknown", metavar="BAND",
+                         choices=sorted(clearance.REVENUE_BANDS),
+                         help="annual company revenue band; free use is capped by "
+                              "revenue under several licences")
+    profile.add_argument("--ships", default="unknown", metavar="WHAT",
+                         choices=sorted(clearance.SHIPS),
+                         help="what leaves the building; decides whether copyleft "
+                              "reaches your own code")
+    profile.add_argument("--trains-models", action="store_true",
+                         help="outputs are used to train other models, which "
+                              "several licences forbid outright")
+    profile.add_argument("--likeness", action="store_true",
+                         help="real performers are involved, which is a consent "
+                              "question no model licence answers")
+    profile.add_argument("--studio", default="", metavar="NAME",
+                         help="a label for the report - a facility, show or client")
+    profile.add_argument("--profile", default="", metavar="PATH",
+                         help="read the above from a JSON file instead, so a "
+                              "facility states its circumstances once")
     audit.add_argument("--claude", nargs="?", const="full", default="",
                        choices=["", "full", "identify", "clearance", "remediate"],
                        help="have Claude investigate the audit as well: identify models "
@@ -114,6 +145,7 @@ def _cmd_audit(args: argparse.Namespace) -> int:
         civitai_token=args.civitai_token,
         github_token=args.github_token,
         hash_models=not args.no_hash,
+        profile=_studio_profile(args),
     )
 
     paths = _expand(args.workflows)
@@ -278,6 +310,23 @@ def _cmd_info() -> int:
 
 
 # --------------------------------------------------------------------------
+
+
+
+def _studio_profile(args) -> clearance.StudioProfile | None:
+    """Build the profile from flags, or from the file that stands in for them."""
+    if getattr(args, "profile", ""):
+        with open(args.profile, "r", encoding="utf-8") as handle:
+            return clearance.StudioProfile.from_dict(json.load(handle))
+    built = clearance.StudioProfile(
+        territory=args.territory,
+        revenue_band=args.revenue,
+        ships=args.ships,
+        trains_models=args.trains_models,
+        likeness_involved=args.likeness,
+        label=args.studio,
+    )
+    return built if built.is_set else None
 
 
 def _expand(paths: list[str]) -> list[str]:

@@ -25,7 +25,8 @@
       "attribution_required": true,
       "restrictions": [],
       "url": "https://www.apache.org/licenses/LICENSE-2.0",
-      "summary": "Permissive. Commercial use, modification and redistribution allowed; keep the notice file and state changes."
+      "summary": "Permissive. Commercial use, modification and redistribution allowed; keep the notice file and state changes.",
+      "conditions": {}
     },
     "mit": {
       "name": "MIT License",
@@ -37,7 +38,8 @@
       "attribution_required": true,
       "restrictions": [],
       "url": "https://opensource.org/license/mit",
-      "summary": "Permissive. Commercial use allowed; retain the copyright notice."
+      "summary": "Permissive. Commercial use allowed; retain the copyright notice.",
+      "conditions": {}
     },
     "bsd-3-clause": {
       "name": "BSD 3-Clause License",
@@ -51,7 +53,8 @@
         "No use of the author's name to endorse derived products."
       ],
       "url": "https://opensource.org/license/bsd-3-clause",
-      "summary": "Permissive. Commercial use allowed with attribution and no endorsement claims."
+      "summary": "Permissive. Commercial use allowed with attribution and no endorsement claims.",
+      "conditions": {}
     },
     "cc-by-4.0": {
       "name": "Creative Commons Attribution 4.0",
@@ -65,7 +68,8 @@
         "Credit must be given to the creator."
       ],
       "url": "https://creativecommons.org/licenses/by/4.0/",
-      "summary": "Commercial use allowed provided you attribute the creator."
+      "summary": "Commercial use allowed provided you attribute the creator.",
+      "conditions": {}
     },
     "cc-by-nc-4.0": {
       "name": "Creative Commons Attribution-NonCommercial 4.0",
@@ -80,7 +84,10 @@
         "Commercial use requires a separate agreement with the rights holder."
       ],
       "url": "https://creativecommons.org/licenses/by-nc/4.0/",
-      "summary": "Blocks commercial use. Client work, advertising and paid delivery are all commercial."
+      "summary": "Blocks commercial use. Client work, advertising and paid delivery are all commercial.",
+      "conditions": {
+        "outputs_commercial": "no"
+      }
     },
     "cc-by-nc-sa-4.0": {
       "name": "Creative Commons Attribution-NonCommercial-ShareAlike 4.0",
@@ -95,7 +102,11 @@
         "Derivatives must be shared under the same licence."
       ],
       "url": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
-      "summary": "Blocks commercial use, and any derivative model must carry the same terms."
+      "summary": "Blocks commercial use, and any derivative model must carry the same terms.",
+      "conditions": {
+        "outputs_commercial": "no",
+        "copyleft_reach": "model-only"
+      }
     },
     "creativeml-openrail-m": {
       "name": "CreativeML Open RAIL-M",
@@ -110,7 +121,12 @@
         "Prohibited uses include generating content that harms minors, disinformation, and unlawful discrimination."
       ],
       "url": "https://huggingface.co/spaces/CompVis/stable-diffusion-license",
-      "summary": "Commercial use and commercial output are permitted; the use restrictions must be reproduced downstream."
+      "summary": "Commercial use and commercial output are permitted; the use restrictions must be reproduced downstream.",
+      "conditions": {
+        "prohibited_uses": [
+          "a use-restriction schedule travels with the weights and must be passed on"
+        ]
+      }
     },
     "creativeml-openrail-plus-plus-m": {
       "name": "CreativeML Open RAIL++-M",
@@ -125,7 +141,12 @@
         "Same prohibited-use list as Open RAIL-M."
       ],
       "url": "https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/blob/main/LICENSE.md",
-      "summary": "Commercial use permitted. Outputs are yours; the use restrictions must be passed downstream."
+      "summary": "Commercial use permitted. Outputs are yours; the use restrictions must be passed downstream.",
+      "conditions": {
+        "prohibited_uses": [
+          "a use-restriction schedule travels with the weights and must be passed on"
+        ]
+      }
     },
     "stability-community": {
       "name": "Stability AI Community License",
@@ -142,7 +163,13 @@
         "Attribution: derivative works must state 'Powered by Stability AI'."
       ],
       "url": "https://stability.ai/community-license-agreement",
-      "summary": "Free commercially below USD $1M annual company revenue; a paid enterprise licence above it. The threshold is measured on total company revenue, not AI revenue."
+      "summary": "Free commercially below USD $1M annual company revenue; a paid enterprise licence above it. The threshold is measured on total company revenue, not AI revenue.",
+      "conditions": {
+        "revenue_cap_usd": 1000000,
+        "revenue_basis": "total annual entity revenue, not AI-derived revenue",
+        "separate_licence_holder": "Stability AI",
+        "attribution_visible": "Powered by Stability AI"
+      }
     },
     "stability-nc-research": {
       "name": "Stability AI Non-Commercial Research Community License",
@@ -156,7 +183,12 @@
         "Research and non-commercial use only; commercial use needs a separate Stability licence."
       ],
       "url": "https://stability.ai/license",
-      "summary": "Research only. Any paid delivery needs a commercial licence from Stability."
+      "summary": "Research only. Any paid delivery needs a commercial licence from Stability.",
+      "conditions": {
+        "outputs_commercial": "no",
+        "commercial_licence_available": true,
+        "separate_licence_holder": "Stability AI"
+      }
     },
     "flux1-dev-nc": {
       "name": "FLUX.1 [dev] Non-Commercial License",
@@ -174,7 +206,12 @@
         "Content filtering measures are required for all use."
       ],
       "url": "https://bfl.ai/legal/non-commercial-license-terms",
-      "summary": "Non-commercial. Note that the restriction is written to cover the outputs, not only the weights."
+      "summary": "Non-commercial. Note that the restriction is written to cover the outputs, not only the weights.",
+      "conditions": {
+        "outputs_commercial": "no",
+        "commercial_licence_available": true,
+        "separate_licence_holder": "Black Forest Labs"
+      }
     },
     "tencent-hunyuan-community": {
       "name": "Tencent Hunyuan Community License",
@@ -190,7 +227,18 @@
         "Derivative works must carry 'Built with Tencent Hunyuan' attribution."
       ],
       "url": "https://github.com/Tencent-Hunyuan/HunyuanVideo/blob/main/LICENSE.txt",
-      "summary": "Commercial use allowed outside the EU, UK and South Korea. A UK or EU based facility is outside the granted territory."
+      "summary": "Commercial use allowed outside the EU, UK and South Korea. A UK or EU based facility is outside the granted territory.",
+      "conditions": {
+        "territory_excluded": [
+          "EU",
+          "GB",
+          "KR"
+        ],
+        "territory_note": "the licence grant excludes these territories outright",
+        "monthly_active_users_cap": 100000000,
+        "separate_licence_holder": "Tencent",
+        "no_competing_training": true
+      }
     },
     "ltx-community": {
       "name": "LTX Video Community License",
@@ -205,7 +253,12 @@
         "Attribution to Lightricks is required on derivatives."
       ],
       "url": "https://huggingface.co/Lightricks/LTX-Video/blob/main/License.txt",
-      "summary": "Community licence with thresholds rather than a plain open licence - read the version-specific terms before delivery."
+      "summary": "Community licence with thresholds rather than a plain open licence - read the version-specific terms before delivery.",
+      "conditions": {
+        "revenue_cap_usd": 10000000,
+        "revenue_basis": "annual entity revenue",
+        "separate_licence_holder": "Lightricks"
+      }
     },
     "insightface-nc": {
       "name": "InsightFace pretrained model terms (non-commercial)",
@@ -221,7 +274,12 @@
         "Anything trained on InsightFace embeddings inherits the non-commercial restriction."
       ],
       "url": "https://github.com/deepinsight/insightface",
-      "summary": "Non-commercial, and the restriction is inherited by any face model built on these embeddings - which is why it turns up in face-swap and identity workflows that look permissive from the outside."
+      "summary": "Non-commercial, and the restriction is inherited by any face model built on these embeddings - which is why it turns up in face-swap and identity workflows that look permissive from the outside.",
+      "conditions": {
+        "outputs_commercial": "no",
+        "commercial_licence_available": true,
+        "separate_licence_holder": "InsightFace"
+      }
     },
     "s-lab-1.0": {
       "name": "S-Lab License 1.0 (NTU)",
@@ -236,7 +294,10 @@
         "Redistribution and use for commercial purposes is not permitted without explicit authorisation."
       ],
       "url": "https://github.com/sczhou/CodeFormer/blob/master/LICENSE",
-      "summary": "Non-commercial. Frequently missed because the model ships inside face-restoration node packs."
+      "summary": "Non-commercial. Frequently missed because the model ships inside face-restoration node packs.",
+      "conditions": {
+        "outputs_commercial": "no"
+      }
     },
     "bria-nc": {
       "name": "BRIA non-commercial terms (CC BY-NC 4.0 + commercial agreement)",
@@ -251,7 +312,12 @@
         "A self-hosted commercial licence is sold separately."
       ],
       "url": "https://huggingface.co/briaai/RMBG-2.0",
-      "summary": "Background-removal weights released for non-commercial use; commercial use is sold separately by BRIA."
+      "summary": "Background-removal weights released for non-commercial use; commercial use is sold separately by BRIA.",
+      "conditions": {
+        "outputs_commercial": "no",
+        "commercial_licence_available": true,
+        "separate_licence_holder": "Bria"
+      }
     },
     "llama-community": {
       "name": "Llama Community License",
@@ -267,7 +333,15 @@
         "Acceptable Use Policy applies."
       ],
       "url": "https://www.llama.com/llama3_1/license/",
-      "summary": "Commercial use allowed for all but the largest platforms, with naming and attribution obligations."
+      "summary": "Commercial use allowed for all but the largest platforms, with naming and attribution obligations.",
+      "conditions": {
+        "monthly_active_users_cap": 700000000,
+        "separate_licence_holder": "Meta",
+        "attribution_visible": "Built with Llama",
+        "prohibited_uses": [
+          "an acceptable-use policy is incorporated by reference"
+        ]
+      }
     },
     "qwen-research": {
       "name": "Qwen research/non-commercial terms",
@@ -281,7 +355,10 @@
         "Some Qwen variants ship under research-only terms; confirm the exact variant."
       ],
       "url": "https://huggingface.co/Qwen",
-      "summary": "Certain Qwen releases are research-only while others are Apache 2.0 - the variant matters."
+      "summary": "Certain Qwen releases are research-only while others are Apache 2.0 - the variant matters.",
+      "conditions": {
+        "outputs_commercial": "no"
+      }
     },
     "agpl-3.0-ultralytics": {
       "name": "AGPL-3.0 (Ultralytics dual licence)",
@@ -298,7 +375,14 @@
         "An Enterprise Licence is sold to remove these obligations."
       ],
       "url": "https://www.ultralytics.com/license",
-      "summary": "Copyleft that can reach the code importing it. Ultralytics sell an Enterprise Licence that removes the obligation."
+      "summary": "Copyleft that can reach the code importing it. Ultralytics sell an Enterprise Licence that removes the obligation.",
+      "conditions": {
+        "copyleft_reach": "network",
+        "copyleft_note": "the complete source of anything that includes the model, including integration code, must be released under AGPL-3.0",
+        "commercial_licence_available": true,
+        "separate_licence_holder": "Ultralytics",
+        "vendor_position_internal_use": "Ultralytics state that internal production use also requires an Enterprise Licence"
+      }
     },
     "proprietary-api": {
       "name": "Vendor API terms of service",
@@ -315,7 +399,12 @@
         "Output ownership and indemnity vary widely between vendors."
       ],
       "url": "",
-      "summary": "A hosted model. Commercial rights, cost and confidentiality are set by the vendor contract, not by an open licence."
+      "summary": "A hosted model. Commercial rights, cost and confidentiality are set by the vendor contract, not by an open licence.",
+      "conditions": {
+        "hosted": true,
+        "data_leaves_site": true,
+        "metered": true
+      }
     },
     "unknown": {
       "name": "Unknown",
@@ -327,7 +416,8 @@
       "attribution_required": null,
       "restrictions": [],
       "url": "",
-      "summary": "No licence could be determined. Treat as unclearable until someone confirms the source."
+      "summary": "No licence could be determined. Treat as unclearable until someone confirms the source.",
+      "conditions": {}
     },
     "faipl-1.0-sd": {
       "name": "Fair AI Public License 1.0-SD",
@@ -344,7 +434,8 @@
         "Individual models released under FAIPL frequently bolt on their own extra restrictions (commonly a ban on monetised hosted inference), which travel to merges and derivatives. Read the specific model card as well as the licence."
       ],
       "url": "https://freedevproject.org/faipl-1.0-sd/",
-      "summary": "Outputs are unrestricted. The model itself is copyleft: derivatives must be published under the same licence, AGPL-style."
+      "summary": "Outputs are unrestricted. The model itself is copyleft: derivatives must be published under the same licence, AGPL-style.",
+      "conditions": {}
     },
     "playground-v2-community": {
       "name": "Playground v2 Community License",
@@ -358,7 +449,11 @@
         "Community licence with use-based conditions; read the model card before commercial delivery."
       ],
       "url": "https://huggingface.co/playgroundai/playground-v2-1024px-aesthetic/blob/main/LICENSE.md",
-      "summary": "Commercial use permitted under community terms rather than an open licence."
+      "summary": "Commercial use permitted under community terms rather than an open licence.",
+      "conditions": {
+        "no_competing_training": true,
+        "attribution_visible": "Playground v2"
+      }
     },
     "kolors-license": {
       "name": "Kolors Model License",
@@ -372,7 +467,17 @@
         "Kwai-Kolors' own model licence; commercial terms and any user thresholds are set there, not by an OSI licence."
       ],
       "url": "https://raw.githubusercontent.com/Kwai-Kolors/Kolors/master/MODEL_LICENSE",
-      "summary": "Vendor model licence - check the thresholds before commercial delivery."
+      "summary": "Vendor model licence - check the thresholds before commercial delivery.",
+      "conditions": {
+        "territory_excluded": [
+          "EU",
+          "GB",
+          "KR"
+        ],
+        "territory_note": "the grant excludes these territories",
+        "monthly_active_users_cap": 300000000,
+        "separate_licence_holder": "Kuaishou"
+      }
     },
     "cogvideox-license": {
       "name": "CogVideoX License",
@@ -386,7 +491,13 @@
         "The CogVideoX-2B weights are Apache 2.0; the 5B weights ship under this separate licence. Which variant is loaded decides the answer."
       ],
       "url": "https://huggingface.co/THUDM/CogVideoX-5b/blob/main/LICENSE",
-      "summary": "Applies to the 5B weights only - the 2B variant is Apache 2.0."
+      "summary": "Applies to the 5B weights only - the 2B variant is Apache 2.0.",
+      "conditions": {
+        "no_competing_training": true,
+        "prohibited_uses": [
+          "an acceptable-use schedule is incorporated by reference"
+        ]
+      }
     },
     "minimax-community": {
       "name": "MiniMax Community License",
@@ -403,7 +514,21 @@
         "Outputs may not be used to train competing models, worldwide."
       ],
       "url": "https://huggingface.co/MiniMaxAI",
-      "summary": "Open weights with a territory carve-out, a revenue cap and a visible-attribution requirement. Where the facility is based matters as much as what it earns."
+      "summary": "Open weights with a territory carve-out, a revenue cap and a visible-attribution requirement. Where the facility is based matters as much as what it earns.",
+      "conditions": {
+        "territory_excluded": [
+          "US",
+          "EU",
+          "GB",
+          "KR"
+        ],
+        "territory_note": "the open-weights release excludes local deployment in these territories",
+        "revenue_cap_usd": 20000000,
+        "revenue_basis": "annual organisation revenue",
+        "separate_licence_holder": "MiniMax",
+        "attribution_visible": "MiniMax H3",
+        "no_competing_training": true
+      }
     },
     "meta-sam": {
       "name": "Meta SAM License",
@@ -419,7 +544,15 @@
         "More restrictive than a standard permissive licence; read the terms on the weights download page."
       ],
       "url": "https://github.com/facebookresearch/sam3/blob/main/LICENSE",
-      "summary": "Meta's own licence rather than an OSI one. Commercial use is allowed, with a prohibited-use list attached."
+      "summary": "Meta's own licence rather than an OSI one. Commercial use is allowed, with a prohibited-use list attached.",
+      "conditions": {
+        "prohibited_uses": [
+          "military",
+          "ITAR-controlled",
+          "nuclear",
+          "weapons"
+        ]
+      }
     }
   },
   "models": [

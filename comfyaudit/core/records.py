@@ -48,6 +48,11 @@ class LicenseInfo:
     matched_on: str = ""             # what in the filename/repo triggered the match
     confidence: str = "low"
     summary: str = ""
+    #: The terms that depend on who is asking, in a form a verdict can be
+    #: derived from: territory carve-outs, revenue caps, how far copyleft
+    #: reaches, whether the restriction covers outputs. See
+    #: ``core/score/clearance.py`` for the keys and what each one means.
+    conditions: dict = field(default_factory=dict)
 
     @property
     def blocks_commercial(self) -> bool:

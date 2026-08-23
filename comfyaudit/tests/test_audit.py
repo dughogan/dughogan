@@ -300,6 +300,35 @@ def test_markdown_report_covers_every_section(beauty):
     assert "does not decide whether they suit your job" in text
 
 
+def test_a_determination_inserts_a_section_and_renumbers_the_rest(beauty):
+    """Numbering has to survive a section that is only sometimes there."""
+    determined = md_report.render(_with_profile(beauty, territory="US",
+                                                revenue_band="over-100m"))
+    assert "## 1. Determination" in determined
+    assert "## 2. Licence summary" in determined
+    assert "## 8. Operational risks" in determined
+    # ...and the profile-less report keeps its original numbering.
+    assert "## 1. Licence summary" in md_report.render(beauty)
+
+
+def _with_profile(report, **profile):
+    """A copy of a report, determined against a studio profile.
+
+    A copy rather than a mutation: the fixture is shared, and a test that leaves
+    a profile on it changes what every later test sees.
+    """
+    import copy
+
+    from comfyaudit.core.score import clearance
+
+    out = copy.deepcopy(report)
+    out.clearance = clearance.determine(
+        out.models, packs=out.packs,
+        profile=clearance.StudioProfile.from_dict(profile),
+        api_node_types=out.api_node_types)
+    return out
+
+
 def test_markdown_escapes_pipes_so_tables_do_not_break():
     ref = ModelRef(filename="weird|name.safetensors", folder="loras", node_label="a|b")
     assert "\\|" in md_report._cell(ref.filename)
