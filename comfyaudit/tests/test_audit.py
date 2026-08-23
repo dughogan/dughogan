@@ -409,3 +409,55 @@ def test_quantised_and_scaled_variants_still_match():
     for name in ("flux1-dev-fp8.safetensors", "flux1-dev-kontext_fp8_scaled.safetensors",
                  "depth_anything_v2_vitl_fp32.safetensors"):
         assert matcher.for_model(ModelRef(filename=name)).commercial_use == "no", name
+
+
+# --------------------------------------------------------------------------
+# The plain-language summary
+# --------------------------------------------------------------------------
+
+
+def test_a_report_without_a_profile_explains_itself_in_prose(beauty):
+    """The tables assume a reader who knows how to read them. This does not."""
+    from comfyaudit.core.report import narrative
+
+    paragraphs = narrative.summarise(beauty)
+    assert paragraphs
+    text = " ".join(paragraphs)
+    assert "This workflow runs" in text
+    # It describes, and it never rules. Offering a verdict as something a
+    # profile would unlock is fine; asserting one is not.
+    from comfyaudit.core.score import clearance
+
+    for label in clearance.VERDICT_LABELS.values():
+        assert label.lower() not in text.lower()
+
+
+def test_the_narrative_appears_at_the_top_only_without_a_profile(beauty):
+    text = md_report.render(beauty)
+    assert "### In plain terms" in text
+    assert text.index("### In plain terms") < text.index("## 1. Licence summary")
+
+    determined = md_report.render(_with_profile(beauty, territory="US",
+                                                revenue_band="over-100m"))
+    # With a profile the verdict leads instead, and saying both would be noise.
+    assert "### In plain terms" not in determined
+    assert "## 1. Determination" in determined
+
+
+def test_the_narrative_counts_agree_with_their_nouns(beauty):
+    """"1 node type(s)" reads like a machine wrote it, because one did."""
+    from comfyaudit.core.report import narrative
+
+    text = " ".join(narrative.summarise(beauty))
+    assert "(s)" not in text
+
+
+def test_the_narrative_survives_a_workflow_with_nothing_in_it():
+    """An empty graph must produce prose, not an exception or a blank."""
+    from comfyaudit.core import audit
+    from comfyaudit.core.report import narrative
+
+    empty = audit.AuditReport()
+    paragraphs = narrative.summarise(empty)
+    assert paragraphs
+    assert "nothing here to licence" in " ".join(paragraphs)

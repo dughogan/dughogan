@@ -22,6 +22,7 @@ from ..core.knowledge import licences as licences_mod
 from ..core.report import html as html_report
 from ..core.report import markdown as md_report
 from . import live
+from . import settings as settings_mod
 
 PREFIX = "/comfyaudit"
 
@@ -51,6 +52,9 @@ def register() -> bool:
                 "live_introspection": catalog.has_live_provider(),
             },
             "environment": live.environment(),
+            # So the panel can say whether a verdict is even possible before
+            # anyone waits on an audit to find out.
+            "studio_profile": settings_mod.describe(),
             "claude": {"available": agent_ok, "reason": agent_why,
                        "models": reviewer_mod.MODELS, "modes": reviewer_mod.MODES},
         })

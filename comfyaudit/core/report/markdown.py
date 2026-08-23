@@ -8,6 +8,7 @@ from typing import Any, Iterable
 from .. import __version__
 from ..audit import AuditReport
 from ..records import Finding, ModelRef
+from . import narrative as narrative_section
 from . import review as review_section
 from ..score import clearance, licensing
 
@@ -72,12 +73,19 @@ def render(report: AuditReport) -> str:
           "given above, and nothing else. Change the profile and it changes. It "
           "is not legal advice; it is a reading of published terms, with the "
           "reasoning shown so it can be checked.*")
+        w("")
     else:
+        # No profile, so no verdict - but the tables below are only useful to
+        # someone who already knows how to read them. Say what they amount to.
+        w("### In plain terms")
+        w("")
+        for paragraph in narrative_section.summarise(report):
+            w(paragraph)
+            w("")
         w("*This report describes what the licences say. It does not decide whether "
           "they suit your job - that depends on the client, the territory and any "
-          "agreements you already hold. Supply a studio profile to get a "
-          "determination.*")
-    w("")
+          "agreements you already hold.*")
+        w("")
 
     counts = report.risk.counts()
     if counts:

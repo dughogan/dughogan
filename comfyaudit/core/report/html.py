@@ -18,6 +18,7 @@ from typing import Any, Iterable
 
 from .. import __version__
 from ..audit import AuditReport
+from . import narrative as narrative_section
 from . import review as review_section
 from ..score import clearance, licensing
 
@@ -102,6 +103,19 @@ h1{
 }
 .slate dt{color:var(--ink-3);letter-spacing:.06em;text-transform:uppercase;font-size:11px;padding-top:2px}
 .slate dd{margin:0;color:var(--ink-2);overflow-wrap:anywhere}
+
+/* -- plain-language summary --------------------------------------------- */
+.plainly{
+  margin:26px 0 30px; padding:22px 26px; border:1px solid var(--rule);
+  border-radius:3px; background:var(--paper-2,transparent);
+}
+.plainly h2{
+  font:600 11px/1 ui-monospace,monospace; letter-spacing:.16em;
+  text-transform:uppercase; color:var(--ink-3); margin:0 0 14px;
+  border:0; padding:0;
+}
+.plainly p{ margin:0 0 12px; font-size:15px; line-height:1.62; max-width:74ch; }
+.plainly p:last-child{ margin-bottom:0; }
 
 /* -- determination ------------------------------------------------------ */
 .stamp{
@@ -369,6 +383,14 @@ def _body(report: AuditReport) -> str:
           f"{_e(report.licensing.headline)} This report describes what those licences "
           "say; it does not decide whether they suit your job, which depends on the "
           "client, the territory and any agreements you already hold.</span></p>")
+        # The tables below assume a reader who knows how to read them. This does
+        # not, and it is what most people who open the file will actually read.
+        paragraphs = narrative_section.summarise(report)
+        if paragraphs:
+            w("<div class='plainly'><h2>In plain terms</h2>")
+            for paragraph in paragraphs:
+                w(f"<p>{_e(paragraph)}</p>")
+            w("</div>")
 
     # -- readouts ----------------------------------------------------------
     counts = risk.counts()

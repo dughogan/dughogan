@@ -85,6 +85,7 @@ def comfy(tmp_path, monkeypatch):
     folder_paths.get_full_path = lambda folder, name: str(tmp_path / "models" / folder / name)
     folder_paths.get_output_directory = lambda: str(tmp_path / "output")
     folder_paths.get_folder_paths = lambda name: [str(tmp_path / name)]
+    folder_paths.get_user_directory = lambda: str(tmp_path / "user")
 
     # Make the custom node look genuinely installed: ComfyUI attributes a class
     # to a pack by the file its module was loaded from, so the stub needs a
@@ -657,3 +658,104 @@ def test_a_stricter_profile_is_never_given_a_kinder_verdict(comfy):
     lenient = verdict(territory="CA", revenue_band="under-1m", ships="internal-only")
     assert strict.determined and lenient.determined
     assert VERDICT_RANK[strict.verdict] <= VERDICT_RANK[lenient.verdict]
+
+
+# --------------------------------------------------------------------------
+# The profile as a ComfyUI setting
+# --------------------------------------------------------------------------
+
+
+def _write_settings(tmp_path, **values):
+    """Write a comfy.settings.json the way the frontend would."""
+    directory = tmp_path / "user" / "default"
+    directory.mkdir(parents=True, exist_ok=True)
+    (directory / "comfy.settings.json").write_text(json.dumps(values))
+
+
+def test_no_settings_file_means_no_profile(comfy):
+    from comfyaudit.server import settings
+
+    assert settings.studio_profile() is None
+
+
+def test_a_settings_file_of_defaults_still_means_no_profile(comfy):
+    """"not set" everywhere is an operator declining to say, not a profile."""
+    from comfyaudit.server import settings
+
+    _write_settings(comfy, **{settings.TERRITORY: "not set",
+                              settings.REVENUE: "not set",
+                              settings.SHIPS: "not set"})
+    assert settings.studio_profile() is None
+
+
+def test_the_settings_profile_is_read_and_used_by_default(comfy):
+    from comfyaudit.server import settings
+    from comfyaudit.nodes.audit_nodes import run_audit
+
+    _write_settings(comfy, **{settings.TERRITORY: "United Kingdom",
+                              settings.REVENUE: "$10M - $20M",
+                              settings.SHIPS: "finished frames to a client",
+                              settings.LIKENESS: True,
+                              settings.LABEL: "Example Post"})
+    profile = settings.studio_profile()
+    assert (profile.territory, profile.revenue_band, profile.ships) == (
+        "GB", "10m-20m", "deliverable-only")
+    assert profile.label == "Example Post"
+
+    report = run_audit(WORKFLOW, online=False)
+    assert report.clearance.determined
+    assert report.clearance.profile.territory == "GB"
+
+
+def test_a_node_profile_overrides_the_settings_one(comfy):
+    """The settings describe the facility; a node states a per-show exception."""
+    from comfyaudit.core.score.clearance import StudioProfile
+    from comfyaudit.server import settings
+    from comfyaudit.nodes.audit_nodes import run_audit
+
+    _write_settings(comfy, **{settings.TERRITORY: "United Kingdom"})
+    report = run_audit(WORKFLOW, online=False,
+                       profile=StudioProfile.from_dict({"territory": "CA"}))
+    assert report.clearance.profile.territory == "CA"
+
+
+def test_a_corrupt_settings_file_does_not_break_a_queued_audit(comfy):
+    """ComfyUI's own settings being broken is not this pack's crash to take."""
+    from comfyaudit.nodes.audit_nodes import run_audit
+    from comfyaudit.server import settings
+
+    directory = comfy / "user" / "default"
+    directory.mkdir(parents=True, exist_ok=True)
+    (directory / "comfy.settings.json").write_text("{ this is not json")
+
+    assert settings.studio_profile() is None
+    assert run_audit(WORKFLOW, online=False).clearance.determined is False
+
+
+def test_the_settings_ids_match_the_ones_the_frontend_registers(comfy):
+    """Nothing type-checks across the JS/Python seam.
+
+    A renamed setting id would silently mean the dialog writes one key and the
+    audit reads another, and the only symptom would be a profile that never
+    seems to take effect.
+    """
+    import re
+    from pathlib import Path
+
+    from comfyaudit.server import settings
+
+    script = Path(settings.__file__).resolve().parents[1] / "web" / "comfyaudit.js"
+    text = script.read_text()
+    registered = set(re.findall(r'id:\s*"(ComfyAudit\.[\w.]+)"', text))
+    expected = {settings.TERRITORY, settings.REVENUE, settings.SHIPS,
+                settings.TRAINS, settings.LIKENESS, settings.LABEL}
+    assert registered == expected
+
+    # ...and every choice the dialog offers has to be one Python can map.
+    for options, mapping in ((r'"ComfyAudit\.Studio\.Territory"', settings.TERRITORY_OPTIONS),
+                             (r'"ComfyAudit\.Studio\.Revenue"', settings.REVENUE_OPTIONS),
+                             (r'"ComfyAudit\.Studio\.Ships"', settings.SHIP_OPTIONS)):
+        block = text[text.index(re.search(options, text).group()):]
+        listed = re.search(r"options:\s*\[(.*?)\]", block, re.S).group(1)
+        for choice in re.findall(r'"([^"]+)"', listed):
+            assert choice in mapping, f"{choice!r} has no mapping in settings.py"

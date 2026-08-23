@@ -7,8 +7,12 @@ from, the prompts, the external assets, the custom node packs and their versions
 how much of it a human has to babysit, and what would stop it running on another
 machine.
 
-Then, if you tell it about your facility, it works out what all of that means
-for **you** — go, no-go, or go-with-conditions, with the reasoning shown.
+Out of the box it just reports, and opens with a plain-language summary so the
+tables underneath make sense to whoever you forward them to.
+
+Tell it about your facility — optional, one panel in ComfyUI's settings — and it
+also works out what all of that means for **you**: go, no-go, or
+go-with-conditions, with the reasoning shown.
 
 That second part matters because a licence grants rights to *someone, somewhere,
 doing something*. MiniMax H3 is a no in London and a yes in Toronto: the licence
@@ -17,8 +21,9 @@ file, same terms, opposite answers. So ComfyAudit doesn't ship an opinion about
 what your studio can live with — it takes your circumstances as input and applies
 the published terms to them.
 
-Give it no profile and it stays descriptive: here are the terms, here's a source
-for every claim, here are the facts that would settle it.
+Give it no profile — the default — and it stays descriptive: here are the terms,
+here's a source for every claim, here are the facts that would settle it, written
+out in prose before any table appears.
 
 Built for the moment a workflow arrives from an artist, a vendor or a Discord
 link, and someone has to decide whether it can go on a show.
@@ -61,13 +66,28 @@ prompt and the UI workflow. Nothing to configure.
 
 | Node | What it does |
 |---|---|
-| **Studio Profile** | Where you are, what you earn, what ships. Set it once, keep it in a template. Feeding it to the audit is what turns a description of the licences into a verdict. |
+| **Studio Profile** | Optional override of the settings profile, for a show whose circumstances differ from the facility's. |
 | **Audit This Workflow** | Documents the running graph. Outputs the report as Markdown and JSON, plus the risk score, automation index and a one-line licence summary as separate sockets. |
 | **Claude Review** | Optional second pass for the judgement calls — see below. |
 | **Audit Gate** | Stops the queue on conditions **you** choose. Nothing is enforced by default. |
 | **Save Audit Report** | Writes the report into your output folder as HTML, Markdown or JSON. |
 
 ## Go / no-go
+
+**Entirely optional, and off until you fill it in.** With nothing set, every
+report opens with *In plain terms* — a few paragraphs saying what the workflow
+contains, which licence conditions are actually in play, and which facts would
+settle whether they suit a job. That summary is deterministic: no API key, no
+network, no cost.
+
+Fill in the profile and those same reports reach a verdict instead.
+
+**Settings → ComfyAudit → Studio profile.** It lives there rather than on a node
+because it describes the facility, not the graph — territory and revenue are the
+same for every workflow on the machine, and restating a constant in each one is
+how it ends up wrong in half of them. Set it once. (There's still a **Studio
+Profile** node if a particular show needs different answers; wiring one in
+overrides the settings for that graph.)
 
 Four facts decide most licence questions, and none of them are in the workflow
 file:
@@ -79,7 +99,7 @@ file:
 | **What ships** | Copyleft only reaches your own code when something is distributed. An AGPL node pack is a non-issue for frame delivery and a serious problem for a product. |
 | **Output use** | Several licences forbid training other models on the outputs, worldwide, with no fee that lifts it. |
 
-Set them and every model, copyleft node pack and hosted API node gets a
+Set any of them and every model, copyleft node pack and hosted API node gets a
 determination with its chain of reasoning attached:
 
 ```

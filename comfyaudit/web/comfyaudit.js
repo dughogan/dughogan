@@ -293,8 +293,95 @@ const COMMANDS = [
   },
 ];
 
+
+/* ------------------------------------------------------------------ */
+/* Studio profile                                                      */
+/* ------------------------------------------------------------------ */
+
+/**
+ * The facts about a facility that licence terms turn on.
+ *
+ * These live in ComfyUI's own settings rather than on a node, because they
+ * describe the studio and not the graph: territory and revenue are the same for
+ * every workflow on the machine, and asking someone to restate a constant in
+ * each one is how it ends up wrong in half of them.
+ *
+ * All of it is optional. Set nothing and the report describes the licence terms
+ * and reaches no verdict, which is the default and a perfectly good answer.
+ * Setting them turns that description into a go / no-go with its reasoning
+ * shown. The Python side reads these back out of comfy.settings.json; the ids
+ * here must match server/settings.py.
+ */
+const STUDIO_SETTINGS = [
+  {
+    id: "ComfyAudit.Studio.Territory",
+    name: "Territory",
+    tooltip:
+      "Where work is rendered and deployed. Several open-weight licences "
+      + "exclude regions outright — MiniMax H3 excludes the US, EU, UK and "
+      + "South Korea — and no fee lifts a territory exclusion.",
+    type: "combo",
+    options: ["not set", "United States", "European Union", "United Kingdom",
+              "South Korea", "Canada", "Australia", "Japan", "China", "India",
+              "elsewhere"],
+    defaultValue: "not set",
+  },
+  {
+    id: "ComfyAudit.Studio.Revenue",
+    name: "Annual revenue",
+    tooltip:
+      "Total company revenue, not AI-derived revenue. Free use is capped at "
+      + "$1M by Stability and $20M by MiniMax; above a cap you need an "
+      + "agreement, which is a budget line rather than a blocker.",
+    type: "combo",
+    options: ["not set", "under $1M", "$1M - $10M", "$10M - $20M",
+              "$20M - $100M", "over $100M"],
+    defaultValue: "not set",
+  },
+  {
+    id: "ComfyAudit.Studio.Ships",
+    name: "What ships",
+    tooltip:
+      "Copyleft only reaches your own code when something is distributed, so "
+      + "this decides whether an AGPL node pack is a non-issue or a serious "
+      + "problem.",
+    type: "combo",
+    options: ["not set", "finished frames to a client",
+              "nothing leaves the building", "software containing this workflow",
+              "a network service"],
+    defaultValue: "not set",
+  },
+  {
+    id: "ComfyAudit.Studio.TrainsModels",
+    name: "Outputs train other models",
+    tooltip:
+      "Several licences forbid this outright and worldwide, with no fee that "
+      + "lifts it.",
+    type: "boolean",
+    defaultValue: false,
+  },
+  {
+    id: "ComfyAudit.Studio.Likeness",
+    name: "Real performers involved",
+    tooltip:
+      "No model licence grants rights in a performer's face — that comes from "
+      + "their contract and, increasingly, their union agreement. Turning this "
+      + "on makes the report raise it wherever the graph does identity work.",
+    type: "boolean",
+    defaultValue: false,
+  },
+  {
+    id: "ComfyAudit.Studio.Label",
+    name: "Studio name",
+    tooltip: "A label for the report: a facility, a show or a client.",
+    type: "text",
+    defaultValue: "",
+  },
+].map((setting) => ({ ...setting, category: ["ComfyAudit", "Studio profile", setting.name] }));
+
 app.registerExtension({
   name: "comfyaudit.panel",
+  settings: STUDIO_SETTINGS,
   commands: COMMANDS,
   menuCommands: [{ path: ["Extensions", "ComfyAudit"], commands: COMMANDS.map((c) => c.id) }],
 
@@ -314,9 +401,13 @@ app.registerExtension({
       const response = await api.fetchApi(`${PREFIX}/status`);
       const status = await response.json();
       const live = status?.knowledge?.live_introspection ? "live node schemas" : "bundled catalog";
+      const studio = status?.studio_profile?.profile_set
+        ? status.studio_profile.profile
+        : "none set — reports will describe the licences without reaching a verdict";
       console.log(
         `[comfyaudit] ready — ${live}, licence KB v${status?.knowledge?.licences?.version}, `
         + `Claude ${status?.claude?.available ? "available" : "unavailable: " + status?.claude?.reason}`
+        + `\n[comfyaudit] studio profile: ${studio}`
       );
     } catch (err) {
       console.warn("[comfyaudit] server routes not reachable:", err);

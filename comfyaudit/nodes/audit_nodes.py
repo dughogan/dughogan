@@ -26,7 +26,7 @@ from ..core.report import review as review_section
 from ..core.resolve.http import Credentials, HttpClient
 from ..core.resolve.resolver import ALL_SOURCES, Resolver
 from ..core.score import clearance as clearance_mod
-from ..server import live
+from ..server import live, settings as settings_mod
 
 SEVERITIES = ["critical", "high", "medium", "low", "info"]
 SOURCES = ["this workflow (UI graph)", "the running prompt (API format)", "a file on disk"]
@@ -69,10 +69,20 @@ def run_audit(workflow_doc: dict[str, Any], *, online: bool = False,
               check_local_models: bool = True, licences_path: str = "",
               sources: str = "", hash_models: bool = False,
               profile: clearance_mod.StudioProfile | None = None,
+              use_settings_profile: bool = True,
               ) -> audit_mod.AuditReport:
-    """Audit a workflow document using whatever the live ComfyUI can tell us."""
+    """Audit a workflow document using whatever the live ComfyUI can tell us.
+
+    The studio profile, when there is one, comes from ComfyUI's settings - it
+    describes the facility, so it is the same for every workflow on the machine.
+    A profile passed in explicitly overrides that, which is how a node on the
+    canvas states a per-show exception. Neither is required.
+    """
     live.install()
     wf = graph_mod.from_dict(workflow_doc)
+
+    if profile is None and use_settings_profile:
+        profile = settings_mod.studio_profile()
 
     options = audit_mod.AuditOptions(
         online=online,
@@ -320,9 +330,11 @@ class ComfyAuditWorkflow:
                 "licence_overrides": ("STRING", {"default": "", "tooltip":
                     "Path to a studio licence file that extends the bundled one."}),
                 "profile": ("AUDIT_PROFILE", {"tooltip":
-                    "A Studio Profile node. Supply one and the report reaches a "
-                    "go / no-go for that facility; leave it empty and the report "
-                    "describes the licence terms without judging them."}),
+                    "Optional. Overrides the studio profile set in ComfyUI's "
+                    "settings (Settings -> ComfyAudit), for a show whose "
+                    "circumstances differ from the facility's. With no profile "
+                    "in either place the report describes the licence terms and "
+                    "reaches no verdict, which is the default."}),
             },
             "hidden": {"prompt": "PROMPT", "extra_pnginfo": "EXTRA_PNGINFO"},
         }
