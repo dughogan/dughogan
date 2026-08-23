@@ -23,6 +23,8 @@ from ..core import graph as graph_mod
 from ..core.report import html as html_report
 from ..core.report import markdown as md_report
 from ..core.report import review as review_section
+from ..core.resolve.http import Credentials, HttpClient
+from ..core.resolve.resolver import ALL_SOURCES, Resolver
 from ..server import live
 
 SEVERITIES = ["critical", "high", "medium", "low", "info"]
@@ -55,18 +57,33 @@ def _local_model_lister():
     return lister
 
 
+def parse_sources(value: str) -> tuple[str, ...]:
+    """Read a comma-separated source list, falling back to all of them."""
+    wanted = tuple(s.strip().lower() for s in (value or "").split(",") if s.strip())
+    valid = tuple(s for s in wanted if s in ALL_SOURCES)
+    return valid or ALL_SOURCES
+
+
 def run_audit(workflow_doc: dict[str, Any], *, online: bool = False,
-              check_local_models: bool = True,
-              licences_path: str = "") -> audit_mod.AuditReport:
+              check_local_models: bool = True, licences_path: str = "",
+              sources: str = "", hash_models: bool = False) -> audit_mod.AuditReport:
     """Audit a workflow document using whatever the live ComfyUI can tell us."""
     live.install()
     wf = graph_mod.from_dict(workflow_doc)
 
     options = audit_mod.AuditOptions(
         online=online,
+        sources=parse_sources(sources),
         licences_path=licences_path.strip(),
-        hash_models=False,          # hashing multi-GB weights mid-queue is not polite
+        # Hashing multi-gigabyte weights mid-queue is rude, so it is opt-in -
+        # but it is also the only way to identify a renamed checkpoint.
+        hash_models=hash_models,
     )
+    if hash_models and check_local_models:
+        index = live.live_model_index()
+        if index.available:
+            options.models_dir = index.root
+
     report = audit_mod.run_workflow(wf, options)
 
     # Both of these replace an inference with an observation, so the risk rules
@@ -177,10 +194,19 @@ class ComfyAuditWorkflow:
                 "check_local_models": ("BOOLEAN", {"default": True, "tooltip":
                     "Verify every referenced weight exists in a ComfyUI model folder."}),
                 "online_lookups": ("BOOLEAN", {"default": False, "tooltip":
-                    "Resolve provenance from HuggingFace, Civitai and the Comfy "
-                    "Registry. Requires outbound network access."}),
+                    "Resolve licences and provenance from HuggingFace, Civitai, "
+                    "GitHub and the Comfy Registry. Needs outbound network access. "
+                    "Results are cached on disk for a week."}),
+                "hash_models": ("BOOLEAN", {"default": False, "tooltip":
+                    "SHA-256 every local weight so Civitai can identify it exactly. "
+                    "This is the only way to catch a renamed checkpoint, but the "
+                    "first run reads every model file from disk."}),
             },
             "optional": {
+                "sources": ("STRING", {"default": "", "tooltip":
+                    "Limit which services are contacted, comma separated: "
+                    "huggingface, civitai, github, comfy-registry. Empty means all. "
+                    "Use this when model names must not leave for a given service."}),
                 "workflow_path": ("STRING", {"default": "", "tooltip":
                     "Only used when source is 'a file on disk'. Accepts a workflow "
                     ".json or a PNG that ComfyUI rendered."}),
@@ -225,12 +251,14 @@ class ComfyAuditWorkflow:
                              sort_keys=True, default=str)
         return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
-    def run(self, source, check_local_models, online_lookups,
-            workflow_path="", licence_overrides="", prompt=None, extra_pnginfo=None):
+    def run(self, source, check_local_models, online_lookups, hash_models=False,
+            sources="", workflow_path="", licence_overrides="",
+            prompt=None, extra_pnginfo=None):
         doc = self._resolve(source, workflow_path, prompt, extra_pnginfo)
         report = run_audit(doc, online=online_lookups,
                            check_local_models=check_local_models,
-                           licences_path=licence_overrides)
+                           licences_path=licence_overrides,
+                           sources=sources, hash_models=hash_models)
 
         markdown = md_report.render(report)
         payload = json.dumps(report.to_dict(), indent=2)
@@ -287,6 +315,9 @@ class ComfyAuditClaudeReview:
                 "web_search": ("BOOLEAN", {"default": True, "tooltip":
                     "Let Claude look models up on the web to check a licence. "
                     "Turn this off if the workflow content is confidential."}),
+                "model_lookups": ("BOOLEAN", {"default": True, "tooltip":
+                    "Give Claude direct HuggingFace, Civitai and GitHub lookups, so "
+                    "it checks a licence at source instead of recalling it."}),
             },
             "optional": {
                 "question": ("STRING", {"multiline": True, "default": "", "tooltip":
@@ -308,11 +339,18 @@ class ComfyAuditClaudeReview:
                    "propose commercially clear replacements. Sends workflow "
                    "content to the Anthropic API.")
 
-    def run(self, audit, mode, model, effort, web_search, question="", api_key=""):
+    def run(self, audit, mode, model, effort, web_search, model_lookups=True,
+            question="", api_key=""):
+        resolver = None
+        if model_lookups:
+            resolver = Resolver(http=HttpClient(),
+                                credentials=Credentials.from_environment(),
+                                enabled=True)
         result = reviewer_mod.review(
             audit, mode=mode, model=model, effort=effort,
             api_key=api_key.strip(), web_search=web_search,
             question=question, local_models=_local_model_lister(),
+            resolver=resolver,
         )
         reviewer_mod.apply_to_report(audit, result)
 

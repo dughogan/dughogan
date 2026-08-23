@@ -328,6 +328,65 @@
       "restrictions": [],
       "url": "",
       "summary": "No licence could be determined. Treat as unclearable until someone confirms the source."
+    },
+    "faipl-1.0-sd": {
+      "name": "Fair AI Public License 1.0-SD",
+      "spdx": "fair-ai-public-1.0-sd",
+      "commercial_use": "yes",
+      "fee": "none",
+      "redistribution": "conditional",
+      "output_ownership": "user",
+      "attribution_required": true,
+      "restrictions": [
+        "The licence does not restrict commercial use of the generated images.",
+        "It does restrict the model: modifications and derivative models must be released under this same licence, with the changes shared.",
+        "A derivative made accessible over a network must offer a way to obtain its source, in the manner of AGPL - so a fine-tune served from a studio's own inference endpoint carries a publication obligation.",
+        "Individual models released under FAIPL frequently bolt on their own extra restrictions (commonly a ban on monetised hosted inference), which travel to merges and derivatives. Read the specific model card as well as the licence."
+      ],
+      "url": "https://freedevproject.org/faipl-1.0-sd/",
+      "summary": "Outputs are yours to sell. The model is copyleft: fine-tune it and you owe the world your weights, which is usually the opposite of what a facility wants."
+    },
+    "playground-v2-community": {
+      "name": "Playground v2 Community License",
+      "spdx": "",
+      "commercial_use": "conditional",
+      "fee": "none",
+      "redistribution": "conditional",
+      "output_ownership": "user",
+      "attribution_required": true,
+      "restrictions": [
+        "Community licence with use-based conditions; read the model card before commercial delivery."
+      ],
+      "url": "https://huggingface.co/playgroundai/playground-v2-1024px-aesthetic/blob/main/LICENSE.md",
+      "summary": "Commercial use permitted under community terms rather than an open licence."
+    },
+    "kolors-license": {
+      "name": "Kolors Model License",
+      "spdx": "",
+      "commercial_use": "conditional",
+      "fee": "none",
+      "redistribution": "conditional",
+      "output_ownership": "user",
+      "attribution_required": true,
+      "restrictions": [
+        "Kwai-Kolors' own model licence; commercial terms and any user thresholds are set there, not by an OSI licence."
+      ],
+      "url": "https://raw.githubusercontent.com/Kwai-Kolors/Kolors/master/MODEL_LICENSE",
+      "summary": "Vendor model licence - check the thresholds before commercial delivery."
+    },
+    "cogvideox-license": {
+      "name": "CogVideoX License",
+      "spdx": "",
+      "commercial_use": "conditional",
+      "fee": "none",
+      "redistribution": "conditional",
+      "output_ownership": "user",
+      "attribution_required": true,
+      "restrictions": [
+        "The CogVideoX-2B weights are Apache 2.0; the 5B weights ship under this separate licence. Which variant is loaded decides the answer."
+      ],
+      "url": "https://huggingface.co/THUDM/CogVideoX-5b/blob/main/LICENSE",
+      "summary": "Applies to the 5B weights only - the 2B variant is Apache 2.0."
     }
   },
   "models": [

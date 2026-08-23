@@ -48,6 +48,12 @@ Work by investigation, not assumption. Use the read tools to look at the actual 
 workflow before you conclude anything, and use search_licence_knowledge_base so \
 your answers stay consistent with what the tool already reports.
 
+Where lookup_huggingface, lookup_civitai and lookup_github are available, use \
+them before relying on what you remember about a model. Your recollection of a \
+licence may be out of date - several have changed since you were trained, and \
+Stability and Black Forest Labs have both relicensed mid-flight. A hash lookup \
+on Civitai is exact; a filename search is a guess and should be reported as one.
+
 Three principles govern everything you record:
 
 1. An honest "unknown" beats a confident guess. A wrong licence claim can put a \
@@ -156,7 +162,8 @@ def _api_key_present() -> bool:
 def review(report: AuditReport, *, mode: str = "full", model: str = DEFAULT_MODEL,
            effort: str = "high", api_key: str = "", web_search: bool = True,
            max_turns: int = 24, question: str = "",
-           local_models: Callable[[str], list[str]] | None = None) -> AgentResult:
+           local_models: Callable[[str], list[str]] | None = None,
+           resolver: Any = None) -> AgentResult:
     """Run the agent over a completed audit."""
     result = AgentResult(mode=mode, model=model, web_search_enabled=web_search)
 
@@ -176,7 +183,7 @@ def review(report: AuditReport, *, mode: str = "full", model: str = DEFAULT_MODE
 
     client = anthropic.Anthropic(api_key=api_key) if api_key else anthropic.Anthropic()
     collector = Collector()
-    tools: list[Any] = build_tools(report, collector, beta_tool, local_models)
+    tools: list[Any] = build_tools(report, collector, beta_tool, local_models, resolver)
     if web_search:
         tools.append(WEB_SEARCH_TOOL)
 

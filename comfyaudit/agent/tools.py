@@ -18,6 +18,8 @@ from typing import Any, Callable
 
 from ..core.audit import AuditReport
 from ..core.knowledge import licences as licences_mod
+from ..core.resolve.resolver import Resolver
+from ..core.resolve.sources import normalise_repo
 
 MAX_TEXT = 4000
 
@@ -53,7 +55,8 @@ def _json(payload: Any) -> str:
 
 def build_tools(report: AuditReport, collector: Collector,
                 decorator: Callable[[Callable], Any],
-                local_models: Callable[[str], list[str]] | None = None) -> list[Any]:
+                local_models: Callable[[str], list[str]] | None = None,
+                resolver: Resolver | None = None) -> list[Any]:
     """Bind the audit to a list of decorated tool callables.
 
     ``decorator`` is the SDK's ``@beta_tool``; passing it in keeps this module
@@ -89,6 +92,8 @@ def build_tools(report: AuditReport, collector: Collector,
                 "commercial_use": lic.commercial_use if lic else "unknown",
                 "matched_on": lic.matched_on if lic else "",
                 "source": (model.provenance.url if model.provenance else "") or "unresolved",
+                "sha256": next((n.split("sha256: ")[1] for n in model.notes
+                                if n.startswith("sha256: ")), ""),
             })
         return _json(rows) if rows else "No models matched."
 
@@ -315,10 +320,110 @@ def build_tools(report: AuditReport, collector: Collector,
                                   "detail": detail, "owner": owner})
         return f"Recorded action {order}."
 
-    return [
+    # -- looking things up upstream ---------------------------------------
+
+    @decorator
+    def lookup_huggingface(repository_or_filename: str) -> str:
+        """Look a model up on HuggingFace.
+
+        Pass an "owner/name" repository id when you know it, or a weights
+        filename to search for the repository that actually contains that file.
+        Returns the licence tag, the declared base models, gating status and
+        download counts. Prefer this over recalling what you think a model is.
+
+        Args:
+            repository_or_filename: e.g. "black-forest-labs/FLUX.1-dev" or
+                "flux1-dev.safetensors".
+        """
+        note(f"lookup_huggingface({repository_or_filename!r})")
+        if resolver is None or not resolver.uses("huggingface"):
+            return "HuggingFace lookups are not enabled for this audit."
+        query = repository_or_filename.strip()
+        facts = (resolver.huggingface.repo(query) if "/" in query and "." not in query.split("/")[-1]
+                 else None)
+        if facts is None:
+            facts = resolver.huggingface.repo(query) or resolver.huggingface.find_file(query)
+        if facts is None:
+            return f"Nothing on HuggingFace matched '{query}'."
+        return _json(_facts_dict(facts))
+
+    @decorator
+    def lookup_civitai(filename_or_hash: str) -> str:
+        """Look a community model up on Civitai.
+
+        A SHA-256 hash gives an exact answer; a filename is a search and can be
+        wrong, because filenames on Civitai are whatever the downloader called
+        them. The audit records a model's hash when it was run against a local
+        install - check list_models for one before searching by name.
+
+        Args:
+            filename_or_hash: a SHA-256 hex digest, or a weights filename.
+        """
+        note(f"lookup_civitai({filename_or_hash!r})")
+        if resolver is None or not resolver.uses("civitai"):
+            return "Civitai lookups are not enabled for this audit."
+        query = filename_or_hash.strip()
+        looks_like_hash = len(query) >= 32 and all(c in "0123456789abcdefABCDEF" for c in query)
+        facts = (resolver.civitai.by_hash(query) if looks_like_hash
+                 else resolver.civitai.by_filename(query))
+        if facts is None:
+            return (f"Nothing on Civitai matched '{query}'."
+                    + ("" if looks_like_hash else
+                       " A filename search is unreliable; try the file's SHA-256."))
+        return _json(_facts_dict(facts))
+
+    @decorator
+    def lookup_github(repository: str) -> str:
+        """Look a repository up on GitHub - a node pack, or a model's home.
+
+        Returns the declared licence, stars, whether it is archived and when it
+        was last pushed. Use this for custom node packs: their code runs inside
+        the studio's own process, so a copyleft licence there reaches further
+        than a model licence does.
+
+        Args:
+            repository: "owner/name" or any GitHub URL.
+        """
+        note(f"lookup_github({repository!r})")
+        if resolver is None or not resolver.uses("github"):
+            return "GitHub lookups are not enabled for this audit."
+        repo = normalise_repo(repository)
+        if not repo:
+            return f"'{repository}' does not name a GitHub repository."
+        facts = resolver.github.repo(repo)
+        if facts is None:
+            return f"No GitHub repository at {repo}."
+        return _json(_facts_dict(facts))
+
+    tools = [
         describe_workflow, list_models, get_prompts, list_findings,
         list_custom_node_packs, search_licence_knowledge_base,
         list_models_available_locally,
         record_model_identification, record_content_risk,
         record_substitution, record_action,
     ]
+    if resolver is not None and resolver.enabled:
+        tools[7:7] = [lookup_huggingface, lookup_civitai, lookup_github]
+    return tools
+
+
+def _facts_dict(facts: Any) -> dict[str, Any]:
+    """The parts of a SourceFacts worth spending context on."""
+    return {k: v for k, v in {
+        "source": facts.source,
+        "identifier": facts.identifier,
+        "url": facts.url,
+        "author": facts.author,
+        "downloads": facts.downloads,
+        "likes": facts.likes,
+        "last_modified": facts.last_modified,
+        "gated": facts.gated,
+        "licence_tag": facts.licence_tag,
+        "licence_name": facts.licence_name,
+        "licence_url": facts.licence_url,
+        "base_models": facts.base_models,
+        "uploader_permissions": facts.permissions,
+        "warnings": facts.warnings,
+        "evidence": facts.evidence,
+        "confidence": facts.confidence,
+    }.items() if v not in (None, "", [], {})}

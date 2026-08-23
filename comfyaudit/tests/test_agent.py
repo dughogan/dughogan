@@ -246,3 +246,75 @@ def test_tool_calls_read_the_real_audit(fake_api, monkeypatch):
 
     tool_result = json.dumps(FakeAPI.seen[1]["messages"])
     assert "in the style of a named living artist" in tool_result
+
+
+# --------------------------------------------------------------------------
+# Upstream lookups reach the model
+# --------------------------------------------------------------------------
+
+
+def _resolver_stub():
+    from comfyaudit.core.resolve.http import Credentials, HttpClient
+    from comfyaudit.core.resolve.resolver import Resolver
+
+    return Resolver(http=HttpClient(timeout=2.0), credentials=Credentials(),
+                    enabled=True)
+
+
+def test_lookup_tools_are_offered_when_resolution_is_enabled(fake_api, monkeypatch):
+    _, base_url = fake_api
+    FakeAPI.script = [_message([{"type": "text", "text": "done"}], "end_turn")]
+    monkeypatch.setenv("ANTHROPIC_BASE_URL", base_url)
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
+
+    reviewer.review(_report(), web_search=False, resolver=_resolver_stub())
+
+    names = {t["name"] for t in FakeAPI.seen[0]["tools"]}
+    assert {"lookup_huggingface", "lookup_civitai", "lookup_github"} <= names
+
+
+def test_lookup_tools_are_withheld_when_resolution_is_off(fake_api, monkeypatch):
+    _, base_url = fake_api
+    FakeAPI.script = [_message([{"type": "text", "text": "done"}], "end_turn")]
+    monkeypatch.setenv("ANTHROPIC_BASE_URL", base_url)
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
+
+    reviewer.review(_report(), web_search=False, resolver=None)
+
+    names = {t["name"] for t in FakeAPI.seen[0]["tools"]}
+    assert not any(n.startswith("lookup_") for n in names)
+
+
+def test_a_disabled_source_says_so_rather_than_failing(fake_api, monkeypatch):
+    """The model must be told a source is off, not left to guess from silence."""
+    from comfyaudit.core.resolve.http import Credentials, HttpClient
+    from comfyaudit.core.resolve.resolver import Resolver
+
+    _, base_url = fake_api
+    FakeAPI.script = [
+        _message([_tool_use("lookup_civitai", {"filename_or_hash": "x.safetensors"})],
+                 "tool_use"),
+        _message([{"type": "text", "text": "noted"}], "end_turn"),
+    ]
+    monkeypatch.setenv("ANTHROPIC_BASE_URL", base_url)
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
+
+    resolver = Resolver(http=HttpClient(timeout=2.0), credentials=Credentials(),
+                        sources=("huggingface",), enabled=True)
+    reviewer.review(_report(), web_search=False, resolver=resolver)
+
+    results = json.dumps(FakeAPI.seen[1]["messages"])
+    assert "not enabled for this audit" in results
+
+
+def test_the_model_is_told_its_licence_recall_may_be_stale(fake_api, monkeypatch):
+    _, base_url = fake_api
+    FakeAPI.script = [_message([{"type": "text", "text": "done"}], "end_turn")]
+    monkeypatch.setenv("ANTHROPIC_BASE_URL", base_url)
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
+
+    reviewer.review(_report(), web_search=False, resolver=_resolver_stub())
+
+    system = FakeAPI.seen[0]["system"][0]["text"]
+    assert "may be out of date" in system
+    assert "hash lookup on Civitai is exact" in system

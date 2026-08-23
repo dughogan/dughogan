@@ -1,5 +1,5 @@
-"""Provenance resolution: bundled index, local disk, and online sources."""
+"""Provenance resolution: bundled index, local disk, and the online sources."""
 
-from . import cache, local, online  # noqa: F401
+from . import http, local, resolver, sources  # noqa: F401
 
-__all__ = ["cache", "local", "online"]
+__all__ = ["http", "local", "resolver", "sources"]

@@ -17,6 +17,7 @@ from typing import Any, Iterable
 
 from ..graph import MODE_BYPASS, MODE_NEVER, Workflow
 from ..records import AssetRef, Finding, ModelRef, PackRef, PromptRef
+from ..resolve.sources import COPYLEFT_SPDX, WEAK_COPYLEFT_SPDX
 
 SEVERITY_WEIGHT = {"critical": 25.0, "high": 12.0, "medium": 5.0, "low": 2.0, "info": 0.0}
 
@@ -172,6 +173,27 @@ def _licence_findings(models: list[ModelRef], api_node_types: list[str]) -> list
                    "discovered at the end.",
             evidence=sorted({f"{m.license.name}" for m in attribution}),
             recommendation="Add the required notices to the show's third-party licence list.",
+        ))
+
+    conflicted = [m for m in models if m.license
+                  and any("Sources disagree" in r for r in m.license.restrictions)]
+    if conflicted:
+        out.append(Finding(
+            id="licence.conflict",
+            title=f"{len(conflicted)} model(s) are described differently by different sources",
+            severity="high",
+            category="licensing",
+            detail="The filename, the upstream licence tag and the base model do not "
+                   "agree about what this file is licensed under. In practice that "
+                   "usually means the file was renamed after it was downloaded, so the "
+                   "name no longer says what the weights are. The most restrictive "
+                   "reading has been applied.",
+            evidence=[f"{m.filename}: " + next(r for r in m.license.restrictions
+                                               if "Sources disagree" in r)[:220]
+                      for m in conflicted],
+            recommendation="Hash each file and look it up by hash rather than by name "
+                           "(run with --models-dir and --online), then record what it "
+                           "actually is.",
         ))
 
     if api_node_types:
@@ -420,6 +442,57 @@ def _dependency_findings(packs: list[PackRef], wf: Workflow) -> list[Finding]:
             evidence=[f"{p.title}: {', '.join((p.pip + p.apt)[:4])}" for p in with_deps[:8]],
             recommendation="Build the environment once from a locked requirements file rather "
                            "than letting each pack resolve its own dependencies.",
+        ))
+
+    copyleft = [p for p in identified if p.licence in COPYLEFT_SPDX]
+    if copyleft:
+        out.append(Finding(
+            id="dependency.copyleft",
+            title=f"{len(copyleft)} custom node pack(s) are under a strong copyleft licence",
+            severity="high",
+            category="licensing",
+            detail="A node pack is not like a model: its code is imported into the "
+                   "ComfyUI process and called directly by whatever the studio builds "
+                   "around it. GPL and especially AGPL terms can therefore reach the "
+                   "pipeline tooling itself, and AGPL's network clause treats serving "
+                   "the result to users as distribution.",
+            evidence=[f"{p.title} - {p.licence} ({p.reference})" for p in copyleft],
+            recommendation="Get this in front of whoever owns open-source policy before "
+                           "it goes in the studio image. Keeping the pack behind a "
+                           "process boundary rather than importing it is usually the "
+                           "cheaper answer than relicensing your own tools.",
+        ))
+
+    weak = [p for p in identified if p.licence in WEAK_COPYLEFT_SPDX]
+    if weak:
+        out.append(Finding(
+            id="dependency.weak-copyleft",
+            title=f"{len(weak)} pack(s) carry file-level copyleft obligations",
+            severity="low",
+            category="licensing",
+            detail="LGPL, MPL and EPL obligations attach to the pack's own files rather "
+                   "than to your code, so they are usually satisfiable, but modifications "
+                   "to the pack itself have to be published.",
+            evidence=[f"{p.title} - {p.licence}" for p in weak],
+            recommendation="Record these in the third-party licence list, and publish any "
+                           "local patches to the pack.",
+        ))
+
+    resolved_any = any(p.licence for p in identified)
+    unlicensed = [p for p in identified if not p.licence]
+    if resolved_any and unlicensed:
+        out.append(Finding(
+            id="dependency.no-licence",
+            title=f"{len(unlicensed)} pack(s) publish no licence at all",
+            severity="medium",
+            category="licensing",
+            detail="With no licence file, the default is all rights reserved: the author "
+                   "has granted nothing, not even the right to use it. Widespread "
+                   "practice is not permission, and this is the case a client's legal "
+                   "team is most likely to ask about.",
+            evidence=[f"{p.title} ({p.reference})" for p in unlicensed[:10]],
+            recommendation="Ask the author to add a licence - most will - or replace the "
+                           "pack. Until then treat it as unlicensed code in the pipeline.",
         ))
 
     if len(identified) >= 8:

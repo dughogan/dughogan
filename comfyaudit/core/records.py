@@ -132,6 +132,10 @@ class PackRef:
     aux_id: str = ""                 # properties.aux_id (owner/repo)
     stars: int | None = None
     last_update: str = ""
+    #: SPDX id resolved from the pack's repository. A node pack's licence reaches
+    #: further than a model's: its code runs inside the studio's own process.
+    licence: str = ""
+    licence_url: str = ""
     pip: list[str] = field(default_factory=list)
     apt: list[str] = field(default_factory=list)
     collisions: list[str] = field(default_factory=list)

@@ -16,7 +16,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Iterable
 
-from .cache import cache_dir
+from .http import cache_dir
 
 WEIGHT_EXTENSIONS = (".safetensors", ".ckpt", ".pt", ".pth", ".bin", ".gguf",
                      ".sft", ".onnx", ".engine")

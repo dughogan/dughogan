@@ -15,8 +15,8 @@ from .extract import prompts as prompts_extract
 from .knowledge import licences as licences_mod
 from .records import AssetRef, ModelRef, PackRef, PromptRef, to_jsonable
 from .resolve import local as local_mod
-from .resolve.cache import HttpCache
-from .resolve.online import Resolver, hf_licence_tag
+from .resolve.http import Credentials, HttpClient
+from .resolve.resolver import ALL_SOURCES, Resolver
 from .score import automation as automation_mod
 from .score import risk as risk_mod
 
@@ -24,9 +24,14 @@ from .score import risk as risk_mod
 @dataclass
 class AuditOptions:
     online: bool = False
+    #: Which provenance sources to consult when ``online`` is set. Narrowing
+    #: this is how a facility keeps model names off a particular service.
+    sources: tuple[str, ...] = ALL_SOURCES
     models_dir: str = ""
     licences_path: str = ""
     hf_token: str = ""
+    civitai_token: str = ""
+    github_token: str = ""
     hash_models: bool = True
     cache_ttl: int | None = None
 
@@ -133,10 +138,14 @@ def run_workflow(wf: graph.Workflow, opts: AuditOptions) -> AuditReport:
 
     # -- resolve provenance and licences ----------------------------------
     matcher = licences_mod.LicenceMatcher(opts.licences_path or None)
-    cache = HttpCache(ttl=opts.cache_ttl) if opts.cache_ttl else HttpCache()
-    resolver = Resolver(cache=cache, hf_token=opts.hf_token, enabled=opts.online)
+    http = HttpClient(ttl=opts.cache_ttl) if opts.cache_ttl else HttpClient()
+    credentials = Credentials.from_environment(
+        huggingface=opts.hf_token, civitai=opts.civitai_token, github=opts.github_token)
+    resolver = Resolver(http=http, credentials=credentials, matcher=matcher,
+                        sources=opts.sources, enabled=opts.online)
 
     hashed = 0
+    conflicts: list[str] = []
     for model in models:
         sha = ""
         if index.available and model.folder != "hosted-api":
@@ -152,36 +161,16 @@ def run_workflow(wf: graph.Workflow, opts: AuditOptions) -> AuditReport:
                         hashed += 1
                         model.notes.append(f"sha256: {sha}")
 
-        model.provenance = resolver.resolve_model(model, sha256=sha)
-        model.license = matcher.for_model(model)
-
-        # An upstream licence tag can settle a model the KB did not recognise.
-        if model.license.commercial_use == "unknown":
-            tag = hf_licence_tag(model.provenance)
-            if tag:
-                model.license = matcher.apply_hf_licence(
-                    model.license, tag, model.provenance.url
-                )
+        outcome = resolver.resolve_model(model, sha256=sha)
+        conflicts.extend(outcome.conflicts)
 
     report.models = models
 
-    # -- registry lookups for packs ---------------------------------------
+    # -- pack licences and health -----------------------------------------
     if opts.online:
         for pack in packs:
-            if not pack.registry_id:
-                continue
-            info = resolver.comfy_registry_pack(pack.registry_id)
-            if not info:
-                continue
-            if info.get("licence"):
-                pack.notes.append(f"registry licence: {info['licence']}")
-            if info.get("latest_version") and pack.pinned_version:
-                if info["latest_version"] != pack.pinned_version:
-                    pack.notes.append(
-                        f"pinned {pack.pinned_version}, latest published {info['latest_version']}"
-                    )
-            if info.get("status") and info["status"].lower() not in ("active", "nodestatusactive"):
-                pack.notes.append(f"registry status: {info['status']}")
+            if pack.identified:
+                resolver.resolve_pack(pack)
 
     # -- score -------------------------------------------------------------
     report.automation = automation_mod.score(
@@ -212,6 +201,7 @@ def run_workflow(wf: graph.Workflow, opts: AuditOptions) -> AuditReport:
         "comfyui_catalog_version": catalog.comfyui_version(),
         "licences": licences_mod.kb_metadata(opts.licences_path or None),
         "node_packs_indexed": len(catalog.node_packs()["packs"]),
+        "base_models": len(licences_mod.load_base_models().get("base_models", {})),
     }
     report.diagnostics = {
         "parser_warnings": wf.warnings[:40],
@@ -220,9 +210,8 @@ def run_workflow(wf: graph.Workflow, opts: AuditOptions) -> AuditReport:
         "models_dir": opts.models_dir,
         "models_scanned_locally": index.scanned,
         "models_hashed": hashed,
-        "http_cache_hits": cache.hits,
-        "http_requests": cache.misses,
-        "lookup_errors": cache.errors[:20],
+        "licence_conflicts": conflicts,
+        **resolver.diagnostics(),
     }
     if index.available:
         report.diagnostics["local_weights_bytes"] = index.total_bytes(

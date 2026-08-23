@@ -520,15 +520,17 @@ def _dependencies_section(w, report: AuditReport) -> None:
                 continue
             ver = (f"<span class='chip ok'>{_e(pack.pinned_version)}</span>"
                    if pack.pinned_version else "<span class='chip warn'>not pinned</span>")
+            licence = _pack_licence_cell(pack)
             rows.append(
                 f"<tr><td><a href='{_e(pack.reference or '#')}'>{_e(pack.title)}</a>"
                 f"<span class='sub'>{_e(', '.join(pack.node_types[:3]))}</span></td>"
-                f"<td>{_e(pack.author or '-')}</td>"
+                f"<td>{_e(pack.author or '-')}</td><td>{licence}</td>"
                 f"<td class='num'>{pack.node_count}</td><td>{ver}</td>"
                 f"<td class='num'>{pack.stars if pack.stars is not None else '-'}</td>"
                 f"<td class='num'>{_e((pack.last_update or '-').split(' ')[0])}</td></tr>"
             )
-        w(_table(["Pack", "Author", "Nodes", "Version", "Stars", "Last commit"], rows))
+        w(_table(["Pack", "Author", "Licence", "Nodes", "Version", "Stars",
+                  "Last commit"], rows))
         notes = [(p.title, n) for p in report.packs for n in p.notes]
         if notes:
             w("<ul>" + "".join(f"<li><strong>{_e(t)}</strong>: {_e(n)}</li>"
@@ -663,6 +665,20 @@ def _table(headers: Iterable[str], rows: Iterable[str]) -> str:
     head = "".join(f"<th>{_e(h)}</th>" for h in headers)
     return ("<div class='scroll'><table><thead><tr>" + head
             + "</tr></thead><tbody>" + "".join(rows) + "</tbody></table></div>")
+
+
+def _pack_licence_cell(pack: Any) -> str:
+    """A node pack's licence, toned by how far it reaches into your own code."""
+    from ..resolve.sources import COPYLEFT_SPDX, WEAK_COPYLEFT_SPDX
+
+    if not pack.licence:
+        return "<span class='muted'>not checked</span>"
+    tone = ("stop" if pack.licence in COPYLEFT_SPDX
+            else "warn" if pack.licence in WEAK_COPYLEFT_SPDX else "ok")
+    label = f"<span class='chip {tone}'>{_e(pack.licence)}</span>"
+    if pack.licence_url:
+        return f"<a href='{_e(pack.licence_url)}'>{label}</a>"
+    return label
 
 
 def _source(prov: Any) -> str:

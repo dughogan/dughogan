@@ -18,6 +18,40 @@ from typing import Any
 from ..records import LicenseInfo, ModelRef
 
 DEFAULT_KB = os.path.join(os.path.dirname(__file__), "data", "licences.json")
+BASE_MODELS = os.path.join(os.path.dirname(__file__), "data", "base_models.json")
+
+#: Upstream licence tags -> our licence ids. HuggingFace uses its own vocabulary
+#: (lowercase, with "other" as an escape hatch); GitHub reports SPDX. Anything
+#: not in here is reported verbatim rather than guessed at.
+TAG_ALIASES = {
+    "apache-2.0": "apache-2.0", "apache 2.0": "apache-2.0",
+    "mit": "mit",
+    "bsd-3-clause": "bsd-3-clause", "bsd-2-clause": "bsd-3-clause",
+    "cc-by-4.0": "cc-by-4.0",
+    "cc-by-nc-4.0": "cc-by-nc-4.0", "cc-by-nc-sa-4.0": "cc-by-nc-sa-4.0",
+    "cc-by-sa-4.0": "cc-by-4.0",
+    "creativeml-openrail-m": "creativeml-openrail-m",
+    "openrail": "creativeml-openrail-m",
+    "openrail++": "creativeml-openrail-plus-plus-m",
+    "creativeml-openrail++-m": "creativeml-openrail-plus-plus-m",
+    "agpl-3.0": "agpl-3.0-ultralytics",
+    "agpl-3.0-only": "agpl-3.0-ultralytics", "agpl-3.0-or-later": "agpl-3.0-ultralytics",
+    "llama3": "llama-community", "llama3.1": "llama-community",
+    "llama3.2": "llama-community", "llama3.3": "llama-community",
+    "fair-ai-public-1.0-sd": "faipl-1.0-sd", "faipl-1.0-sd": "faipl-1.0-sd",
+    "stabilityai-ai-community": "stability-community",
+    "flux-1-dev-non-commercial-license": "flux1-dev-nc",
+}
+
+
+@lru_cache(maxsize=1)
+def load_base_models() -> dict[str, Any]:
+    """Base model -> licence identity, derived from Civitai's own table."""
+    try:
+        with open(BASE_MODELS, "r", encoding="utf-8") as fh:
+            return json.load(fh)
+    except (OSError, json.JSONDecodeError):
+        return {"base_models": {}}
 
 
 @lru_cache(maxsize=8)
@@ -215,43 +249,86 @@ class LicenceMatcher:
             )
         return info
 
-    def apply_hf_licence(self, info: LicenseInfo, hf_licence: str, url: str) -> LicenseInfo:
-        """Upgrade an unmatched verdict using a licence tag fetched from the hub."""
-        if not hf_licence:
+    # -- resolving from upstream evidence ---------------------------------
+
+    def by_tag(self, tag: str, url: str = "") -> LicenseInfo | None:
+        """Resolve an upstream licence tag (a HuggingFace tag or an SPDX id).
+
+        An unrecognised tag still produces a verdict - reported verbatim, with
+        an unknown commercial position - because "upstream calls this 'other'"
+        is more useful to a reader than silence.
+        """
+        key = (tag or "").strip().lower()
+        if not key:
+            return None
+
+        alias = TAG_ALIASES.get(key)
+        if alias and alias in self.licences:
+            info = self._build(alias, matched_on=f"upstream licence tag '{tag}'",
+                               confidence="high")
+            info.url = url or info.url
             return info
-        key = hf_licence.strip().lower()
-        alias = {
-            "apache-2.0": "apache-2.0",
-            "mit": "mit",
-            "bsd-3-clause": "bsd-3-clause",
-            "cc-by-4.0": "cc-by-4.0",
-            "cc-by-nc-4.0": "cc-by-nc-4.0",
-            "cc-by-nc-sa-4.0": "cc-by-nc-sa-4.0",
-            "creativeml-openrail-m": "creativeml-openrail-m",
-            "openrail": "creativeml-openrail-m",
-            "openrail++": "creativeml-openrail-plus-plus-m",
-            "agpl-3.0": "agpl-3.0-ultralytics",
-            "llama3": "llama-community",
-            "llama3.1": "llama-community",
-            "llama3.2": "llama-community",
-        }.get(key)
 
-        if alias:
-            resolved = self._build(alias, matched_on=f"hub licence tag '{hf_licence}'", confidence="medium")
-            resolved.url = url or resolved.url
-            return resolved
+        if key in ("other", "unknown", "unlicense", "noassertion"):
+            return None
 
-        # An unrecognised tag is still better than nothing: report it verbatim
-        # rather than pretending we know what it permits.
-        info.name = f"{hf_licence} (as tagged upstream)"
-        info.matched_on = f"hub licence tag '{hf_licence}'"
-        info.confidence = "low"
-        info.url = url or info.url
-        info.summary = (
-            f"Upstream tags this model '{hf_licence}', which is not in the knowledge base. "
-            "Read the licence file on the model page before commercial use."
-        )
+        info = self._build("unknown", matched_on=f"upstream licence tag '{tag}'",
+                           confidence="low")
+        info.name = f"{tag} (as tagged upstream)"
+        info.url = url or ""
+        info.summary = (f"Upstream tags this '{tag}', which is not in the knowledge "
+                        "base. Read the licence before commercial use.")
         return info
+
+    def by_base_model(self, base_model: str) -> tuple[LicenseInfo | None, str]:
+        """Resolve the licence governing a base model.
+
+        Returns the terms and a human-readable name for the base, because a
+        derivative inherits its base's obligations no matter what its own author
+        says: a FLUX.1 [dev] LoRA cannot be more permissive than FLUX.1 [dev].
+        """
+        name = (base_model or "").strip()
+        if not name:
+            return None, ""
+
+        table = load_base_models().get("base_models", {})
+        record = table.get(name)
+        if record is None:
+            # HuggingFace gives a repo id ("black-forest-labs/FLUX.1-dev"), which
+            # the filename rules already understand.
+            hit = self.match_name(os.path.basename(name), repo_id=name)
+            if hit is None:
+                return None, name
+            rule, matched_on, _ = hit
+            info = self._build(rule["licence"], confidence="medium",
+                               matched_on=f"base model {name} ({matched_on})")
+            info.name = f"{info.name} ({rule['family']})"
+            if rule.get("source"):
+                info.url = rule["source"]
+            return info, name
+
+        licence_id = record.get("licence_id")
+        if not licence_id or licence_id not in self.licences:
+            info = self._build("unknown", matched_on=f"base model {name}",
+                               confidence="low")
+            if record.get("licence_name"):
+                info.name = f"{record['licence_name']} (not classified)"
+                info.url = record.get("licence_url", "")
+                info.summary = (f"The base model is {name}, governed by "
+                                f"{record['licence_name']}, which is not in the "
+                                "knowledge base. Read it before commercial use.")
+            return info, name
+
+        info = self._build(licence_id, matched_on=f"base model {name}",
+                           confidence="medium")
+        if record.get("licence_url"):
+            info.url = record["licence_url"]
+        if record.get("share_alike"):
+            info.restrictions.append(
+                "Derivatives of this base model must carry the same licence.")
+        if record.get("attribution"):
+            info.restrictions.append(f"Required notice: {record['attribution']}")
+        return info, name
 
 
 def kb_metadata(kb_path: str | None = None) -> dict[str, Any]:

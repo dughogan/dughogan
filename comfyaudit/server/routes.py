@@ -110,27 +110,14 @@ async def _run(fn, *args) -> Any:
 
 
 def _audit_sync(workflow: dict[str, Any], options: dict[str, Any]) -> dict[str, Any]:
-    from ..nodes.audit_nodes import run_audit
-
-    report = run_audit(
-        workflow,
-        online=bool(options.get("online")),
-        check_local_models=bool(options.get("check_local_models", True)),
-        licences_path=str(options.get("licences", "") or ""),
-    )
-    return _payload(report)
+    return _payload(_audit(workflow, options))
 
 
 def _review_sync(workflow: dict[str, Any], body: dict[str, Any]) -> dict[str, Any]:
-    from ..nodes.audit_nodes import render_review, run_audit
+    from ..nodes.audit_nodes import render_review
 
     options = body.get("options") or {}
-    report = run_audit(
-        workflow,
-        online=bool(options.get("online")),
-        check_local_models=bool(options.get("check_local_models", True)),
-        licences_path=str(options.get("licences", "") or ""),
-    )
+    report = _audit(workflow, options)
 
     lister = None
     try:
@@ -138,6 +125,16 @@ def _review_sync(workflow: dict[str, Any], body: dict[str, Any]) -> dict[str, An
         lister = _local_model_lister()
     except Exception:
         lister = None
+
+    resolver = None
+    if bool((body.get("options") or {}).get("online")) or body.get("model_lookups", True):
+        from ..core.resolve.http import Credentials, HttpClient
+        from ..core.resolve.resolver import Resolver
+        from ..nodes.audit_nodes import parse_sources
+        resolver = Resolver(http=HttpClient(),
+                            credentials=Credentials.from_environment(),
+                            sources=parse_sources(str(options.get("sources", "") or "")),
+                            enabled=True)
 
     result = reviewer_mod.review(
         report,
@@ -148,6 +145,7 @@ def _review_sync(workflow: dict[str, Any], body: dict[str, Any]) -> dict[str, An
         web_search=bool(body.get("web_search", True)),
         question=str(body.get("question", "") or ""),
         local_models=lister,
+        resolver=resolver,
     )
     reviewer_mod.apply_to_report(report, result)
 
@@ -155,6 +153,19 @@ def _review_sync(workflow: dict[str, Any], body: dict[str, Any]) -> dict[str, An
     payload["review"] = result.as_dict()
     payload["review_markdown"] = render_review(result)
     return payload
+
+
+def _audit(workflow: dict[str, Any], options: dict[str, Any]):
+    from ..nodes.audit_nodes import run_audit
+
+    return run_audit(
+        workflow,
+        online=bool(options.get("online")),
+        check_local_models=bool(options.get("check_local_models", True)),
+        licences_path=str(options.get("licences", "") or ""),
+        sources=str(options.get("sources", "") or ""),
+        hash_models=bool(options.get("hash_models")),
+    )
 
 
 def _payload(report) -> dict[str, Any]:

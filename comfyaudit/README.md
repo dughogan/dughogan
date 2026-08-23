@@ -74,9 +74,8 @@ ones that are easy to miss:
 | Depth Anything V2 | Base and Large are CC BY-NC; only Small is Apache 2.0. |
 
 **Provenance.** Where each weight came from — offline from a bundled index of
-500+ known model files, and optionally live from HuggingFace, Civitai and the
-Comfy Registry. Gated repositories, run-time auto-downloads and untraceable
-community merges are called out individually.
+500+ known model files, and live from HuggingFace, Civitai, GitHub and the Comfy
+Registry. See [Looking models up](#looking-models-up) below.
 
 **Prompts.** Positive and negative are worked out from the sampler wiring rather
 than guessed from node titles, so it stays right through reroutes, conditioning
@@ -93,6 +92,95 @@ version, and whether two installed packs claim the same node class name.
 **Production risk.** Findings across licensing, provenance, reproducibility,
 dependency, runtime and data handling, each with evidence and something you can
 act on.
+
+## Looking models up
+
+With `--online` (or the node's `online_lookups` switch) every model and node pack
+is resolved against the services that actually know about it. Each answers a
+different question:
+
+| Source | What it settles |
+|---|---|
+| **HuggingFace** | The licence tag on the repo, whether it's **gated** (and whether a human has to approve you, which stalls a render node), and the **base models** the hub has recorded — the ancestry that decides what a fine-tune may inherit. |
+| **Civitai** | Community checkpoints and LoRAs. Looked up **by SHA-256** where possible, because filenames on Civitai are whatever the downloader called them. Returns the uploader's own permission flags and the declared base model. |
+| **GitHub** | Custom node pack licences, stars, last push, and whether the repo is archived. Falls back to reading `LICENSE` from `raw.githubusercontent.com` when the API's 60-an-hour anonymous limit runs out. |
+| **Comfy Registry** | Publisher, latest published version, and the pack's declared licence. |
+
+### Licence inheritance is the point
+
+A LoRA's author can grant less than their base model allows. They cannot grant
+more. So when Civitai says the uploader ticked "Sell" and the version's base
+model is `Flux.1 D`, the answer is still **non-commercial** — and the report says
+why:
+
+```
+my_flux_lora.safetensors — FLUX.1 [dev] Non-Commercial License
+  Inherited from the base model Flux.1 D: a derivative cannot be more
+  permissive than what it was trained on.
+  Civitai uploader flags says yes, but base model Flux.1 D only permits 'no'.
+  exact Civitai file hash match (ab12cd34ef56...)
+  Civitai base model: Flux.1 D
+```
+
+That mapping comes from a bundled table built from **Civitai's own published
+base-model licence data** (80 base models, 77 mapped onto licence definitions
+with a commercial position). Refresh it whenever you like:
+
+```bash
+python tools/build_base_models.py --url
+```
+
+### When sources disagree
+
+Two contradictory descriptions of the same file is itself a finding, and usually
+means the weight was renamed on the way to your drive — which is exactly how a
+non-commercial model gets quietly cleared for delivery. The most restrictive
+reading is applied, the confidence drops, and the disagreement is reported:
+
+> `licence.conflict` — the filename says FLUX.1 [dev], the HuggingFace repo
+> hosting that file tags it `apache-2.0`.
+
+Note the distinction: a model granting *less* than its base allows is ordinary
+and is not reported as a conflict. Only a derivative claiming *more*, or two
+flatly contradictory descriptions, get raised.
+
+### Node pack licences
+
+Custom node code runs inside the ComfyUI process and is called directly by
+whatever you build around it, so its licence reaches further than a model's ever
+does. GPL and especially AGPL packs are now flagged (`dependency.copyleft`), as
+are packs that publish no licence at all — where the default is all rights
+reserved, not permission.
+
+### Credentials and privacy
+
+All optional; each buys something specific:
+
+```bash
+export HF_TOKEN=...          # gated repos, higher rate limit
+export CIVITAI_API_KEY=...   # early-access models
+export GITHUB_TOKEN=...      # lifts the 60-requests-an-hour anonymous cap
+```
+
+Responses are cached on disk for a week, and rate limits are tracked per host so
+the report can tell you "GitHub rate limit reached, resets in about 40 minutes"
+rather than silently returning less.
+
+If model names must not leave for a particular service, narrow it:
+
+```bash
+comfyaudit ... --online --sources huggingface,github
+```
+
+Offline is still the default everywhere. `--sources` and the node's `sources`
+widget accept `huggingface`, `civitai`, `github`, `comfy-registry`.
+
+### Hashing
+
+`--models-dir` plus `--online` hashes every local weight so Civitai can identify
+it exactly. This is the only way to catch a renamed checkpoint. In ComfyUI it's
+the `hash_models` switch, off by default, because the first run reads every model
+file on disk.
 
 ## The automation index
 
@@ -245,6 +333,9 @@ Everything works offline, from data built into the package:
 - **Known model index** mapping common weight filenames to upstream repos.
 - **Licence knowledge base** in `core/knowledge/data/licences.json`, with a
   `source` link and a `confidence` on every entry.
+- **Base-model licence table** in `core/knowledge/data/base_models.json`, derived
+  from Civitai's own published mapping, so a derivative's inherited obligations
+  resolve without a network call.
 
 Rebuild the catalogs against a newer ComfyUI whenever you like:
 
@@ -272,14 +363,18 @@ it does.
 ## Development
 
 ```bash
-python -m pytest        # 109 tests
+python -m pytest        # 151 tests
 ```
 
 The agent tests point a real Anthropic client at a local stub of the Messages
 API, so the tool schemas, the multi-turn loop and the paused-turn restart are
 exercised rather than mocked. The ComfyUI-facing tests run against a stand-in
 `nodes` / `folder_paths` pair, since ComfyUI itself can't be imported in a test
-environment.
+environment. The provenance tests replay real HuggingFace, Civitai and GitHub
+response shapes from a local server — those fixtures were taken from upstream
+source (`huggingface_hub`'s own `ModelInfo`, Civitai's `model.schema.ts`) rather
+than from memory, because the wire format is camelCase in places the Python
+client is not.
 
 ## Licence
 

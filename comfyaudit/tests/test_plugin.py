@@ -541,3 +541,31 @@ def test_the_audit_reruns_when_the_graph_changes_and_not_otherwise(comfy):
     args["online_lookups"] = True
     assert ComfyAuditWorkflow.IS_CHANGED(
         extra_pnginfo={"workflow": WORKFLOW}, **args) != same_a
+
+
+# --------------------------------------------------------------------------
+# Source selection
+# --------------------------------------------------------------------------
+
+
+def test_source_list_parsing():
+    from comfyaudit.core.resolve.resolver import ALL_SOURCES
+    from comfyaudit.nodes.audit_nodes import parse_sources
+
+    assert parse_sources("") == ALL_SOURCES
+    assert parse_sources("civitai,github") == ("civitai", "github")
+    assert parse_sources(" CIVITAI , GitHub ") == ("civitai", "github")
+    # An unusable list falls back to everything rather than silently doing nothing.
+    assert parse_sources("nonsense") == ALL_SOURCES
+
+
+def test_the_audit_node_stays_offline_by_default(comfy):
+    from comfyaudit.nodes.audit_nodes import ComfyAuditWorkflow
+
+    report = ComfyAuditWorkflow().run(
+        source="this workflow (UI graph)", check_local_models=True,
+        online_lookups=False, extra_pnginfo={"workflow": WORKFLOW},
+    )["result"][0]
+    assert report.diagnostics["online"] is False
+    assert report.diagnostics["http_requests"] == 0
+    assert report.diagnostics["sources"] == []

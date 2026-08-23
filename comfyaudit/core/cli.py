@@ -41,8 +41,16 @@ def build_parser() -> argparse.ArgumentParser:
                             "and hash them")
     audit.add_argument("--licences", "--licenses", dest="licences", default="",
                        help="a studio licence file that extends or overrides the bundled one")
+    audit.add_argument("--sources", default="",
+                       help="limit which services --online contacts, comma separated: "
+                            "huggingface, civitai, github, comfy-registry (default: all)")
     audit.add_argument("--hf-token", default="",
                        help="HuggingFace token for gated repositories (or set HF_TOKEN)")
+    audit.add_argument("--civitai-token", default="",
+                       help="Civitai API key (or set CIVITAI_API_KEY)")
+    audit.add_argument("--github-token", default="",
+                       help="GitHub token; lifts the 60-requests-an-hour anonymous "
+                            "limit (or set GITHUB_TOKEN)")
     audit.add_argument("--no-hash", action="store_true",
                        help="skip SHA-256 hashing of local weights")
     audit.add_argument("--fail-on", default="", choices=[""] + SEVERITY_ORDER,
@@ -89,11 +97,22 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def _cmd_audit(args: argparse.Namespace) -> int:
+    from ..core.resolve.resolver import ALL_SOURCES
+    wanted = tuple(s.strip().lower() for s in args.sources.split(",") if s.strip())
+    unknown = [s for s in wanted if s not in ALL_SOURCES]
+    if unknown:
+        print(f"unknown source(s): {', '.join(unknown)}. "
+              f"Valid: {', '.join(ALL_SOURCES)}", file=sys.stderr)
+        return 2
+
     opts = AuditOptions(
         online=args.online,
+        sources=tuple(s for s in wanted if s in ALL_SOURCES) or ALL_SOURCES,
         models_dir=args.models_dir,
         licences_path=args.licences,
         hf_token=args.hf_token,
+        civitai_token=args.civitai_token,
+        github_token=args.github_token,
         hash_models=not args.no_hash,
     )
 
@@ -141,6 +160,23 @@ def _cmd_audit(args: argparse.Namespace) -> int:
 def _add_claude_review(report: AuditReport, args: argparse.Namespace) -> None:
     """Run the agent and attach the result so every format renders it."""
     from ..agent import reviewer as reviewer_mod
+    from ..core.resolve.http import Credentials, HttpClient
+    from ..core.resolve.resolver import Resolver
+
+    # Give the agent the same lookups the audit used, so it can check a licence
+    # at source instead of recalling one.
+    resolver = None
+    if args.online:
+        from ..core.resolve.resolver import ALL_SOURCES
+        wanted = tuple(s.strip().lower() for s in args.sources.split(",") if s.strip())
+        resolver = Resolver(
+            http=HttpClient(),
+            credentials=Credentials.from_environment(
+                huggingface=args.hf_token, civitai=args.civitai_token,
+                github=args.github_token),
+            sources=tuple(s for s in wanted if s in ALL_SOURCES) or ALL_SOURCES,
+            enabled=True,
+        )
 
     if not args.quiet:
         print("running the Claude review...", file=sys.stderr)
@@ -151,6 +187,7 @@ def _add_claude_review(report: AuditReport, args: argparse.Namespace) -> None:
         effort=args.claude_effort,
         web_search=not args.no_web_search,
         question=args.ask,
+        resolver=resolver,
     )
     reviewer_mod.apply_to_report(report, result)
     report.diagnostics["claude_review"] = result.as_dict()
@@ -228,6 +265,15 @@ def _cmd_info() -> int:
     print(f"  known model index     {len(catalog.known_models())} filenames")
     print(f"  licence knowledge     v{meta['version']} ({meta['model_rules']} model rules, "
           f"{meta['licence_terms']} licence definitions), verified {meta['checked']}")
+    bases = licences_mod.load_base_models().get("base_models", {})
+    classified = sum(1 for r in bases.values() if r.get("licence_id"))
+    print(f"  base model licences   {len(bases)} base models, {classified} classified")
+    from ..core.resolve.http import Credentials
+    from ..core.resolve.resolver import ALL_SOURCES
+    have = Credentials.from_environment().describe()
+    tokens = ", ".join(f"{k}{'*' if v else ''}" for k, v in have.items())
+    print(f"  online sources        {', '.join(ALL_SOURCES)}")
+    print(f"  credentials found     {tokens or 'none'}   (* = token present)")
     return 0
 
 

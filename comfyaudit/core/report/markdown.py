@@ -170,15 +170,18 @@ def render(report: AuditReport) -> str:
       + (f" | Hosted API node types: **{len(report.api_node_types)}**" if report.api_node_types else ""))
     w("")
     if report.packs:
-        w("| Pack | Author | Nodes used | Version pinned | Stars | Last commit |")
-        w("|---|---|---|---|---|---|")
+        w("| Pack | Author | Licence | Nodes used | Version pinned | Stars | Last commit |")
+        w("|---|---|---|---|---|---|---|")
         for pack in report.packs:
             if not pack.identified:
-                w(f"| {_cell(pack.title)} **(unidentified)** | - | {pack.node_count} | - | - | - |")
+                w(f"| {_cell(pack.title)} **(unidentified)** | - | - | "
+                  f"{pack.node_count} | - | - | - |")
                 continue
-            w("| [{title}]({url}) | {author} | {n} ({types}) | {ver} | {stars} | {last} |".format(
+            w("| [{title}]({url}) | {author} | {lic} | {n} ({types}) | {ver} | {stars} | {last} |".format(
                 title=_cell(pack.title), url=pack.reference or "#",
-                author=_cell(pack.author or "-"), n=pack.node_count,
+                author=_cell(pack.author or "-"),
+                lic=_cell(pack.licence or "not checked"),
+                n=pack.node_count,
                 types=_cell(", ".join(pack.node_types[:3]) + ("..." if len(pack.node_types) > 3 else "")),
                 ver=pack.pinned_version or "**not pinned**",
                 stars=pack.stars if pack.stars is not None else "-",
@@ -331,6 +334,7 @@ def _appendix(w, report: AuditReport) -> None:
     w("")
     know = report.knowledge
     lic_meta = know.get("licences", {})
+    diag = report.diagnostics
     w("**Knowledge sources**")
     w("")
     w(f"- Core node schemas scraped from ComfyUI {know.get('comfyui_catalog_version', '?')}")
@@ -339,11 +343,18 @@ def _appendix(w, report: AuditReport) -> None:
       f"({lic_meta.get('model_rules', 0)} model rules, "
       f"{lic_meta.get('licence_terms', 0)} licence definitions), last verified "
       f"{lic_meta.get('checked', '?')}")
+    if know.get("base_models"):
+        w(f"- Base-model licence table: {know['base_models']} base models, derived "
+          "from Civitai's own published mapping")
+    if diag.get("sources"):
+        w(f"- Online sources consulted: {', '.join(diag['sources'])}")
+    for note in diag.get("rate_limits", []):
+        w(f"- {note}")
     if lic_meta.get("overrides_from"):
         w(f"- Studio licence overrides: {lic_meta['overrides_from']}")
     w("")
 
-    diag = report.diagnostics
+    w("")
     w("**Audit coverage**")
     w("")
     w(f"- Online lookups: {'enabled' if diag.get('online') else 'disabled (offline knowledge base only)'}")
