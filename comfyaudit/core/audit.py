@@ -17,6 +17,7 @@ from .records import AssetRef, ModelRef, PackRef, PromptRef, to_jsonable
 from .resolve import local as local_mod
 from .resolve.http import Credentials, HttpClient
 from .resolve.resolver import ALL_SOURCES, Resolver
+from . import registry as registry_mod
 from .score import automation as automation_mod
 from .score import clearance as clearance_mod
 from .score import licensing as licensing_mod
@@ -40,6 +41,9 @@ class AuditOptions:
     #: licence terms and stops there; with one, it also works out what they mean
     #: for this studio.
     profile: clearance_mod.StudioProfile | None = None
+    #: Path to the facility's decision record. With one, the report leads with
+    #: what is new rather than restating what was cleared months ago.
+    registry_path: str = ""
 
 
 @dataclass
@@ -60,6 +64,8 @@ class AuditReport:
         default_factory=licensing_mod.LicenceSummary)
     clearance: clearance_mod.ClearanceResult = field(
         default_factory=clearance_mod.ClearanceResult)
+    registry: registry_mod.RegistryCheck = field(
+        default_factory=registry_mod.RegistryCheck)
     prompt_dependencies: dict[str, Any] = field(default_factory=dict)
     knowledge: dict[str, Any] = field(default_factory=dict)
     diagnostics: dict[str, Any] = field(default_factory=dict)
@@ -74,6 +80,8 @@ class AuditReport:
                 "licence_counts": self.licensing.counts,
                 "verdict": self.clearance.verdict if self.clearance.determined else "",
                 "verdict_headline": self.clearance.headline,
+                "outstanding": sum(self.clearance.actions.values()),
+                "registry": self.registry.headline(),
                 "risk_score": self.risk.score,
                 "risk_band": self.risk.band,
                 "automation_index": self.automation.index,
@@ -81,6 +89,7 @@ class AuditReport:
             },
             "licensing": self.licensing.as_dict(),
             "clearance": self.clearance.as_dict(),
+            "registry": self.registry.as_dict(),
             "models": to_jsonable(self.models),
             "prompts": to_jsonable(self.prompts),
             "notes": to_jsonable(self.notes),
@@ -193,6 +202,17 @@ def run_workflow(wf: graph.Workflow, opts: AuditOptions) -> AuditReport:
         missing_models=report.missing_models,
     )
     report.licensing = licensing_mod.summarise(models, api_types)
+    registry_error = ""
+    if opts.registry_path:
+        try:
+            report.registry = registry_mod.Registry.load(
+                opts.registry_path).check(models, packs)
+        except (OSError, ValueError) as exc:
+            # An unreadable registry is worth saying out loud, but it must not
+            # cost the reader the rest of the report.
+            registry_error = str(exc)
+            report.registry = registry_mod.RegistryCheck(path=opts.registry_path)
+
     report.clearance = clearance_mod.determine(
         models, packs=packs, profile=opts.profile, api_node_types=api_types,
         node_types=[n.type for n in wf.active()])
@@ -230,6 +250,8 @@ def run_workflow(wf: graph.Workflow, opts: AuditOptions) -> AuditReport:
         "models_hashed": hashed,
         "licence_conflicts": conflicts,
         **resolver.diagnostics(),
+        "registry_path": opts.registry_path,
+        "registry_error": registry_error,
     }
     if index.available:
         report.diagnostics["local_weights_bytes"] = index.total_bytes(

@@ -12,6 +12,7 @@ from . import __version__, catalog, graph
 from .audit import AuditOptions, AuditReport, run
 from .report import markdown as md_report
 from .records import Finding
+from .registry import Entry, Registry, STATUSES as REG_STATUSES, entries_from_report
 from .score import clearance
 
 SEVERITY_ORDER = ["critical", "high", "medium", "low", "info"]
@@ -88,6 +89,10 @@ def build_parser() -> argparse.ArgumentParser:
     profile.add_argument("--profile", default="", metavar="PATH",
                          help="read the above from a JSON file instead, so a "
                               "facility states its circumstances once")
+    audit.add_argument("--registry", default="", metavar="PATH",
+                       help="the facility's decision record. With one, the report "
+                            "leads with what is new rather than restating what was "
+                            "cleared months ago")
     audit.add_argument("--claude", nargs="?", const="full", default="",
                        choices=["", "full", "identify", "clearance", "remediate",
                                 "narrative"],
@@ -112,6 +117,56 @@ def build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("info", help="show what the bundled knowledge base contains")
 
+    # -- registry ----------------------------------------------------------
+    reg = sub.add_parser(
+        "registry",
+        help="the facility's record of what it has already cleared",
+        description="A studio has hundreds of workflows and the same few models. "
+                    "The registry records decisions once, so every later audit "
+                    "answers the short question - what is new here? - instead of "
+                    "restating what was settled in March.")
+    reg_sub = reg.add_subparsers(dest="registry_command", required=True)
+
+    reg_list = reg_sub.add_parser("list", help="show what has been decided")
+    reg_list.add_argument("path")
+    reg_list.add_argument("--status", default="", choices=[""] + sorted(REG_STATUSES),
+                          help="show only entries with this status")
+
+    reg_add = reg_sub.add_parser(
+        "add", help="record decisions for everything a workflow uses",
+        description="Drafts an entry per model and pack, then writes them. Review "
+                    "the workflow first: this records that a decision was made, "
+                    "and one nobody made is not a decision.")
+    reg_add.add_argument("path")
+    reg_add.add_argument("workflow")
+    reg_add.add_argument("--status", default="approved", choices=sorted(REG_STATUSES))
+    reg_add.add_argument("--by", default="", metavar="NAME",
+                         help="who made the call - a decision with no name on it "
+                              "is hard to revisit")
+    reg_add.add_argument("--note", default="", help="why, in a sentence")
+    reg_add.add_argument("--reference", default="", metavar="REF",
+                         help="a ticket, contract or email to point back at")
+    reg_add.add_argument("--models-dir", default="",
+                         help="hash local weights so a rename cannot break the entry")
+    reg_add.add_argument("--all", action="store_true",
+                         help="re-record entries that already exist, rather than "
+                              "only what is new")
+
+    reg_set = reg_sub.add_parser("set", help="record a decision about one item")
+    reg_set.add_argument("path")
+    reg_set.add_argument("key", help="a model filename, or a pack repository")
+    reg_set.add_argument("--kind", default="model", choices=["model", "pack"])
+    reg_set.add_argument("--status", default="approved", choices=sorted(REG_STATUSES))
+    reg_set.add_argument("--by", default="", metavar="NAME")
+    reg_set.add_argument("--note", default="")
+    reg_set.add_argument("--reference", default="", metavar="REF")
+    reg_set.add_argument("--licence", "--license", dest="licence", default="")
+
+    reg_rm = reg_sub.add_parser("remove", help="drop a decision")
+    reg_rm.add_argument("path")
+    reg_rm.add_argument("key")
+    reg_rm.add_argument("--kind", default="model", choices=["model", "pack"])
+
     return parser
 
 
@@ -122,6 +177,8 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_info()
     if args.command == "models":
         return _cmd_models(args)
+    if args.command == "registry":
+        return _cmd_registry(args)
     return _cmd_audit(args)
 
 
@@ -147,6 +204,7 @@ def _cmd_audit(args: argparse.Namespace) -> int:
         github_token=args.github_token,
         hash_models=not args.no_hash,
         profile=_studio_profile(args),
+        registry_path=args.registry,
     )
 
     paths = _expand(args.workflows)
@@ -282,6 +340,83 @@ def _cmd_models(args: argparse.Namespace) -> int:
                     lic.commercial_use if lic else "unknown", "?")
         print(f"{model.filename:<{width}}  {model.role:<28}  {flag:<16}  "
               f"{lic.name if lic else 'Unknown'}")
+    return 0
+
+
+# --------------------------------------------------------------------------
+# registry
+# --------------------------------------------------------------------------
+
+
+def _cmd_registry(args) -> int:
+    if args.registry_command == "list":
+        return _registry_list(args)
+    if args.registry_command == "add":
+        return _registry_add(args)
+    if args.registry_command == "set":
+        return _registry_set(args)
+    return _registry_remove(args)
+
+
+def _registry_list(args) -> int:
+    registry = Registry.load(args.path)
+    entries = [e for e in registry.sorted_entries()
+               if not args.status or e.status == args.status]
+    if not entries:
+        print("no entries" + (f" with status {args.status}" if args.status else ""))
+        return 0
+    width = min(52, max(len(e.key) for e in entries))
+    for entry in entries:
+        who = f"{entry.decided_by or '?'} {entry.decided_on}".strip()
+        print(f"{entry.status:24} {entry.kind:5} {entry.key[:width]:{width}}  {who}"
+              + (f"  [{entry.reference}]" if entry.reference else ""))
+    print(f"\n{len(entries)} entr{'y' if len(entries) == 1 else 'ies'} in {args.path}")
+    return 0
+
+
+def _registry_add(args) -> int:
+    registry = Registry.load(args.path)
+    report = run(args.workflow, AuditOptions(
+        models_dir=args.models_dir,
+        hash_models=bool(args.models_dir),
+        registry_path=args.path,
+    ))
+    drafted = entries_from_report(
+        report, status=args.status, decided_by=args.by,
+        reference=args.reference, only_new=not args.all)
+    if args.note:
+        for entry in drafted:
+            entry.note = args.note
+    if not drafted:
+        print("nothing new in this workflow - the registry already covers it")
+        return 0
+    for entry in drafted:
+        registry.record(entry)
+        print(f"{entry.status:24} {entry.kind:5} {entry.key}")
+    registry.save(args.path)
+    print(f"\n{len(drafted)} entr{'y' if len(drafted) == 1 else 'ies'} written to "
+          f"{args.path}")
+    return 0
+
+
+def _registry_set(args) -> int:
+    registry = Registry.load(args.path)
+    registry.record(Entry(
+        key=args.key, kind=args.kind, status=args.status, decided_by=args.by,
+        note=args.note, reference=args.reference, licence=args.licence,
+    ))
+    registry.save(args.path)
+    print(f"{args.status}: {args.key}")
+    return 0
+
+
+def _registry_remove(args) -> int:
+    registry = Registry.load(args.path)
+    if not registry.remove(args.key, args.kind):
+        print(f"no {args.kind} entry for {args.key}", file=sys.stderr)
+        return 1
+    registry.save(args.path)
+    print(f"removed {args.key}")
     return 0
 
 

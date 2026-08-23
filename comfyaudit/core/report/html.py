@@ -442,6 +442,7 @@ def _body(report: AuditReport) -> str:
               f"{_e(finding.recommendation or finding.detail)}</span></li>")
         w("</ol>")
 
+    _registry_section(w, section, report)
     _clearance_section(w, section, report)
     _licence_section(w, section, report)
     _models_section(w, section, report)
@@ -462,6 +463,56 @@ def _body(report: AuditReport) -> str:
 
 
 # --------------------------------------------------------------------------
+
+
+def _registry_section(w, section, report: AuditReport) -> None:
+    """What is new since the facility last looked.
+
+    Leads the document when a registry exists, because by the second workflow it
+    is the only part anyone reads: the licences were settled in March.
+    """
+    reg = report.registry
+    if not reg.loaded:
+        return
+
+    outstanding = len(reg.matches) - len(reg.known)
+    section("New since last cleared",
+            "nothing new" if reg.clean else f"{outstanding} to look at")
+    w(f"<p class='lede'>{_e(reg.headline())}</p>")
+
+    if reg.clean:
+        w("<div class='block ok'><p>Nothing here requires a fresh decision. The "
+          "sections below restate what those decisions were, for the record.</p>"
+          "</div>")
+        return
+
+    for state, heading, lead, tone in (
+        ("rejected", "Previously rejected",
+         "Someone has already decided these should not be used. If that has "
+         "changed, the registry entry is what to update.", "stop"),
+        ("changed", "Changed since they were cleared",
+         "These were signed off, but not in the state they are in now. A "
+         "decision is about a specific file and a specific licence.", "warn"),
+        ("pending", "Still awaiting an answer",
+         "Raised before and never resolved.", "warn"),
+        ("new", "Not seen before",
+         "Nobody has decided about these yet. This is the list that needs "
+         "someone's time.", "flat"),
+    ):
+        items = [m for m in reg.matches if m.state == state]
+        if not items:
+            continue
+        w(f"<h3>{_e(heading)}</h3>")
+        w(f"<p class='muted'>{_e(lead)}</p>")
+        for match in items:
+            w(f"<div class='det {tone}'>"
+              f"<div class='subj'>{_e(match.subject)}"
+              f"<span class='sub'> {_e(match.kind)}</span></div>"
+              f"<p>{_e(match.detail)}</p></div>")
+
+    if reg.known:
+        w(f"<p class='muted'>{len(reg.known)} other item(s) were already cleared "
+          "and are not repeated here.</p>")
 
 
 def _clearance_section(w, section, report: AuditReport) -> None:

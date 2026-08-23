@@ -54,6 +54,8 @@ def render(report: AuditReport) -> str:
     w("")
     w("| | |")
     w("|---|---|")
+    if report.registry.loaded:
+        w(f"| **Since last cleared** | {report.registry.headline()} |")
     if clr.determined:
         outstanding = sum(clr.actions.values())
         w(f"| **Assessment** | {clearance.VERDICT_LABELS[clr.verdict]}"
@@ -102,7 +104,8 @@ def render(report: AuditReport) -> str:
 
     _headline_actions(w, report)
 
-    # -- determination -----------------------------------------------------
+    # -- what is new, then what has to happen ------------------------------
+    _registry_section(w, section, report)
     _clearance_section(w, section, report)
 
     # -- licence composition -----------------------------------------------
@@ -324,6 +327,57 @@ def render(report: AuditReport) -> str:
 
 
 # --------------------------------------------------------------------------
+
+
+def _registry_section(w, section, report: AuditReport) -> None:
+    """What is new since the facility last looked.
+
+    This runs before everything else when a registry exists, because by the
+    second workflow it is the only part anyone reads: the licences were settled
+    in March and nobody needs telling again.
+    """
+    reg = report.registry
+    if not reg.loaded:
+        return
+
+    section("New since last cleared")
+    w(reg.headline())
+    w("")
+
+    if reg.clean:
+        w("Nothing here requires a fresh decision. The sections below restate "
+          "what those decisions were, for the record.")
+        w("")
+        return
+
+    for state, heading, lead in (
+        ("rejected", "Previously rejected",
+         "Someone has already decided these should not be used. If that has "
+         "changed, the registry entry is what to update."),
+        ("changed", "Changed since they were cleared",
+         "These were signed off, but not in the state they are in now. A "
+         "decision is about a specific file and a specific licence."),
+        ("pending", "Still awaiting an answer",
+         "Raised before and never resolved."),
+        ("new", "Not seen before",
+         "Nobody has decided about these yet. This is the list that needs "
+         "someone's time."),
+    ):
+        items = [m for m in reg.matches if m.state == state]
+        if not items:
+            continue
+        w(f"### {heading}")
+        w("")
+        w(lead)
+        w("")
+        for match in items:
+            w(f"- **{_cell(match.subject)}** ({match.kind}) - {match.detail}")
+        w("")
+
+    if reg.known:
+        w(f"*{len(reg.known)} other item(s) were already cleared and are not "
+          "repeated here.*")
+        w("")
 
 
 def _clearance_section(w, section, report: AuditReport) -> None:
