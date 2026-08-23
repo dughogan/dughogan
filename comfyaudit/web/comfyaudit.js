@@ -379,9 +379,32 @@ const STUDIO_SETTINGS = [
   },
 ].map((setting) => ({ ...setting, category: ["ComfyAudit", "Studio profile", setting.name] }));
 
+/**
+ * The facility's record of what it has already decided about.
+ *
+ * Not part of the profile — that says what the studio is, this says what it has
+ * concluded — but it belongs in the same panel for the same reason: it is a
+ * property of the installation, not of any one workflow. With a path set, every
+ * report leads with what is new rather than restating what was cleared months
+ * ago. Written with `comfyaudit registry add`, never automatically.
+ */
+const REGISTRY_SETTINGS = [
+  {
+    id: "ComfyAudit.Registry.Path",
+    name: "Registry file",
+    tooltip:
+      "Path to a JSON file recording what this facility has already approved, "
+      + "rejected or parked. Optional. With one, a workflow whose models were "
+      + "all cleared before says so in a line instead of repeating itself.",
+    type: "text",
+    defaultValue: "",
+    category: ["ComfyAudit", "Registry", "Registry file"],
+  },
+];
+
 app.registerExtension({
   name: "comfyaudit.panel",
-  settings: STUDIO_SETTINGS,
+  settings: [...STUDIO_SETTINGS, ...REGISTRY_SETTINGS],
   commands: COMMANDS,
   menuCommands: [{ path: ["Extensions", "ComfyAudit"], commands: COMMANDS.map((c) => c.id) }],
 
@@ -404,10 +427,12 @@ app.registerExtension({
       const studio = status?.studio_profile?.profile_set
         ? status.studio_profile.profile
         : "none set — reports will describe the licences without reaching a verdict";
+      const registry = status?.studio_profile?.registry_path || "none set";
       console.log(
         `[comfyaudit] ready — ${live}, licence KB v${status?.knowledge?.licences?.version}, `
         + `Claude ${status?.claude?.available ? "available" : "unavailable: " + status?.claude?.reason}`
         + `\n[comfyaudit] studio profile: ${studio}`
+        + `\n[comfyaudit] registry: ${registry}`
       );
     } catch (err) {
       console.warn("[comfyaudit] server routes not reachable:", err);

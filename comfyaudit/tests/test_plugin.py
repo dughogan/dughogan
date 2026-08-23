@@ -748,7 +748,8 @@ def test_the_settings_ids_match_the_ones_the_frontend_registers(comfy):
     text = script.read_text()
     registered = set(re.findall(r'id:\s*"(ComfyAudit\.[\w.]+)"', text))
     expected = {settings.TERRITORY, settings.REVENUE, settings.SHIPS,
-                settings.TRAINS, settings.LIKENESS, settings.LABEL}
+                settings.TRAINS, settings.LIKENESS, settings.LABEL,
+                settings.REGISTRY}
     assert registered == expected
 
     # ...and every choice the dialog offers has to be one Python can map.
@@ -759,3 +760,27 @@ def test_the_settings_ids_match_the_ones_the_frontend_registers(comfy):
         listed = re.search(r"options:\s*\[(.*?)\]", block, re.S).group(1)
         for choice in re.findall(r'"([^"]+)"', listed):
             assert choice in mapping, f"{choice!r} has no mapping in settings.py"
+
+
+def test_the_registry_path_comes_from_the_settings_too(comfy):
+    """It describes the installation, so it belongs beside the profile."""
+    from comfyaudit.core import registry as reg
+    from comfyaudit.nodes.audit_nodes import run_audit
+    from comfyaudit.server import settings
+
+    path = str(comfy / "cleared.json")
+    reg.Registry([reg.Entry(key="juggernautXL_v9Rundiffusion.safetensors",
+                            status="rejected",
+                            note="not for this show")]).save(path)
+    _write_settings(comfy, **{settings.REGISTRY: path})
+
+    assert settings.registry_path() == path
+    report = run_audit(WORKFLOW, online=False)
+    assert report.registry.loaded
+    assert any("not for this show" in m.detail for m in report.registry.rejected)
+
+
+def test_no_registry_setting_means_no_registry_section(comfy):
+    from comfyaudit.nodes.audit_nodes import run_audit
+
+    assert run_audit(WORKFLOW, online=False).registry.loaded is False

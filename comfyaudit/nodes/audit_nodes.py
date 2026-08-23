@@ -69,6 +69,7 @@ def run_audit(workflow_doc: dict[str, Any], *, online: bool = False,
               check_local_models: bool = True, licences_path: str = "",
               sources: str = "", hash_models: bool = False,
               profile: clearance_mod.StudioProfile | None = None,
+              registry_path: str = "",
               use_settings_profile: bool = True,
               ) -> audit_mod.AuditReport:
     """Audit a workflow document using whatever the live ComfyUI can tell us.
@@ -83,12 +84,15 @@ def run_audit(workflow_doc: dict[str, Any], *, online: bool = False,
 
     if profile is None and use_settings_profile:
         profile = settings_mod.studio_profile()
+    if not registry_path and use_settings_profile:
+        registry_path = settings_mod.registry_path()
 
     options = audit_mod.AuditOptions(
         online=online,
         sources=parse_sources(sources),
         licences_path=licences_path.strip(),
         profile=profile,
+        registry_path=registry_path,
         # Hashing multi-gigabyte weights mid-queue is rude, so it is opt-in -
         # but it is also the only way to identify a renamed checkpoint.
         hash_models=hash_models,

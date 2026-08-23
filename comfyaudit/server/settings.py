@@ -32,6 +32,11 @@ TRAINS = f"{PREFIX}.Studio.TrainsModels"
 LIKENESS = f"{PREFIX}.Studio.Likeness"
 LABEL = f"{PREFIX}.Studio.Label"
 
+#: Not part of the profile - it describes what the facility has decided rather
+#: than what it is - but it lives in the same settings panel for the same
+#: reason: it is a property of the installation, not of any one workflow.
+REGISTRY = f"{PREFIX}.Registry.Path"
+
 #: What the settings dialog shows, and the key each choice maps to. The dialog
 #: is read by people, the engine is not.
 TERRITORY_OPTIONS = {
@@ -121,6 +126,11 @@ def studio_profile(user: str = "default") -> clearance.StudioProfile | None:
     return profile if profile.is_set else None
 
 
+def registry_path(user: str = "default") -> str:
+    """Where the facility keeps its decision record, if it keeps one."""
+    return str(read_settings(user).get(REGISTRY, "") or "").strip()
+
+
 def describe() -> dict[str, Any]:
     """What the settings currently say, for the diagnostics block."""
     profile = studio_profile()
@@ -128,4 +138,5 @@ def describe() -> dict[str, Any]:
         "settings_file": settings_path(),
         "profile_set": profile is not None,
         "profile": profile.describe() if profile else "",
+        "registry_path": registry_path(),
     }

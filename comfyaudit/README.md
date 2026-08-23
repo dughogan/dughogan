@@ -10,6 +10,10 @@ machine.
 Out of the box it just reports, and opens with a plain-language summary so the
 tables underneath make sense to whoever you forward them to.
 
+Tell it what you've already cleared — optional — and it stops repeating itself.
+The second audit of a workflow answers a much shorter question than the first:
+*what's in here that we haven't already dealt with?*
+
 Tell it about your facility — optional, one panel in ComfyUI's settings — and it
 also works out what all of that means for **you**: go, no-go, or
 go-with-conditions, with the reasoning shown.
@@ -72,7 +76,7 @@ prompt and the UI workflow. Nothing to configure.
 | **Audit Gate** | Stops the queue on conditions **you** choose. Nothing is enforced by default. |
 | **Save Audit Report** | Writes the report into your output folder as HTML, Markdown or JSON. |
 
-## Go / no-go
+## What has to happen
 
 **Entirely optional, and off until you fill it in.** With nothing set, every
 report opens with *In plain terms* — a few paragraphs saying what the workflow
@@ -80,7 +84,8 @@ contains, which licence conditions are actually in play, and which facts would
 settle whether they suit a job. That summary is deterministic: no API key, no
 network, no cost.
 
-Fill in the profile and those same reports reach a verdict instead.
+Fill in the profile and those same reports also work out what the terms
+mean for you.
 
 **Settings → ComfyAudit → Studio profile.** It lives there rather than on a node
 because it describes the facility, not the graph — territory and revenue are the
@@ -100,13 +105,20 @@ file:
 | **Output use** | Several licences forbid training other models on the outputs, worldwide, with no fee that lifts it. |
 
 Set any of them and every model, copyleft node pack and hosted API node gets a
-determination with its chain of reasoning attached:
+determination with its chain of reasoning attached.
+
+The report leads with **the work outstanding, not a ruling on the workflow.**
+Most "no" answers are one model swap or one licence away, and a big red NOT
+USABLE stamp is exactly the fragment that gets screenshotted and forwarded
+without the reasoning underneath. So each finding carries the *shape* of its
+remedy — a confirmation, a credit to add, a licence to buy, a change of where it
+runs — and those get counted:
 
 ```
-NOT USABLE AS-IS — the United States · over $100M annual revenue ·
-finished frames to a client · real performers involved
+Needs changes first — 6 things to resolve before this goes on a paid job:
+4 confirmations, a licence to buy and a change of where it runs.
 
-Blocking
+Has to change
   minimax_h3_ref2va…, minimax_h3_video_vae…, and 2 more
     MiniMax Community License does not grant rights in the United States,
     which is where this studio operates.
@@ -116,8 +128,11 @@ Blocking
       What lifts it: negotiate a separate agreement with MiniMax.
 ```
 
-The same workflow, assessed for a small Toronto facility, comes back
-**usable with conditions** — the territory clause doesn't reach Canada and the
+Jobs are counted by distinct remedy, not by file — four weights failing one
+territory clause are one relocation to arrange, not four.
+
+The same workflow, assessed for a small Toronto facility, comes back **clear
+once conditions are met** — the territory clause doesn't reach Canada and the
 revenue cap isn't met.
 
 Nothing here is a policy the tool invented. Every determination names the term it
@@ -131,6 +146,67 @@ are involved and the graph does identity work, it says so — and it detects tha
 from the node types, not just filenames, because the face swap in a real
 workflow is often done by a general video model and a segmenter with unrevealing
 names.
+
+## What you've already cleared
+
+A studio doesn't have one workflow. It has hundreds, and the same five
+checkpoints recur across all of them. Auditing each in isolation re-derives the
+same findings forever — by the second week the report is mostly noise, because
+the reader already knows about the CodeFormer licence. They cleared it in March.
+
+So decisions get recorded, once:
+
+```bash
+comfyaudit registry add studio-cleared.json shot_0120.json \
+    --by "D. Hogan" --reference SHOW-114 --note "cleared for Atlas, internal only"
+
+comfyaudit registry set studio-cleared.json 4x-UltraSharp.pth \
+    --status rejected --note "non-commercial, use RealESRGAN instead"
+```
+
+Point at that file — **Settings → ComfyAudit → Registry**, or `--registry` — and
+every later report leads with what's new:
+
+```
+## 1. New since last cleared
+
+1 of 12 item(s) need attention: 1 previously rejected.
+
+### Previously rejected
+- 4x-UltraSharp.pth (model) — Recorded as not to be used: non-commercial,
+  use RealESRGAN instead by D. Hogan on 2026-03-14
+
+*11 other item(s) were already cleared and are not repeated here.*
+```
+
+A decision is about a *specific file under a specific licence*, so it reopens
+when either moves. A weight whose SHA-256 no longer matches what was signed off
+comes back as **changed**, not quietly approved. So does one now reading as a
+different licence. And a renamed file is still recognised by its hash — which is
+the one identifier a rename can't break.
+
+Nothing is ever written automatically. A registry that fills itself in is an
+expensive way of approving everything.
+
+## Keeping the licence knowledge current
+
+The knowledge base is hand-curated and accurate as of a date, and licences move:
+Stability relicensed SD3 mid-flight, Black Forest Labs revised the FLUX dev
+terms. Both turned a cleared model into an uncleared one overnight.
+
+Every report states how old its knowledge is, and says so loudly once it's old
+enough for a term to have shifted underneath it. To replace it:
+
+```bash
+comfyaudit update-knowledge --dry-run   # what would change, and how
+comfyaudit update-knowledge             # fetch it
+```
+
+It prints the licences that changed and what moved in each before writing, and
+keeps the old file as `licences.json.previous` — because "the licence changed"
+and "the knowledge base changed" look identical from a report, and only one of
+them is the tool's fault. Never automatic: a licence base that updates unnoticed
+is how a delivery gets cleared against terms nobody read.
 
 ## What the report contains
 
@@ -336,9 +412,11 @@ python -m comfyaudit.core.cli audit workflow.json --models-dir /opt/ComfyUI/mode
 python -m comfyaudit.core.cli audit workflow.json --online --claude
 python -m comfyaudit.core.cli audit shots/ -o audits/ --fail-on critical
 python -m comfyaudit.core.cli info                                     # what's bundled
+python -m comfyaudit.core.cli update-knowledge --dry-run                # licence KB age
+python -m comfyaudit.core.cli registry list studio-cleared.json         # what's decided
 ```
 
-Supply the facility's circumstances and it reaches a verdict:
+Supply the facility's circumstances and it works out what the terms mean there:
 
 ```bash
 python -m comfyaudit.core.cli audit workflow.json \
@@ -349,6 +427,10 @@ python -m comfyaudit.core.cli audit workflow.json \
 python -m comfyaudit.core.cli audit shots/ --profile studio.json -o audits/
 python -m comfyaudit.core.cli audit workflow.json --profile studio.json \
     --claude narrative
+
+# and skip everything already signed off
+python -m comfyaudit.core.cli audit shots/ --profile studio.json \
+    --registry studio-cleared.json -o audits/
 ```
 
 `studio.json` is just the same fields:
