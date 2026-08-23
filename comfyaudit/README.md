@@ -20,14 +20,17 @@ link, and someone has to write down what's in it.
 
 ## Install
 
-**Via ComfyUI-Manager** — search for *ComfyAudit*.
-
-**Manually:**
+Not in the ComfyUI-Manager registry yet, so for now it's a manual install:
 
 ```bash
 cd ComfyUI/custom_nodes
-git clone https://github.com/dughogan/comfyaudit
+git clone https://github.com/dughogan/dughogan comfyaudit-src
+ln -s "$PWD/comfyaudit-src/comfyaudit" comfyaudit
 ```
+
+(ComfyUI loads a pack by directory name, so the folder it sees has to be
+`comfyaudit`. Once this moves to a repository of its own, the clone is the
+whole of it.)
 
 Restart ComfyUI. That's it — ComfyAudit is pure standard library, so installing
 it cannot disturb your environment or fight with anything else you have.
