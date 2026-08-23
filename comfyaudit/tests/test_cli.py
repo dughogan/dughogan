@@ -25,7 +25,7 @@ def test_models_command_lists_licence_status(capsys):
     assert cli.main(["models", BEAUTY]) == 0
     out = capsys.readouterr().out
     assert "codeformer-v0.1.0.pth" in out
-    assert "NON-COMMERCIAL" in out
+    assert "non-commercial" in out
 
 
 def test_json_output_is_written_to_the_requested_file(tmp_path):
@@ -33,7 +33,7 @@ def test_json_output_is_written_to_the_requested_file(tmp_path):
     assert cli.main(["audit", CLEAN, "-f", "json", "-o", str(target), "--quiet"]) == 0
     payload = json.loads(target.read_text())
     assert payload["schema"] == "comfyaudit/1"
-    assert payload["verdict"]["automation_index"] >= 85
+    assert payload["summary"]["automation_index"] >= 85
 
 
 def test_html_output_is_written(tmp_path):
@@ -42,8 +42,9 @@ def test_html_output_is_written(tmp_path):
     assert target.read_text().startswith("<!doctype html>")
 
 
-def test_fail_on_critical_gates_a_risky_workflow():
-    assert cli.main(["audit", BEAUTY, "--fail-on", "critical", "--quiet",
+def test_fail_on_gates_on_operational_findings():
+    """The gate fires on findings, which are now operational rather than policy."""
+    assert cli.main(["audit", BEAUTY, "--fail-on", "high", "--quiet",
                      "-f", "json", "-o", os.devnull]) == 1
 
 

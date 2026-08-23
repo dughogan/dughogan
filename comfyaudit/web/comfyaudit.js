@@ -13,12 +13,14 @@ import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
 
 const PREFIX = "/comfyaudit";
-const CLEARANCE_TONE = {
-  blocked: "#a32e22",
-  unclear: "#8a5a12",
-  conditional: "#8a5a12",
-  clear: "#2f6b3f",
-  unknown: "#8a5a12",
+// The pill is toned by operational risk, not by licence. Licence terms are
+// reported, never graded, so there is no colour that would be honest for them.
+const RISK_TONE = {
+  Severe: "#a32e22",
+  High: "#a32e22",
+  Elevated: "#8a5a12",
+  Moderate: "#8a5a12",
+  Low: "#2f6b3f",
 };
 
 let overlay = null;
@@ -137,9 +139,18 @@ function showReport(body, html) {
   body.append(iframe);
 }
 
+// A one-glance composition: how the workflow's models divide across licence
+// positions, in the order a reader cares about them.
+function licenceBrief(summary) {
+  const counts = summary.licence_counts || {};
+  const order = ["permissive", "conditional", "non-commercial", "unstated"];
+  const parts = order.filter((k) => counts[k]).map((k) => `${counts[k]} ${k}`);
+  return parts.length ? parts.join(", ") : "no models";
+}
+
 function addPill(bar, spacer, summary) {
   const pill = document.createElement("span");
-  const tone = CLEARANCE_TONE[summary.clearance] || "#8a5a12";
+  const tone = RISK_TONE[summary.risk_band] || "#8a5a12";
   Object.assign(pill.style, {
     font: "600 11px ui-monospace, monospace",
     letterSpacing: ".08em",
@@ -149,7 +160,7 @@ function addPill(bar, spacer, summary) {
     border: `1px solid ${tone}`,
     color: tone,
   });
-  pill.textContent = `${summary.clearance} · risk ${summary.risk} · auto ${summary.automation}`;
+  pill.textContent = `${summary.models} models · ${licenceBrief(summary)} · risk ${summary.risk} · auto ${summary.automation}`;
   bar.insertBefore(pill, spacer);
 }
 

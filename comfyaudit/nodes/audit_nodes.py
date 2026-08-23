@@ -157,8 +157,10 @@ def _apply_local_models(report: audit_mod.AuditReport) -> bool:
 
 
 def _recompute_risk(report: audit_mod.AuditReport, *, models_dir_checked: bool) -> None:
+    from ..core.score import licensing as licensing_mod
     from ..core.score import risk as risk_mod
 
+    report.licensing = licensing_mod.summarise(report.models, report.api_node_types)
     report.risk = risk_mod.assess(
         _RiskGraphStub(report), models=report.models, packs=report.packs,
         prompts=report.prompts, assets=report.inputs, outputs=report.outputs,
@@ -218,21 +220,23 @@ class ComfyAuditWorkflow:
 
     RETURN_TYPES = ("AUDIT", "STRING", "STRING", "INT", "INT", "STRING")
     RETURN_NAMES = ("audit", "report_markdown", "report_json",
-                    "risk_score", "automation_index", "clearance")
+                    "risk_score", "automation_index", "licence_summary")
     OUTPUT_TOOLTIPS = (
         "The audit, for the other comfyaudit nodes.",
         "The full report as Markdown.",
         "The full report as JSON.",
-        "Production risk, 0-100. Higher is worse.",
+        "Operational risk, 0-100. How much stands between this and running "
+        "reliably somewhere else.",
         "Automation index, 0-100. Higher means less human intervention.",
-        "blocked / conditional / unclear / clear / unknown.",
+        "A one-line description of the licence composition.",
     )
     FUNCTION = "run"
     CATEGORY = "audit"
     OUTPUT_NODE = True
-    DESCRIPTION = ("Audit this workflow: every model and its licence, prompts, "
-                   "assets, custom node dependencies, how much human intervention "
-                   "it needs, and what would go wrong in production.")
+    DESCRIPTION = ("Document this workflow: every model with its licence terms and "
+                   "where they came from, the prompts, the assets, the custom node "
+                   "dependencies, how much human intervention it needs, and what "
+                   "would stop it running elsewhere. Reports; does not judge.")
 
     @classmethod
     def IS_CHANGED(cls, prompt=None, extra_pnginfo=None, **kwargs):
@@ -267,7 +271,7 @@ class ComfyAuditWorkflow:
         return {
             "ui": {"text": [summary]},
             "result": (report, markdown, payload, report.risk.score,
-                       report.automation.index, report.risk.commercial_verdict),
+                       report.automation.index, report.licensing.headline),
         }
 
     def _resolve(self, source, workflow_path, prompt, extra_pnginfo) -> dict[str, Any]:
@@ -372,8 +376,10 @@ class ComfyAuditGate:
                 "audit": ("AUDIT",),
                 "fail_on": (SEVERITIES, {"default": "critical", "tooltip":
                     "Abort the run if any finding is at this severity or worse."}),
-                "block_non_commercial": ("BOOLEAN", {"default": True, "tooltip":
-                    "Abort if any model in the graph forbids commercial use."}),
+                "stop_on_non_commercial": ("BOOLEAN", {"default": False, "tooltip":
+                    "Your policy, not the tool's: abort if any model's licence says "
+                    "non-commercial. Off by default, because whether that matters "
+                    "depends on the job."}),
             },
         }
 
@@ -381,23 +387,26 @@ class ComfyAuditGate:
     RETURN_NAMES = ("audit", "verdict")
     FUNCTION = "run"
     CATEGORY = "audit"
-    DESCRIPTION = ("Fail the run when the audit finds a blocker, so a workflow "
-                   "that cannot be delivered never renders in the first place.")
+    DESCRIPTION = ("Stop the queue on conditions you choose, so a workflow that "
+                   "fails your own bar never renders. The thresholds are yours to "
+                   "set; nothing is enforced by default beyond critical findings.")
 
-    def run(self, audit, fail_on, block_non_commercial):
+    def run(self, audit, fail_on, stop_on_non_commercial=False):
         threshold = SEVERITIES.index(fail_on)
         tripped = [f for f in audit.risk.findings
                    if f.severity in SEVERITIES
                    and SEVERITIES.index(f.severity) <= threshold]
 
-        if block_non_commercial and audit.risk.commercial_verdict == "blocked":
-            blocked = sorted({m.filename for m in audit.models
-                              if m.enabled and m.license and m.license.commercial_use == "no"})
-            raise RuntimeError(
-                "comfyaudit gate: this workflow cannot be delivered commercially. "
-                f"Non-commercial models: {', '.join(blocked)}. "
-                "Set block_non_commercial to false to render anyway."
-            )
+        if stop_on_non_commercial:
+            non_commercial = sorted({m.filename for m in audit.models
+                                     if m.enabled and m.license
+                                     and m.license.commercial_use == "no"})
+            if non_commercial:
+                raise RuntimeError(
+                    "comfyaudit gate: stop_on_non_commercial is set and these models' "
+                    f"licences say non-commercial: {', '.join(non_commercial)}. "
+                    "Turn the switch off to render anyway."
+                )
 
         if tripped:
             listed = "; ".join(f"[{f.severity}] {f.title}" for f in tripped[:5])
@@ -472,7 +481,7 @@ def _console_summary(report: audit_mod.AuditReport) -> str:
     counts = report.risk.counts()
     parts = [f"{counts[s]} {s}" for s in SEVERITIES if counts.get(s)]
     lines = [
-        f"clearance: {report.risk.commercial_verdict.upper()}",
+        report.licensing.headline,
         f"risk: {report.risk.score}/100 ({report.risk.band})",
         f"automation: {report.automation.index}/100 ({report.automation.band})",
         f"models: {len(report.models)}  packs: {len(report.packs)}",

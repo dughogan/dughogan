@@ -21,11 +21,13 @@ from ..resolve.sources import COPYLEFT_SPDX, WEAK_COPYLEFT_SPDX
 
 SEVERITY_WEIGHT = {"critical": 25.0, "high": 12.0, "medium": 5.0, "low": 2.0, "info": 0.0}
 
+#: These describe how much operational work the workflow needs before it runs
+#: reliably somewhere else. They are not a judgement on whether to use it.
 RISK_BANDS = [
-    (75, "Severe", "Do not put this in front of a client without remediation."),
-    (50, "High", "Significant exposure; fix the criticals before committing to a delivery."),
-    (25, "Elevated", "Usable with conditions, and someone needs to own the open items."),
-    (10, "Moderate", "Normal housekeeping; nothing here blocks a delivery."),
+    (75, "Severe", "Several things here will stop this running or reproducing elsewhere."),
+    (50, "High", "Significant operational gaps; expect work before this moves machines."),
+    (25, "Elevated", "Some open items to own before this is dependable."),
+    (10, "Moderate", "Routine housekeeping."),
     (0, "Low", "Nothing significant found."),
 ]
 
@@ -48,8 +50,9 @@ class RiskScore:
     band_detail: str = ""
     findings: list[Finding] = field(default_factory=list)
     by_category: dict[str, float] = field(default_factory=dict)
-    commercial_verdict: str = "unknown"
-    commercial_detail: str = ""
+    #: A factual sentence about the licence composition. Not a verdict: the
+    #: report states the terms and the reader decides what they mean.
+    licence_note: str = ""
 
     def counts(self) -> dict[str, int]:
         out: dict[str, int] = {}
@@ -88,9 +91,6 @@ def assess(wf: Workflow, *, models: list[ModelRef], packs: list[PackRef],
             result.band, result.band_detail = band, detail
             break
 
-    result.commercial_verdict, result.commercial_detail = _commercial_verdict(
-        enabled_models, api_node_types
-    )
     findings.sort(key=lambda f: (f.rank, -f.score, f.title))
     return result
 
@@ -101,152 +101,36 @@ def assess(wf: Workflow, *, models: list[ModelRef], packs: list[PackRef],
 
 
 def _licence_findings(models: list[ModelRef], api_node_types: list[str]) -> list[Finding]:
+    """Licence *facts* live in the licence summary, not here.
+
+    Whether a non-commercial model is a problem depends on the job, the client
+    and the facility's own agreements - none of which a workflow file knows - so
+    the report states the terms and leaves the call to the reader. What belongs
+    in a risk score is only what is a problem regardless of anyone's policy: not
+    knowing what a file actually is, and code whose licence reaches your own.
+    """
     out: list[Finding] = []
-
-    blocked = [m for m in models if m.license and m.license.commercial_use == "no"]
-    if blocked:
-        out.append(Finding(
-            id="licence.non-commercial",
-            title=f"{len(blocked)} model(s) forbid commercial use",
-            severity="critical",
-            category="licensing",
-            detail="These weights are licensed for non-commercial or research use only. "
-                   "Delivering output made with them to a paying client is outside the "
-                   "licence, and for some (FLUX.1 [dev]) the restriction explicitly "
-                   "covers the outputs, not just the weights.",
-            evidence=[f"{m.filename} - {m.license.name}" for m in blocked],
-            recommendation="Replace each with a permissively licensed equivalent, or buy "
-                           "the vendor's commercial licence before the job starts. "
-                           "Swapping a base model late invalidates every look already approved.",
-        ))
-
-    conditional = [m for m in models
-                   if m.license and m.license.commercial_use == "conditional"]
-    if conditional:
-        thresholds = [m for m in conditional if m.license.fee == "revenue-threshold"]
-        out.append(Finding(
-            id="licence.conditional",
-            title=f"{len(conditional)} model(s) allow commercial use only under conditions",
-            severity="high",
-            category="licensing",
-            detail="Commercial use is permitted but gated - typically on company revenue, "
-                   "territory, or a copyleft obligation that reaches your own pipeline code.",
-            evidence=[f"{m.filename} - {m.license.name}: "
-                      f"{(m.license.restrictions or [m.license.summary])[0]}"
-                      for m in conditional],
-            recommendation=(
-                "Confirm the facility clears each condition."
-                + (" Revenue thresholds are measured on total company revenue, not AI "
-                   "revenue, so most established studios are over the line." if thresholds else "")
-            ),
-        ))
-
-    unknown = [m for m in models
-               if m.license and m.license.commercial_use == "unknown"]
-    if unknown:
-        severity = "high" if len(unknown) > 3 else "medium"
-        out.append(Finding(
-            id="licence.unknown",
-            title=f"{len(unknown)} model(s) have no identifiable licence",
-            severity=severity,
-            category="licensing",
-            detail="Community checkpoints, merges and LoRAs usually ship with no licence "
-                   "statement and an untraceable lineage. An unknown licence is not a "
-                   "permissive one - it is an unquantified liability.",
-            evidence=[f"{m.filename} ({m.role})" for m in unknown[:12]],
-            recommendation="Trace each back to its source page and record the terms, or "
-                           "drop it. For merges, remember the licence of every parent "
-                           "model travels with the merge.",
-        ))
-
-    attribution = [m for m in models
-                   if m.license and m.license.attribution_required
-                   and m.license.commercial_use in ("yes", "conditional")]
-    if attribution:
-        out.append(Finding(
-            id="licence.attribution",
-            title=f"{len(attribution)} model(s) require attribution",
-            severity="low",
-            category="licensing",
-            detail="Usable commercially, but the licence asks for a credit or notice, "
-                   "which needs to reach the delivery paperwork rather than being "
-                   "discovered at the end.",
-            evidence=sorted({f"{m.license.name}" for m in attribution}),
-            recommendation="Add the required notices to the show's third-party licence list.",
-        ))
 
     conflicted = [m for m in models if m.license
                   and any("Sources disagree" in r for r in m.license.restrictions)]
     if conflicted:
         out.append(Finding(
-            id="licence.conflict",
+            id="provenance.conflict",
             title=f"{len(conflicted)} model(s) are described differently by different sources",
             severity="high",
-            category="licensing",
+            category="provenance",
             detail="The filename, the upstream licence tag and the base model do not "
-                   "agree about what this file is licensed under. In practice that "
-                   "usually means the file was renamed after it was downloaded, so the "
-                   "name no longer says what the weights are. The most restrictive "
-                   "reading has been applied.",
+                   "agree about what this file is. That is a fact about the file rather "
+                   "than a licence question: it usually means the weight was renamed "
+                   "after it was downloaded, so its name no longer says what it is.",
             evidence=[f"{m.filename}: " + next(r for r in m.license.restrictions
                                                if "Sources disagree" in r)[:220]
                       for m in conflicted],
             recommendation="Hash each file and look it up by hash rather than by name "
-                           "(run with --models-dir and --online), then record what it "
-                           "actually is.",
-        ))
-
-    if api_node_types:
-        out.append(Finding(
-            id="licence.api-terms",
-            title=f"{len(api_node_types)} hosted API node type(s) run under vendor terms",
-            severity="medium",
-            category="licensing",
-            detail="Output rights, indemnity and acceptable-use rules for hosted models "
-                   "come from the vendor's contract, which can change without notice and "
-                   "is not visible in the workflow.",
-            evidence=sorted(api_node_types)[:10],
-            recommendation="Record which vendor terms were in force for the delivery, and "
-                           "check whether the vendor offers commercial indemnity.",
+                           "(--models-dir with --online), then record what it is.",
         ))
 
     return out
-
-
-def _commercial_verdict(models: list[ModelRef], api_node_types: list[str]) -> tuple[str, str]:
-    blocked = [m for m in models if m.license and m.license.commercial_use == "no"]
-    conditional = [m for m in models if m.license and m.license.commercial_use == "conditional"]
-    unknown = [m for m in models if m.license and m.license.commercial_use == "unknown"]
-
-    if blocked:
-        names = ", ".join(sorted({m.filename for m in blocked})[:4])
-        return "blocked", (
-            f"At least one model forbids commercial use ({names}). "
-            "As it stands the output of this workflow cannot be delivered commercially."
-        )
-    if unknown and conditional:
-        return "unclear", (
-            f"{len(conditional)} model(s) are conditionally licensed and {len(unknown)} "
-            "cannot be identified at all. Clearance requires a decision on each."
-        )
-    if unknown:
-        return "unclear", (
-            f"{len(unknown)} model(s) have no identifiable licence. Nothing here is known "
-            "to forbid commercial use, but nothing confirms it either."
-        )
-    if conditional:
-        return "conditional", (
-            f"{len(conditional)} model(s) permit commercial use subject to conditions "
-            "(revenue thresholds, territory, or copyleft). Clearable if the facility meets them."
-        )
-    if api_node_types:
-        return "conditional", (
-            "All local weights are commercially usable; hosted API models are governed by "
-            "the vendor contract instead."
-        )
-    if models:
-        return "clear", "Every identified model permits commercial use."
-    return "unknown", "No models were identified in this workflow."
 
 
 # --------------------------------------------------------------------------
@@ -457,10 +341,10 @@ def _dependency_findings(packs: list[PackRef], wf: Workflow) -> list[Finding]:
                    "pipeline tooling itself, and AGPL's network clause treats serving "
                    "the result to users as distribution.",
             evidence=[f"{p.title} - {p.licence} ({p.reference})" for p in copyleft],
-            recommendation="Get this in front of whoever owns open-source policy before "
-                           "it goes in the studio image. Keeping the pack behind a "
-                           "process boundary rather than importing it is usually the "
-                           "cheaper answer than relicensing your own tools.",
+            recommendation="Worth knowing before it goes in a shared image, because "
+                           "these terms can attach to code that imports the pack rather "
+                           "than staying with the pack itself. What that means for your "
+                           "situation is a question for whoever owns open-source policy.",
         ))
 
     weak = [p for p in identified if p.licence in WEAK_COPYLEFT_SPDX]
@@ -491,8 +375,8 @@ def _dependency_findings(packs: list[PackRef], wf: Workflow) -> list[Finding]:
                    "practice is not permission, and this is the case a client's legal "
                    "team is most likely to ask about.",
             evidence=[f"{p.title} ({p.reference})" for p in unlicensed[:10]],
-            recommendation="Ask the author to add a licence - most will - or replace the "
-                           "pack. Until then treat it as unlicensed code in the pipeline.",
+            recommendation="Asking the author to add one usually works. Until then the "
+                           "terms of use are simply unstated.",
         ))
 
     if len(identified) >= 8:

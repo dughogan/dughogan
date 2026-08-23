@@ -559,6 +559,8 @@ def test_a_pack_licence_reaches_both_report_formats(api):
     report.source = {"name": "t.json", "format": "ui", "nodes_total": 1}
     report.packs = [pack]
 
+    report.licensing = __import__(
+        "comfyaudit.core.score.licensing", fromlist=["summarise"]).summarise([])
     text = md_report.render(report)
     assert "| Pack | Author | Licence |" in text
     assert "GPL-3.0" in text

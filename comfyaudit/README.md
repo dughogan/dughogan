@@ -1,192 +1,128 @@
 # ComfyAudit
 
-A ComfyUI custom node pack that audits the workflow you're looking at, and tells
-you what you'd otherwise find out the hard way: which models it pulls in, whether
-you're allowed to sell the output, where the weights came from, how much of it a
-human has to babysit, and what will break when it moves off the machine it was
-built on.
+**Document what's inside a ComfyUI workflow, and hand the result to someone else.**
 
-Built for the moment a workflow arrives from an artist, a vendor, or a Discord
-link, and someone has to decide whether it can go near a paying job.
+Every model it loads and what each licence actually says, where the weights came
+from, the prompts, the external assets, the custom node packs and their versions,
+how much of it a human has to babysit, and what would stop it running on another
+machine.
 
-Two ways to run it. **Extensions → ComfyAudit → Audit this workflow** gives you a
-report on the current canvas without touching the graph:
+It reports. It doesn't rule. Whether a non-commercial model is a problem depends
+on the job, the client, the territory and whatever agreements you already hold —
+none of which a workflow file knows about. So ComfyAudit lays out the terms with
+a source for every claim, and the person who makes that call gets something to
+make it from.
 
-```
-Commercial clearance : BLOCKED — 4 models forbid commercial use
-Production risk      : 97/100 (Severe)
-Automation index     : 17/100 (Hands-on artist tool)
-```
+Built for the moment a workflow arrives from an artist, a vendor or a Discord
+link, and someone has to write down what's in it.
 
-Or drop the **Audit This Workflow** node in and hit Run, and it audits the graph
-it's sitting in — no configuration, because ComfyUI hands any node that asks for
-them the running prompt and the UI workflow.
+---
 
 ## Install
 
+**Via ComfyUI-Manager** — search for *ComfyAudit*.
+
+**Manually:**
+
 ```bash
 cd ComfyUI/custom_nodes
-git clone https://github.com/dughogan/dughogan comfyaudit-tmp
-mv comfyaudit-tmp/comfyaudit . && rm -rf comfyaudit-tmp
-pip install -r comfyaudit/requirements.txt   # only needed for the Claude node
+git clone https://github.com/dughogan/comfyaudit
 ```
 
-Restart ComfyUI. The auditor itself is standard library only, so it can't break
-your environment; the single dependency is the Anthropic SDK, and without it
-every other node still works.
+Restart ComfyUI. That's it — ComfyAudit is pure standard library, so installing
+it cannot disturb your environment or fight with anything else you have.
 
-## Nodes
+The optional **Claude Review** node needs one extra package. Every other node
+works without it, and that node tells you if it's missing:
+
+```bash
+pip install anthropic
+```
+
+## Two ways to run it
+
+**From the menu** — *Extensions → ComfyAudit → Audit this workflow*. Reads the
+graph on your canvas and opens the report in a panel. Nothing is added to the
+workflow.
+
+**As nodes** — drop **Audit This Workflow** in and hit Run. It audits the graph
+it's sitting in, because ComfyUI hands any node that asks for them the running
+prompt and the UI workflow. Nothing to configure.
 
 | Node | What it does |
 |---|---|
-| **Audit This Workflow** | Audits the running graph. Outputs the report as Markdown and JSON, plus risk score, automation index and clearance verdict as separate sockets. |
-| **Claude Review** | Has Claude investigate the audit — see below. |
-| **Audit Gate** | Aborts the run when the audit finds a blocker, so a workflow that can't be delivered never renders. |
-| **Save Audit Report** | Writes the report into your ComfyUI output folder as HTML, Markdown or JSON. |
+| **Audit This Workflow** | Documents the running graph. Outputs the report as Markdown and JSON, plus the risk score, automation index and a one-line licence summary as separate sockets. |
+| **Claude Review** | Optional second pass for the judgement calls — see below. |
+| **Audit Gate** | Stops the queue on conditions **you** choose. Nothing is enforced by default. |
+| **Save Audit Report** | Writes the report into your output folder as HTML, Markdown or JSON. |
 
-A pipeline gate is four nodes: `Audit This Workflow → Audit Gate → your graph`,
-with `Save Audit Report` hanging off the side so every render has a clearance
-sheet next to it.
+## What the report contains
 
-## What it checks
+### 1. Licence summary
 
-**Models.** Every weight the graph loads, including the ones a simple parser
-misses: models named by custom nodes with no published schema, `embedding:`
-references buried inside prompt text, inline `<lora:...>` syntax, LoRA strengths
-paired with the right file, and hosted models that only exist on a vendor's
-servers.
+Models grouped by the licence they carry, with the commercial position, the fee
+terms, a confidence level and a link to the licence itself:
 
-**Licences.** Each model is matched against a curated knowledge base and reported
-with its commercial-use position, whether a fee applies, the specific
-restrictions, and a link to the source. The traps it's built to catch are the
-ones that are easy to miss:
+| Licence | Models | Commercial use | Fee | Confidence |
+|---|---|---|---|---|
+| Apache License 2.0 (ViTPose) | 1 | permissive | no fee | low |
+| Meta SAM License (Segment Anything 3) | 1 | permissive | no fee | medium |
+| MiniMax Community License | 4 | conditional | free below a revenue threshold | medium |
+| AGPL-3.0 (Ultralytics YOLO detectors) | 1 | conditional | a licence must be obtained | high |
 
-| Model | Why it matters |
+Plus two sections that are easy to miss at delivery:
+
+- **Obligations that come with these licences** — attribution and notices,
+  share-alike terms, revenue thresholds, territorial limits.
+- **Worth confirming at source** — the entries the tool is least sure about,
+  because a licence is matched from a filename and filenames can be changed by
+  anyone.
+
+The knowledge base covers the families that actually turn up in production. Some
+of what it knows:
+
+| Model | What the licence says |
 |---|---|
-| FLUX.1 [dev] | Non-commercial. The restriction covers the **outputs**, not just the weights. |
-| Stable Diffusion 3.5 | Free commercially only under $1M total company revenue — all revenue, not AI revenue. |
-| InsightFace (antelopev2, buffalo) | Non-commercial, and **inherited** by IP-Adapter FaceID, InstantID and every face-swap pack built on it. |
-| CodeFormer | Non-commercial (S-Lab 1.0), and it arrives silently bundled inside face-restore packs. |
-| Ultralytics YOLO | AGPL-3.0. Ultralytics' position is that internal pipeline use needs an Enterprise Licence or your tool goes open source. |
-| BRIA RMBG | Non-commercial without a paid agreement, and it's in half the matting workflows on the internet. |
-| HunyuanVideo | Territory **excludes the EU, UK and South Korea**. |
-| 4x-UltraSharp and friends | Popular community upscalers are frequently CC BY-NC-SA. |
-| Depth Anything V2 | Base and Large are CC BY-NC; only Small is Apache 2.0. |
+| FLUX.1 [dev] | Non-commercial, written to cover the **outputs**, not only the weights |
+| Stable Diffusion 3.5 | Free commercially below $1M total company revenue, not AI revenue |
+| MiniMax H3 | Territory excludes **US, EU, UK and Korea**; $20M revenue cap; visible attribution required |
+| InsightFace (antelopev2, buffalo) | Non-commercial, and **inherited** by IP-Adapter FaceID, InstantID and the face-swap packs built on it |
+| CodeFormer | Non-commercial (S-Lab 1.0), and it arrives bundled inside face-restore packs |
+| Ultralytics YOLO | AGPL-3.0; their published position is that internal production use needs an Enterprise Licence |
+| HunyuanVideo | Territory excludes the EU, UK and South Korea |
+| Illustrious / NoobAI | FAIPL — outputs are unrestricted, but derivative *models* are copyleft |
+| Depth Anything V2 | Base and Large are CC BY-NC; only Small is Apache 2.0 |
 
-**Provenance.** Where each weight came from — offline from a bundled index of
-500+ known model files, and live from HuggingFace, Civitai, GitHub and the Comfy
-Registry. See [Looking models up](#looking-models-up) below.
+### 2. Models
 
-**Prompts.** Positive and negative are worked out from the sampler wiring rather
-than guessed from node titles, so it stays right through reroutes, conditioning
-combines, ControlNet stacks and subgraphs.
+Every weight the graph loads, including the ones a simple parser misses: models
+named by custom nodes with no published schema, `embedding:` references buried in
+prompt text, inline `<lora:...>` syntax, LoRA strengths paired with the right
+file, and hosted models that only exist on a vendor's servers.
 
-**Assets.** Every external input, marked by how it's supplied: an upload widget a
-person clicks, a path baked into the graph, an absolute path from someone's
-D: drive, or a URL fetched at run time.
+### 3. Prompts
 
-**Dependencies.** Which custom node packs are needed, who wrote them, how many
-stars they have, when they were last touched, whether the workflow pins a
-version, and whether two installed packs claim the same node class name.
+Positive and negative worked out from the sampler wiring rather than guessed from
+node titles, so it stays right through reroutes, conditioning combines,
+ControlNet stacks, subgraphs, and KJNodes' `Set`/`Get` pass-by-name wiring.
 
-**Production risk.** Findings across licensing, provenance, reproducibility,
-dependency, runtime and data handling, each with evidence and something you can
-act on.
+### 4. Assets
 
-## Looking models up
+Every external input, marked by how it's supplied: an upload widget a person
+clicks, a path baked into the graph, an absolute path off someone's D: drive, or
+a URL fetched at run time.
 
-With `--online` (or the node's `online_lookups` switch) every model and node pack
-is resolved against the services that actually know about it. Each answers a
-different question:
+### 5. Node dependencies
 
-| Source | What it settles |
-|---|---|
-| **HuggingFace** | The licence tag on the repo, whether it's **gated** (and whether a human has to approve you, which stalls a render node), and the **base models** the hub has recorded — the ancestry that decides what a fine-tune may inherit. |
-| **Civitai** | Community checkpoints and LoRAs. Looked up **by SHA-256** where possible, because filenames on Civitai are whatever the downloader called them. Returns the uploader's own permission flags and the declared base model. |
-| **GitHub** | Custom node pack licences, stars, last push, and whether the repo is archived. Falls back to reading `LICENSE` from `raw.githubusercontent.com` when the API's 60-an-hour anonymous limit runs out. |
-| **Comfy Registry** | Publisher, latest published version, and the pack's declared licence. |
+Which packs are needed, who wrote them, their licence, stars, last commit, and
+whether the workflow pins a version. Also whether two installed packs claim the
+same node class name — they shadow each other by load order.
 
-### Licence inheritance is the point
+### 6. Automation vs human intervention
 
-A LoRA's author can grant less than their base model allows. They cannot grant
-more. So when Civitai says the uploader ticked "Sell" and the version's base
-model is `Flux.1 D`, the answer is still **non-commercial** — and the report says
-why:
-
-```
-my_flux_lora.safetensors — FLUX.1 [dev] Non-Commercial License
-  Inherited from the base model Flux.1 D: a derivative cannot be more
-  permissive than what it was trained on.
-  Civitai uploader flags says yes, but base model Flux.1 D only permits 'no'.
-  exact Civitai file hash match (ab12cd34ef56...)
-  Civitai base model: Flux.1 D
-```
-
-That mapping comes from a bundled table built from **Civitai's own published
-base-model licence data** (80 base models, 77 mapped onto licence definitions
-with a commercial position). Refresh it whenever you like:
-
-```bash
-python tools/build_base_models.py --url
-```
-
-### When sources disagree
-
-Two contradictory descriptions of the same file is itself a finding, and usually
-means the weight was renamed on the way to your drive — which is exactly how a
-non-commercial model gets quietly cleared for delivery. The most restrictive
-reading is applied, the confidence drops, and the disagreement is reported:
-
-> `licence.conflict` — the filename says FLUX.1 [dev], the HuggingFace repo
-> hosting that file tags it `apache-2.0`.
-
-Note the distinction: a model granting *less* than its base allows is ordinary
-and is not reported as a conflict. Only a derivative claiming *more*, or two
-flatly contradictory descriptions, get raised.
-
-### Node pack licences
-
-Custom node code runs inside the ComfyUI process and is called directly by
-whatever you build around it, so its licence reaches further than a model's ever
-does. GPL and especially AGPL packs are now flagged (`dependency.copyleft`), as
-are packs that publish no licence at all — where the default is all rights
-reserved, not permission.
-
-### Credentials and privacy
-
-All optional; each buys something specific:
-
-```bash
-export HF_TOKEN=...          # gated repos, higher rate limit
-export CIVITAI_API_KEY=...   # early-access models
-export GITHUB_TOKEN=...      # lifts the 60-requests-an-hour anonymous cap
-```
-
-Responses are cached on disk for a week, and rate limits are tracked per host so
-the report can tell you "GitHub rate limit reached, resets in about 40 minutes"
-rather than silently returning less.
-
-If model names must not leave for a particular service, narrow it:
-
-```bash
-comfyaudit ... --online --sources huggingface,github
-```
-
-Offline is still the default everywhere. `--sources` and the node's `sources`
-widget accept `huggingface`, `civitai`, `github`, `comfy-registry`.
-
-### Hashing
-
-`--models-dir` plus `--online` hashes every local weight so Civitai can identify
-it exactly. This is the only way to catch a renamed checkpoint. In ComfyUI it's
-the `hash_models` switch, off by default, because the first run reads every model
-file on disk.
-
-## The automation index
-
-The question this answers is "can I queue this and walk away, or does an artist
-have to sit with it?". The score is built from *touchpoints* — concrete places a
-human has to act — weighted by how often they have to act:
+Answers "can I queue this and walk away, or does an artist have to sit with it?"
+Built from *touchpoints* — concrete places a human has to act — weighted by how
+often they recur:
 
 ```
 | Weight | When     | Touchpoint                          | Why
@@ -196,93 +132,123 @@ human has to act — weighted by how often they have to act:
 |    0.6 | per-run  | 1 node(s) are muted or bypassed     | Switches someone flips between runs...
 ```
 
-Only the recurring stages drive the headline number; setup is real but you pay it
-once, so it's reported separately rather than held against the workflow forever.
-It also distinguishes a prompt typed into a dedicated string node — which a
-submission script can overwrite through the `/prompt` API — from one buried
-inside an encoder, because those are very different amounts of work to automate.
+One-off setup is reported separately rather than held against the workflow
+forever. A prompt typed into a dedicated string node also scores better than one
+buried inside an encoder, because a submission script can overwrite the first
+through the `/prompt` API.
+
+### 7. Operational risks
+
+What would stop this running or reproducing somewhere else: missing weights,
+absolute paths, unpinned packs, seeds that drift, hosted APIs that can change
+under you, node classes nothing can install. **Licence position is deliberately
+not part of this score** — that's policy, and policy is yours.
+
+## Looking models up
+
+With `--online` (or the node's `online_lookups` switch), models and packs are
+resolved against the services that know about them:
+
+| Source | What it settles |
+|---|---|
+| **HuggingFace** | The repo's licence tag, whether it's **gated** (and whether a human approves each request, which stalls a render node), and the **base models** the hub recorded |
+| **Civitai** | Community checkpoints and LoRAs, by **SHA-256** where possible — filenames there are whatever the downloader called them. Returns the uploader's own permission flags and the base model |
+| **GitHub** | Node pack licences, stars, last push, archived state. Falls back to reading `LICENSE` from `raw.githubusercontent.com` when the API's 60-an-hour anonymous cap runs out |
+| **Comfy Registry** | Publisher, latest published version, declared licence |
+
+### Inheritance
+
+A model's author can grant less than their base model allows. They cannot grant
+more. So when Civitai says the uploader ticked "Sell" and the base model is
+`Flux.1 D`, the report says non-commercial — and shows why:
+
+```
+my_flux_lora.safetensors — FLUX.1 [dev] Non-Commercial License
+  Inherited from the base model Flux.1 D: a derivative cannot be more
+  permissive than what it was trained on.
+  Civitai uploader flags says yes, but base model Flux.1 D only permits 'no'.
+  exact Civitai file hash match (ab12cd34ef56...)
+```
+
+That mapping is bundled from Civitai's own published base-model licence table (80
+base models, 77 mapped onto licence definitions). Refresh it any time:
+
+```bash
+python tools/build_base_models.py --url
+```
+
+### When sources disagree
+
+Two contradictory descriptions of one file is reported as its own finding, and
+usually means the weight was renamed on the way to your drive. Note that a model
+granting *less* than its base allows is ordinary and isn't flagged — only a
+derivative claiming *more*, or a flat contradiction.
+
+### Credentials
+
+All optional; each buys something specific:
+
+```bash
+export HF_TOKEN=...          # gated repos, higher rate limit
+export CIVITAI_API_KEY=...   # early-access models
+export GITHUB_TOKEN=...      # lifts the 60-an-hour anonymous cap
+```
+
+Responses cache on disk for a week, and rate limits are tracked per host so the
+report can say *"GitHub rate limit reached, resets in about 40 minutes"* rather
+than silently returning less. If model names shouldn't leave for a given service:
+
+```bash
+--online --sources huggingface,github
+```
 
 ## Running inside ComfyUI makes it sharper
 
-The same engine works on a bare `.json` file, but in-process it stops guessing:
+The same engine works on a bare `.json`, but in-process it stops guessing:
 
 - **Custom node widgets get real names.** Offline, a widget on a node nobody
   published a schema for is `widget_0`. In-process the node is asked directly, so
   it's `lora_name_1`, with the model folder recovered by matching the combo's
   options against `folder_paths`.
-- **Model presence is a fact.** Every weight is checked against the folders
-  ComfyUI actually reads, so "this won't run here" is a finding rather than an
-  unchecked assumption.
-- **In-house packs stop reading as unidentified.** A pack the public registry has
-  never heard of is a critical finding from a JSON file, and correctly so. Live,
-  it's resolved to `custom_nodes/<dir>` with the installed version read off disk.
+- **Model presence is a fact**, checked against the folders ComfyUI actually reads.
+- **In-house packs stop reading as unidentified** — resolved to
+  `custom_nodes/<dir>` with the version read off disk.
 
-## The Claude review
+## The Claude Review node
 
-The rule engine is deterministic and knows exactly what it knows. What it can't
-do is recognise that `juggernautXL_v9Rundiffusion.safetensors` is an SDXL
-community merge, notice that a prompt names a living artist, or work out what to
-swap in when the upscaler turns out to be non-commercial.
+Optional. The rule engine knows exactly what it knows; what it can't do is
+recognise that `juggernautXL_v9Rundiffusion.safetensors` is an SDXL community
+merge, notice that a prompt names a living artist, or work out what to swap in
+when an upscaler turns out to be non-commercial.
 
-Those are judgement calls, so the **Claude Review** node hands them to an agent
-that *investigates* — it reads the models, the prompts, the findings and the
-packs through tools, checks the auditor's own licence knowledge base so its
-answers stay consistent, and looks at what's installed locally before proposing a
-substitution you'd actually be able to make today.
-
-Four modes:
-
-- **identify** — name the models the rules couldn't, and what their lineage
-  implies for commercial use. A FLUX.1 [dev] fine-tune can't be more permissive
-  than FLUX.1 [dev].
-- **clearance** — read the prompt text for the risks no licence check catches:
-  real people, trademarks, copyrighted characters, living artists named as a
-  style reference.
-- **remediate** — propose specific replacements and an ordered plan.
-- **full** — all three.
-
-You can also just ask it something: *"can this go on the farm overnight?"*
+It *investigates* — reads the models, prompts, findings and packs through tools,
+checks the auditor's own knowledge base so its answers stay consistent, and looks
+models up on HuggingFace, Civitai and GitHub rather than recalling them. Modes:
+`identify`, `clearance` (prompt text: real people, trademarks, characters, living
+artists named as a style), `remediate`, or `full`. You can also just ask it
+something.
 
 Everything it concludes is kept separate from the rule findings, labelled
-model-derived, and carries its own confidence. A wrong licence claim is worse
-than an honest "unknown", and the prompt says so.
+model-derived, and carries its own confidence.
 
-```bash
-export ANTHROPIC_API_KEY=sk-ant-...   # or run: ant auth login
-```
-
-Uses `claude-opus-5` with adaptive thinking. Web search is on by default so it
-can check a licence at source — **turn it off when the workflow content is
-confidential**, and note that the review sends model names and prompt text to the
-Anthropic API either way. That's inherent in the feature; it's opt-in for exactly
-that reason.
+**It sends model names and prompt text to the Anthropic API.** Web search is on
+by default so it can check a licence at source — turn it off for confidential
+work. It's opt-in for exactly that reason.
 
 ## Command line
 
-The same auditor runs headless, for CI and batch work. From the directory *above*
-the pack:
+The same auditor runs headless. From the directory *above* the pack:
 
 ```bash
-# a report on stdout
-python -m comfyaudit.core.cli audit workflow.json
-
-# a self-contained HTML clearance sheet to archive with the show
-python -m comfyaudit.core.cli audit workflow.json -f html -o audits/sh0120.html
-
-# verify weights exist, and hash them
+python -m comfyaudit.core.cli audit workflow.json                       # report on stdout
+python -m comfyaudit.core.cli audit workflow.json -f html -o out.html   # self-contained page
 python -m comfyaudit.core.cli audit workflow.json --models-dir /opt/ComfyUI/models
-
-# add the Claude pass
-python -m comfyaudit.core.cli audit workflow.json --claude --models-dir /opt/ComfyUI/models
-
-# ask a question instead
-python -m comfyaudit.core.cli audit workflow.json --ask "what stops this being batched?"
-
-# audit a folder; non-zero exit if anything critical turns up
+python -m comfyaudit.core.cli audit workflow.json --online --claude
 python -m comfyaudit.core.cli audit shots/ -o audits/ --fail-on critical
+python -m comfyaudit.core.cli info                                     # what's bundled
 ```
 
-It reads both workflow formats — the UI graph from **Save**, the API format from
+Reads both workflow formats — the UI graph from **Save**, the API format from
 **Export (API)** — and will pull the workflow straight out of a PNG that ComfyUI
 rendered:
 
@@ -290,11 +256,10 @@ rendered:
 python -m comfyaudit.core.cli audit render_00042_.png
 ```
 
-## Studio licence overrides
+## Extending the knowledge base
 
-The bundled knowledge base is a starting point, not gospel. Add your own weights,
-or overrule ours, in the same format, and point the node's `licence_overrides`
-widget (or `--licences`) at it:
+The bundled data is a starting point, not gospel. Add your own weights, or
+overrule what's there, in the same format:
 
 ```json
 {
@@ -303,13 +268,13 @@ widget (or `--licences`) at it:
       "name": "Facility internal",
       "commercial_use": "yes",
       "fee": "none",
-      "summary": "Trained in house on cleared material. Cleared for all client work."
+      "summary": "Trained in house on cleared material."
     }
   },
   "models": [
     {
-      "id": "house-skin-loras",
-      "family": "House skin detail LoRAs",
+      "id": "house-loras",
+      "family": "House LoRAs",
       "licence": "inhouse",
       "match": { "filename": ["studio_skin_detail"] },
       "confidence": "high"
@@ -318,64 +283,68 @@ widget (or `--licences`) at it:
 }
 ```
 
+Point `--licences` (or the node's `licence_overrides` widget) at it. Pull requests
+adding models to the shared knowledge base are very welcome — every entry needs a
+`source` link and an honest `confidence`.
+
 ## How it knows what it knows
 
 Everything works offline, from data built into the package:
 
 - **Core node schemas** scraped from a real ComfyUI release with an AST pass over
   `nodes.py`, `comfy_extras/` and `comfy_api_nodes/`, handling both the legacy
-  `INPUT_TYPES` form and the newer `io.Schema` form. This is what makes it
-  possible to read a UI-format workflow at all: `widgets_values` is a bare
-  positional array, so without the real widget order you can't tell a prompt from
-  a filename from a seed.
+  `INPUT_TYPES` form and the newer `io.Schema` form. Without the real widget
+  order you can't read a UI-format workflow at all — `widgets_values` is a bare
+  positional array, so a prompt, a filename and a seed are indistinguishable.
 - **Custom node index** from the ComfyUI-Manager registry: ~5,900 packs and
   ~40,000 node class names, with stars and last-commit dates.
 - **Known model index** mapping common weight filenames to upstream repos.
-- **Licence knowledge base** in `core/knowledge/data/licences.json`, with a
-  `source` link and a `confidence` on every entry.
-- **Base-model licence table** in `core/knowledge/data/base_models.json`, derived
-  from Civitai's own published mapping, so a derivative's inherited obligations
-  resolve without a network call.
+- **Licence knowledge base** — every entry carries a `source` and a `confidence`.
+- **Base-model licence table** derived from Civitai's published mapping.
 
 Rebuild the catalogs against a newer ComfyUI whenever you like:
 
 ```bash
 python tools/build_catalog.py --comfyui /path/to/ComfyUI --manager /path/to/manager-json
+python tools/build_base_models.py --url
 ```
 
 ## Reading the output honestly
 
-Licence verdicts are derived from **filenames**, which aren't authoritative —
-anyone can rename a checkpoint. So every verdict reports the pattern it matched
-and a confidence level, and a `low` confidence verdict is a prompt to check the
-source page, not an answer. The matcher is deliberately strict about boundaries:
-`ae.safetensors` matches the FLUX autoencoder, not every file ending in `_vae`.
+Licences are matched from **filenames**, which aren't authoritative — anyone can
+rename a checkpoint. Every verdict reports the pattern it matched and a
+confidence level, and a `low` confidence entry is a prompt to check the source,
+not an answer. The matcher is strict about boundaries: `ae.safetensors` matches
+the FLUX autoencoder, not every file ending in `_vae`.
 
-Against the 588 official ComfyUI workflow templates, the current rules produce 16
-`blocked` verdicts, all genuine (FLUX dev variants, SDXL Turbo, Depth Anything V2
-Large, 4x-UltraSharp).
+Against the 588 official ComfyUI workflow templates the current rules identify a
+licence for most models and say "unstated" for the rest, which is the honest
+answer when a filename tells you nothing.
 
-This is an engineering tool, not legal advice. It exists to surface the questions
-worth putting to your legal or production team before a delivery, and to make the
-answers reproducible six months later when someone asks why a shot looks the way
-it does.
+**This is an engineering tool, not legal advice.** It exists to surface the
+questions worth putting to your legal or production team, and to make the answers
+reproducible six months later.
 
 ## Development
 
 ```bash
-python -m pytest        # 151 tests
+python -m pytest        # 155 tests
 ```
 
 The agent tests point a real Anthropic client at a local stub of the Messages
-API, so the tool schemas, the multi-turn loop and the paused-turn restart are
-exercised rather than mocked. The ComfyUI-facing tests run against a stand-in
-`nodes` / `folder_paths` pair, since ComfyUI itself can't be imported in a test
-environment. The provenance tests replay real HuggingFace, Civitai and GitHub
-response shapes from a local server — those fixtures were taken from upstream
-source (`huggingface_hub`'s own `ModelInfo`, Civitai's `model.schema.ts`) rather
-than from memory, because the wire format is camelCase in places the Python
-client is not.
+API, so tool schemas, the multi-turn loop and the paused-turn restart are
+exercised rather than mocked. ComfyUI-facing tests run against a stand-in
+`nodes`/`folder_paths` pair. Provenance tests replay real HuggingFace, Civitai
+and GitHub response shapes — those fixtures came from upstream source
+(`huggingface_hub`'s own `ModelInfo`, Civitai's `model.schema.ts`) rather than
+from memory, because the wire format is camelCase where the Python client isn't.
+
+Issues and PRs welcome, particularly:
+
+- workflows that break the parser — that's the most useful bug report there is
+- licence entries for models the knowledge base doesn't know
+- corrections where a licence reading is wrong or out of date
 
 ## Licence
 
-MIT.
+MIT. See [LICENSE](LICENSE).

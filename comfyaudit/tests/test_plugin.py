@@ -211,11 +211,13 @@ def test_audit_node_reads_the_workflow_from_hidden_inputs(comfy):
         source="this workflow (UI graph)", check_local_models=True,
         online_lookups=False, extra_pnginfo={"workflow": WORKFLOW},
     )
-    report, markdown, payload, risk, automation, clearance = out["result"]
+    report, markdown, payload, risk, automation, licences = out["result"]
 
-    assert clearance == "blocked"          # 4x-UltraSharp is CC BY-NC-SA
+    # 4x-UltraSharp is CC BY-NC-SA: reported as a count, not as a ruling.
+    assert report.licensing.counts.get("non-commercial", 0) >= 1
+    assert "licence" in licences
     assert 0 <= risk <= 100 and 0 <= automation <= 100
-    assert "## Verdict" in markdown
+    assert "## Summary" in markdown
     assert json.loads(payload)["schema"] == "comfyaudit/1"
 
 
@@ -289,20 +291,26 @@ def test_audit_node_explains_itself_when_metadata_is_disabled(comfy):
 # --------------------------------------------------------------------------
 
 
-def test_gate_stops_a_non_commercial_workflow(comfy):
+def test_the_gate_ignores_licence_position_unless_asked(comfy):
+    """Licence policy is the operator's call, so it is off by default."""
     from comfyaudit.nodes.audit_nodes import ComfyAuditGate, ComfyAuditWorkflow
 
     report = ComfyAuditWorkflow().run(
         source="this workflow (UI graph)", check_local_models=True,
         online_lookups=False, extra_pnginfo={"workflow": WORKFLOW},
     )["result"][0]
+    assert report.licensing.counts.get("non-commercial", 0) >= 1
 
-    with pytest.raises(RuntimeError, match="cannot be delivered commercially"):
-        ComfyAuditGate().run(audit=report, fail_on="critical", block_non_commercial=True)
+    _, verdict = ComfyAuditGate().run(audit=report, fail_on="critical")
+    assert verdict.startswith("passed")
+
+    with pytest.raises(RuntimeError, match="stop_on_non_commercial"):
+        ComfyAuditGate().run(audit=report, fail_on="critical",
+                             stop_on_non_commercial=True)
 
 
 def test_the_two_gate_conditions_are_independent(comfy):
-    """Turning off the commercial block must not also disable the severity gate."""
+    """The severity gate and the licence switch must not shadow each other."""
     from comfyaudit.nodes.audit_nodes import ComfyAuditGate, ComfyAuditWorkflow
 
     report = ComfyAuditWorkflow().run(
@@ -311,10 +319,10 @@ def test_the_two_gate_conditions_are_independent(comfy):
     )["result"][0]
 
     with pytest.raises(RuntimeError) as caught:
-        ComfyAuditGate().run(audit=report, fail_on="critical",
-                             block_non_commercial=False)
-    assert "cannot be delivered commercially" not in str(caught.value)
-    assert "at or above 'critical'" in str(caught.value)
+        ComfyAuditGate().run(audit=report, fail_on="medium",
+                             stop_on_non_commercial=False)
+    assert "stop_on_non_commercial" not in str(caught.value)
+    assert "at or above 'medium'" in str(caught.value)
 
 
 def test_a_locally_installed_pack_is_not_reported_as_unidentified(comfy):
@@ -344,8 +352,7 @@ def test_gate_passes_a_clean_workflow(comfy):
         online_lookups=False, extra_pnginfo={"workflow": doc},
     )["result"][0]
 
-    _, verdict = ComfyAuditGate().run(
-        audit=report, fail_on="critical", block_non_commercial=True)
+    _, verdict = ComfyAuditGate().run(audit=report, fail_on="critical")
     assert verdict.startswith("passed")
 
 
@@ -569,3 +576,31 @@ def test_the_audit_node_stays_offline_by_default(comfy):
     assert report.diagnostics["online"] is False
     assert report.diagnostics["http_requests"] == 0
     assert report.diagnostics["sources"] == []
+
+
+# --------------------------------------------------------------------------
+# The web overlay and the route it consumes
+# --------------------------------------------------------------------------
+
+
+def test_the_overlay_only_reads_summary_keys_the_route_sends(comfy):
+    """Guard the seam between the Python payload and the browser.
+
+    Nothing type-checks across that boundary, so a renamed field shows up as
+    ``undefined`` in the UI and nowhere else. This asserts every ``summary.x``
+    the script reads is a key the route actually emits.
+    """
+    import re
+    from pathlib import Path
+
+    from comfyaudit.nodes.audit_nodes import run_audit
+    from comfyaudit.server import routes
+
+    report = run_audit(WORKFLOW, online=False)
+    sent = set(routes._payload(report)["summary"])
+
+    script = Path(routes.__file__).resolve().parents[1] / "web" / "comfyaudit.js"
+    read = set(re.findall(r"summary\.([A-Za-z_]\w*)", script.read_text()))
+
+    assert read, "the overlay reads nothing from the summary - has it moved?"
+    assert read <= sent, f"overlay reads keys the route never sends: {sorted(read - sent)}"

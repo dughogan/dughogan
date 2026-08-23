@@ -18,6 +18,7 @@ from .resolve import local as local_mod
 from .resolve.http import Credentials, HttpClient
 from .resolve.resolver import ALL_SOURCES, Resolver
 from .score import automation as automation_mod
+from .score import licensing as licensing_mod
 from .score import risk as risk_mod
 
 
@@ -50,6 +51,8 @@ class AuditReport:
     missing_models: list[ModelRef] = field(default_factory=list)
     automation: automation_mod.AutomationScore = field(default_factory=automation_mod.AutomationScore)
     risk: risk_mod.RiskScore = field(default_factory=risk_mod.RiskScore)
+    licensing: licensing_mod.LicenceSummary = field(
+        default_factory=licensing_mod.LicenceSummary)
     prompt_dependencies: dict[str, Any] = field(default_factory=dict)
     knowledge: dict[str, Any] = field(default_factory=dict)
     diagnostics: dict[str, Any] = field(default_factory=dict)
@@ -59,14 +62,15 @@ class AuditReport:
             "schema": "comfyaudit/1",
             "generated": _dt.datetime.now().astimezone().isoformat(timespec="seconds"),
             "source": self.source,
-            "verdict": {
-                "commercial_use": self.risk.commercial_verdict,
-                "commercial_detail": self.risk.commercial_detail,
+            "summary": {
+                "licences": self.licensing.headline,
+                "licence_counts": self.licensing.counts,
                 "risk_score": self.risk.score,
                 "risk_band": self.risk.band,
                 "automation_index": self.automation.index,
                 "automation_band": self.automation.band,
             },
+            "licensing": self.licensing.as_dict(),
             "models": to_jsonable(self.models),
             "prompts": to_jsonable(self.prompts),
             "notes": to_jsonable(self.notes),
@@ -178,6 +182,7 @@ def run_workflow(wf: graph.Workflow, opts: AuditOptions) -> AuditReport:
         notes=notes, packs=packs, api_node_types=api_types,
         missing_models=report.missing_models,
     )
+    report.licensing = licensing_mod.summarise(models, api_types)
     report.risk = risk_mod.assess(
         wf, models=models, packs=packs, prompts=prompts, assets=inputs,
         outputs=outputs, api_node_types=api_types,

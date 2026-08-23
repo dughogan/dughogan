@@ -174,8 +174,8 @@ def _payload(report) -> dict[str, Any]:
         "markdown": md_report.render(report),
         "report": json.loads(json.dumps(report.to_dict(), default=str)),
         "summary": {
-            "clearance": report.risk.commercial_verdict,
-            "clearance_detail": report.risk.commercial_detail,
+            "licences": report.licensing.headline,
+            "licence_counts": report.licensing.counts,
             "risk": report.risk.score,
             "risk_band": report.risk.band,
             "automation": report.automation.index,

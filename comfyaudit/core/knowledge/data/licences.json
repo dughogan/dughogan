@@ -142,7 +142,7 @@
         "Attribution: derivative works must state 'Powered by Stability AI'."
       ],
       "url": "https://stability.ai/community-license-agreement",
-      "summary": "Free commercially under $1M annual company revenue; a paid enterprise licence above it. Most studios and agencies are over the line."
+      "summary": "Free commercially below USD $1M annual company revenue; a paid enterprise licence above it. The threshold is measured on total company revenue, not AI revenue."
     },
     "stability-nc-research": {
       "name": "Stability AI Non-Commercial Research Community License",
@@ -174,7 +174,7 @@
         "Content filtering measures are required for all use."
       ],
       "url": "https://bfl.ai/legal/non-commercial-license-terms",
-      "summary": "Not usable for client or commercial work without a paid licence from Black Forest Labs. This applies to the outputs, not just the weights."
+      "summary": "Non-commercial. Note that the restriction is written to cover the outputs, not only the weights."
     },
     "tencent-hunyuan-community": {
       "name": "Tencent Hunyuan Community License",
@@ -221,7 +221,7 @@
         "Anything trained on InsightFace embeddings inherits the non-commercial restriction."
       ],
       "url": "https://github.com/deepinsight/insightface",
-      "summary": "Non-commercial only, and the restriction is inherited by any face model built on these embeddings. A very common hidden blocker in face-swap and identity workflows."
+      "summary": "Non-commercial, and the restriction is inherited by any face model built on these embeddings - which is why it turns up in face-swap and identity workflows that look permissive from the outside."
     },
     "s-lab-1.0": {
       "name": "S-Lab License 1.0 (NTU)",
@@ -251,7 +251,7 @@
         "A self-hosted commercial licence is sold separately."
       ],
       "url": "https://huggingface.co/briaai/RMBG-2.0",
-      "summary": "Background removal weights that need a paid BRIA licence for any commercial delivery."
+      "summary": "Background-removal weights released for non-commercial use; commercial use is sold separately by BRIA."
     },
     "llama-community": {
       "name": "Llama Community License",
@@ -298,7 +298,7 @@
         "An Enterprise Licence is sold to remove these obligations."
       ],
       "url": "https://www.ultralytics.com/license",
-      "summary": "Copyleft that reaches into your pipeline code. A studio using YOLOv8/v11 detectors in a production tool needs an Enterprise Licence or must open-source the tool."
+      "summary": "Copyleft that can reach the code importing it. Ultralytics sell an Enterprise Licence that removes the obligation."
     },
     "proprietary-api": {
       "name": "Vendor API terms of service",
@@ -344,7 +344,7 @@
         "Individual models released under FAIPL frequently bolt on their own extra restrictions (commonly a ban on monetised hosted inference), which travel to merges and derivatives. Read the specific model card as well as the licence."
       ],
       "url": "https://freedevproject.org/faipl-1.0-sd/",
-      "summary": "Outputs are yours to sell. The model is copyleft: fine-tune it and you owe the world your weights, which is usually the opposite of what a facility wants."
+      "summary": "Outputs are unrestricted. The model itself is copyleft: derivatives must be published under the same licence, AGPL-style."
     },
     "playground-v2-community": {
       "name": "Playground v2 Community License",
@@ -387,9 +387,110 @@
       ],
       "url": "https://huggingface.co/THUDM/CogVideoX-5b/blob/main/LICENSE",
       "summary": "Applies to the 5B weights only - the 2B variant is Apache 2.0."
+    },
+    "minimax-community": {
+      "name": "MiniMax Community License",
+      "spdx": "",
+      "commercial_use": "conditional",
+      "fee": "revenue-threshold",
+      "redistribution": "conditional",
+      "output_ownership": "user",
+      "attribution_required": true,
+      "restrictions": [
+        "Territory: the open-weights release excludes local deployment in the United States, the European Union, the United Kingdom and South Korea.",
+        "Free commercial use is limited to organisations under roughly USD $20M annual revenue; above that a separate agreement with MiniMax is required.",
+        "Commercial products must display 'MiniMax H3' prominently in the user interface.",
+        "Outputs may not be used to train competing models, worldwide."
+      ],
+      "url": "https://huggingface.co/MiniMaxAI",
+      "summary": "Open weights with a territory carve-out, a revenue cap and a visible-attribution requirement. Where the facility is based matters as much as what it earns."
+    },
+    "meta-sam": {
+      "name": "Meta SAM License",
+      "spdx": "",
+      "commercial_use": "yes",
+      "fee": "none",
+      "redistribution": "conditional",
+      "output_ownership": "user",
+      "attribution_required": true,
+      "restrictions": [
+        "Research and commercial use are both permitted, including modification and integration.",
+        "Prohibited-use terms cover military, ITAR-controlled, nuclear and weapons applications.",
+        "More restrictive than a standard permissive licence; read the terms on the weights download page."
+      ],
+      "url": "https://github.com/facebookresearch/sam3/blob/main/LICENSE",
+      "summary": "Meta's own licence rather than an OSI one. Commercial use is allowed, with a prohibited-use list attached."
     }
   },
   "models": [
+    {
+      "id": "minimax-h3",
+      "family": "MiniMax H3 (Hailuo 3.0)",
+      "licence": "minimax-community",
+      "match": {
+        "filename": [
+          "minimax_h3",
+          "minimax-h3",
+          "hailuo",
+          "minimaxai"
+        ]
+      },
+      "confidence": "medium",
+      "source": "https://huggingface.co/blog/ResterChed/minimax-h3-hailuo-3-0",
+      "notes": [
+        "Territory exclusions make this one to check against where the facility is based, not just what it earns."
+      ]
+    },
+    {
+      "id": "sam3",
+      "family": "Segment Anything 3",
+      "licence": "meta-sam",
+      "match": {
+        "filename": [
+          "sam3",
+          "sam_3",
+          "sam3.pt"
+        ]
+      },
+      "confidence": "medium",
+      "source": "https://github.com/facebookresearch/sam3/blob/main/LICENSE",
+      "notes": []
+    },
+    {
+      "id": "qwen-vl",
+      "family": "Qwen3-VL",
+      "licence": "apache-2.0",
+      "match": {
+        "filename": [
+          "qwen3vl",
+          "qwen3-vl",
+          "qwen2vl",
+          "qwen2-vl",
+          "qwen_vl"
+        ]
+      },
+      "confidence": "low",
+      "source": "https://huggingface.co/Qwen",
+      "notes": [
+        "Most Qwen vision-language releases are Apache 2.0, but the family is not uniform - confirm the exact variant."
+      ]
+    },
+    {
+      "id": "vitpose",
+      "family": "ViTPose",
+      "licence": "apache-2.0",
+      "match": {
+        "filename": [
+          "vitpose",
+          "vit-pose"
+        ]
+      },
+      "confidence": "low",
+      "source": "https://github.com/ViTAE-Transformer/ViTPose",
+      "notes": [
+        "The wholebody variants are trained on COCO-WholeBody, which carries its own dataset terms."
+      ]
+    },
     {
       "id": "flux1-schnell",
       "family": "FLUX.1 [schnell]",
@@ -1113,7 +1214,7 @@
       "source": "https://www.ultralytics.com/license",
       "notes": [
         "Reaches the ADetailer-style face/hand/person detectors that ship with many custom node packs.",
-        "Ultralytics own guidance is that internal production use needs an Enterprise Licence - this is not a formality, it needs legal sign-off."
+        "Ultralytics' published position is that internal production use needs an Enterprise Licence."
       ]
     },
     {
@@ -1132,7 +1233,7 @@
       "confidence": "high",
       "source": "https://huggingface.co/briaai/RMBG-2.0",
       "notes": [
-        "Extremely common in matting workflows and almost always used without the required commercial agreement."
+        "Common in matting workflows, where the separate commercial agreement is easy to miss."
       ]
     },
     {

@@ -190,6 +190,14 @@ class Workflow:
 
 PASSTHROUGH_TYPES = {"Reroute", "Reroute (rgthree)", "ReroutePrimitive|pysssss", "PrimitiveNode"}
 
+#: Nodes that move a value across the canvas by *name* rather than by a link.
+#: KJNodes' Set/Get pair is the common one, and heavily-built graphs use dozens
+#: of them - a workflow can be almost entirely wired this way. Left unresolved
+#: they sever every trace: a prompt goes into a SetNode and reappears out of a
+#: GetNode with no edge between them.
+VARIABLE_SETTERS = {"SetNode", "Set_", "SetValue", "Anything Everywhere"}
+VARIABLE_GETTERS = {"GetNode", "Get_", "GetValue"}
+
 
 def load(path: str) -> Workflow:
     """Load a workflow from ``.json`` or from PNG/WebP metadata."""
@@ -313,8 +321,73 @@ def _parse_ui(data: dict[str, Any]) -> Workflow:
         if isinstance(grp, dict):
             wf.groups.append(Group(title=str(grp.get("title", "")), color=grp.get("color")))
 
+    _resolve_variable_nodes(wf)
     _annotate_input_types(wf)
     return wf
+
+
+def _resolve_variable_nodes(wf: Workflow) -> None:
+    """Rewire Set/Get variable nodes into the real edges they stand for.
+
+    A ``SetNode`` named "width" captures whatever feeds it; every ``GetNode``
+    named "width" re-emits it. This walks the names back to the producing node
+    and repoints the consumers at it, so upstream tracing sees the graph the
+    author actually drew rather than a field of disconnected islands.
+    """
+    setters: dict[str, tuple[str, int]] = {}
+    getters: dict[str, str] = {}
+
+    for node in wf.nodes.values():
+        name = _variable_name(node)
+        if not name:
+            continue
+        if node.type in VARIABLE_SETTERS:
+            for slot in node.inputs.values():
+                if slot.source_node:
+                    setters[name] = (slot.source_node, slot.source_slot)
+                    break
+        elif node.type in VARIABLE_GETTERS:
+            getters[node.id] = name
+
+    if not (setters and getters):
+        return
+
+    # A setter's own input can come from a getter, so follow the chain - with a
+    # bound, because nothing stops an author wiring one in a circle.
+    resolved: dict[str, tuple[str, int]] = {}
+    for node_id, name in getters.items():
+        target = setters.get(name)
+        seen = {node_id}
+        for _ in range(8):
+            if target is None or target[0] not in getters or target[0] in seen:
+                break
+            seen.add(target[0])
+            target = setters.get(getters[target[0]])
+        if target is not None:
+            resolved[node_id] = target
+
+    rewired = 0
+    for node in wf.nodes.values():
+        for slot in node.inputs.values():
+            if slot.source_node in resolved:
+                slot.source_node, slot.source_slot = resolved[slot.source_node]
+                rewired += 1
+    if rewired:
+        wf.extra["variable_links_resolved"] = rewired
+
+
+def _variable_name(node: Node) -> str:
+    """The variable a Set/Get node is named for."""
+    if node.type not in VARIABLE_SETTERS and node.type not in VARIABLE_GETTERS:
+        return ""
+    for key in ("widget_0", "value", "name", "Constant"):
+        value = node.widgets.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    values = node.raw.get("widgets_values")
+    if isinstance(values, list) and values and isinstance(values[0], str):
+        return values[0].strip()
+    return str((node.properties or {}).get("previousName") or "").strip()
 
 
 def _collect_subgraph_defs(data: dict[str, Any]) -> dict[str, dict[str, Any]]:

@@ -244,8 +244,8 @@ def _cmd_models(args: argparse.Namespace) -> int:
     width = max(len(m.filename) for m in report.models)
     for model in report.models:
         lic = model.license
-        flag = {"no": "NON-COMMERCIAL", "conditional": "conditional",
-                "unknown": "licence unknown", "yes": "ok"}.get(
+        flag = {"no": "non-commercial", "conditional": "conditional",
+                "unknown": "unstated", "yes": "permissive"}.get(
                     lic.commercial_use if lic else "unknown", "?")
         print(f"{model.filename:<{width}}  {model.role:<28}  {flag:<16}  "
               f"{lic.name if lic else 'Unknown'}")
@@ -300,8 +300,8 @@ def _print_summary(report: AuditReport) -> None:
     print(line, file=sys.stderr)
     print(f" {report.source.get('name', 'workflow')}", file=sys.stderr)
     print(line, file=sys.stderr)
-    print(f" Commercial clearance : {risk.commercial_verdict.upper()}", file=sys.stderr)
-    print(f" Production risk      : {risk.score}/100 ({risk.band})", file=sys.stderr)
+    print(f" Licences             : {report.licensing.headline}", file=sys.stderr)
+    print(f" Operational risk     : {risk.score}/100 ({risk.band})", file=sys.stderr)
     print(f" Automation index     : {auto.index}/100 ({auto.band})", file=sys.stderr)
     print(f" Models / packs       : {len(report.models)} / {len(report.packs)}", file=sys.stderr)
     if counts:
@@ -318,15 +318,15 @@ def _print_batch_summary(reports: list[tuple[str, AuditReport]]) -> None:
         return
     name_w = max(len(os.path.basename(p)) for p, _ in reports)
     print("", file=sys.stderr)
-    print(f"{'workflow':<{name_w}}  {'clearance':<12} {'risk':>7}  {'auto':>5}  findings",
-          file=sys.stderr)
+    print(f"{'workflow':<{name_w}}  {'risk':>7}  {'auto':>5}  licences", file=sys.stderr)
     for path, report in reports:
-        counts = report.risk.counts()
-        crit = counts.get("critical", 0) + counts.get("high", 0)
+        counts = report.licensing.counts
+        composition = ", ".join(f"{counts[p]} {p}" for p in
+                                ("permissive", "conditional", "non-commercial", "unstated")
+                                if counts.get(p)) or "none found"
         print(f"{os.path.basename(path):<{name_w}}  "
-              f"{report.risk.commercial_verdict:<12} "
               f"{report.risk.score:>3}/100  {report.automation.index:>3}  "
-              f"{crit} critical+high", file=sys.stderr)
+              f"{composition}", file=sys.stderr)
 
 
 if __name__ == "__main__":

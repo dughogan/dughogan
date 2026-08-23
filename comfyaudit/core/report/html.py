@@ -1,9 +1,9 @@
-"""Render an audit as a self-contained HTML clearance sheet.
+"""Render an audit as a self-contained HTML report.
 
 The page is one file with no external assets beyond a webfont link, so it can be
 emailed, archived next to the show, or opened on a machine with no network.  It
-is laid out as a clearance document rather than a dashboard: the verdict is the
-first thing on the page, stamped, and everything after it is evidence.
+is laid out as a document rather than a dashboard: what the workflow is made of
+comes first, and everything after it is the evidence for that.
 
 ``render(report)`` produces a whole document.  ``render(report,
 standalone=False)`` produces just the style block and body content, for hosts
@@ -19,19 +19,17 @@ from typing import Any, Iterable
 from .. import __version__
 from ..audit import AuditReport
 from . import review as review_section
+from ..score import licensing
 
 FONTS = ("https://fonts.googleapis.com/css2?"
          "family=Chivo:wght@600;700;900&"
          "family=IBM+Plex+Mono:wght@400;500;600&"
          "family=Source+Sans+3:wght@400;600&display=swap")
 
-VERDICT_STAMP = {
-    "blocked": ("Not cleared", "commercial delivery blocked", "stop"),
-    "conditional": ("Cleared with conditions", "conditions must be met", "warn"),
-    "unclear": ("Not clearable", "insufficient information", "warn"),
-    "clear": ("Cleared", "commercial delivery permitted", "ok"),
-    "unknown": ("No models identified", "nothing to clear", "warn"),
-}
+#: Tone per licence position. These colour the *terms*, not a judgement: a
+#: non-commercial licence is a fact about the model, not a fault in the reader.
+POSITION_TONE = {"permissive": "ok", "conditional": "warn",
+                 "non-commercial": "stop", "unstated": "flat"}
 
 SEVERITY_TONE = {"critical": "stop", "high": "stop", "medium": "warn",
                  "low": "ok", "info": "flat"}
@@ -105,33 +103,38 @@ h1{
 .slate dt{color:var(--ink-3);letter-spacing:.06em;text-transform:uppercase;font-size:11px;padding-top:2px}
 .slate dd{margin:0;color:var(--ink-2);overflow-wrap:anywhere}
 
-/* -- the clearance stamp ------------------------------------------------ */
-.stamp{
-  flex:0 0 auto; transform:rotate(-2.5deg); padding:14px 20px 12px;
-  border:2px solid currentColor; border-radius:3px; text-align:center;
-  box-shadow:0 0 0 3px var(--surface),0 6px 18px -10px var(--stamp-shadow);
-  max-width:300px;
+/* -- licence composition ------------------------------------------------- */
+.composition{
+  flex:0 0 auto; min-width:260px; border:1px solid var(--rule);
+  background:var(--surface); box-shadow:0 6px 18px -14px var(--stamp-shadow);
 }
-.stamp::before{
-  content:""; display:block; height:2px; background:currentColor;
-  opacity:.35; margin:0 0 10px;
-}
-.stamp .verdict{
-  font-family:var(--display); font-weight:900; font-size:clamp(18px,3.2vw,25px);
-  letter-spacing:.02em; line-height:1.05; text-transform:uppercase;
-}
-.stamp .qualifier{
+.composition .head{
   font-family:var(--mono); font-size:10.5px; letter-spacing:.13em;
-  text-transform:uppercase; margin-top:7px; opacity:.85;
+  text-transform:uppercase; color:var(--ink-3);
+  padding:10px 14px 8px; border-bottom:1px solid var(--rule);
 }
-.stamp.stop{color:var(--stop)} .stamp.warn{color:var(--warn)} .stamp.ok{color:var(--ok)}
+.composition .row{
+  display:flex; align-items:baseline; gap:10px; padding:7px 14px;
+  border-bottom:1px solid var(--rule);
+}
+.composition .row:last-child{border-bottom:none}
+.composition .n{
+  font-family:var(--display); font-weight:700; font-size:19px;
+  font-variant-numeric:tabular-nums; min-width:1.6em; text-align:right;
+}
+.composition .lbl{font-size:13.5px}
+.composition .row.ok .n{color:var(--ok)}
+.composition .row.warn .n{color:var(--warn)}
+.composition .row.stop .n{color:var(--stop)}
+.composition .row.flat .n{color:var(--ink-3)}
+.composition .none{padding:12px 14px;color:var(--ink-3);font-size:13.5px}
 
 .verdict-note{
   margin:22px 0 0; font-size:17px; line-height:1.5; max-width:62ch;
   border-left:3px solid currentColor; padding-left:16px;
 }
 .verdict-note.stop{color:var(--stop)} .verdict-note.warn{color:var(--warn)}
-.verdict-note.ok{color:var(--ok)}
+.verdict-note.ok{color:var(--ok)} .verdict-note.flat{color:var(--ink-2)}
 .verdict-note span{color:var(--ink)}
 
 /* -- instrument readouts ------------------------------------------------ */
@@ -262,7 +265,7 @@ code{font-family:var(--mono);font-size:.88em;background:var(--sunk);padding:1px 
 
 @media (max-width:640px){
   .masthead{padding-top:28px}
-  .stamp{transform:none;max-width:none;width:100%}
+  .composition{width:100%}
   h2{margin-top:40px}
 }
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
@@ -304,11 +307,9 @@ def _body(report: AuditReport) -> str:
     w("<div class='sheet'>")
 
     # -- masthead ----------------------------------------------------------
-    label, qualifier, tone = VERDICT_STAMP.get(
-        risk.commercial_verdict, VERDICT_STAMP["unknown"])
     w("<header class='masthead'>")
     w("<div class='title-block'>")
-    w("<div class='eyebrow'>ComfyUI workflow clearance</div>")
+    w("<div class='eyebrow'>ComfyUI workflow report</div>")
     w(f"<h1>{_e(src.get('name', 'workflow'))}</h1>")
     w("<dl class='slate'>")
     w(f"<dt>Graph</dt><dd>{src.get('nodes_total', 0)} nodes"
@@ -321,17 +322,18 @@ def _body(report: AuditReport) -> str:
     w(f"<dt>Audited</dt><dd>{_dt.datetime.now().astimezone().strftime('%Y-%m-%d %H:%M %Z')} "
       f"&middot; comfyaudit {__version__}</dd>")
     w("</dl></div>")
-    w(f"<div class='stamp {tone}'><div class='verdict'>{_e(label)}</div>"
-      f"<div class='qualifier'>{_e(qualifier)}</div></div>")
+    w(_composition(report.licensing))
     w("</header>")
 
-    if risk.commercial_detail:
-        w(f"<p class='verdict-note {tone}'><span>{_e(risk.commercial_detail)}</span></p>")
+    w(f"<p class='verdict-note flat'><span><strong>Licences.</strong> "
+      f"{_e(report.licensing.headline)} This report describes what those licences "
+      "say; it does not decide whether they suit your job, which depends on the "
+      "client, the territory and any agreements you already hold.</span></p>")
 
     # -- readouts ----------------------------------------------------------
     counts = risk.counts()
     w("<div class='readouts'>")
-    w(_readout("Production risk", f"{risk.score}<small>/100</small>", risk.band,
+    w(_readout("Operational risk", f"{risk.score}<small>/100</small>", risk.band,
                _risk_tone(risk.score), risk.score))
     w(_readout("Automation", f"{auto.index}<small>/100</small>", auto.band,
                _auto_tone(auto.index), auto.index))
@@ -349,13 +351,14 @@ def _body(report: AuditReport) -> str:
 
     top = [f for f in risk.findings if f.severity in ("critical", "high")][:3]
     if top:
-        w(_h2("Priority", "First"))
+        w(_h2("", "Most likely to bite first"))
         w("<ol class='priority'>")
         for finding in top:
             w(f"<li><span><strong>{_e(finding.title)}</strong> &mdash; "
               f"{_e(finding.recommendation or finding.detail)}</span></li>")
         w("</ol>")
 
+    _licence_section(w, report)
     _models_section(w, report)
     _prompts_section(w, report)
     _assets_section(w, report)
@@ -376,8 +379,68 @@ def _body(report: AuditReport) -> str:
 # --------------------------------------------------------------------------
 
 
+def _licence_section(w, report: AuditReport) -> None:
+    """What the licences say, grouped, with a source for each claim."""
+    lic = report.licensing
+    w(_h2("1", "Licence summary", f"{len(lic.groups)} distinct"))
+    if not lic.groups:
+        w("<p class='empty'>No models were found, so there is nothing to report.</p>")
+        return
+
+    rows = []
+    for group in lic.groups:
+        tone = POSITION_TONE.get(group.position, "flat")
+        models = ", ".join(group.models[:4]) + (
+            f" and {len(group.models) - 4} more" if len(group.models) > 4 else "")
+        rows.append(
+            f"<tr><td>{_e(group.licence)}"
+            f"<span class='sub'>{_e(models)}</span></td>"
+            f"<td class='num'>{group.count}</td>"
+            f"<td><span class='chip {tone}'>{_e(group.position)}</span></td>"
+            f"<td>{_e(licensing.describe_fee(group.fee))}</td>"
+            f"<td>{_e(group.confidence)}</td></tr>")
+    w(_table(["Licence", "Models", "Commercial use", "Fee", "Confidence"], rows))
+
+    for group in lic.groups:
+        tone = POSITION_TONE.get(group.position, "flat")
+        w(f"<div class='block {tone}'><div class='block-head'>"
+          f"<span class='name'>{_e(group.licence)}</span>"
+          f"<span class='chip {tone}'>{_e(group.position)}</span>"
+          f"<span class='tag'>{group.count} model(s)</span></div>")
+        if group.summary:
+            w(f"<p>{_e(group.summary)}</p>")
+        if group.restrictions:
+            w("<ul>" + "".join(f"<li>{_e(r)}</li>"
+                               for r in group.restrictions[:10]) + "</ul>")
+        if group.url:
+            w(f"<div class='footnote'><a href='{_e(group.url)}'>Licence terms</a></div>")
+        w("</div>")
+
+    if lic.obligations:
+        w("<h4>Obligations that come with these licences</h4><ul>")
+        for obligation in lic.obligations:
+            w(f"<li>{_e(obligation)}</li>")
+        w("</ul>")
+
+    if lic.to_verify:
+        w("<h4>Worth confirming at source</h4>")
+        w("<p>The entries the tool is least sure about. A licence is matched from a "
+          "filename, and filenames can be changed by anyone.</p><ul>")
+        for item in lic.to_verify:
+            w(f"<li>{_e(item)}</li>")
+        w("</ul>")
+
+    if lic.hosted_api_types:
+        w("<h4>Hosted models</h4>")
+        w(f"<p>{len(lic.hosted_api_types)} node type(s) call a vendor API rather than "
+          "loading local weights. Their terms come from that vendor's contract, which "
+          "is not visible in the workflow.</p><ul>"
+          + "".join(f"<li><code>{_e(t)}</code></li>" for t in lic.hosted_api_types)
+          + "</ul>")
+
+
 def _models_section(w, report: AuditReport) -> None:
-    w(_h2("1", "Models and licensing", f"{len(report.models)} referenced"))
+    w(_h2("2", "Models", f"{len(report.models)} referenced"))
     if not report.models:
         w("<p class='empty'>No model references found.</p>")
         return
@@ -434,7 +497,7 @@ def _models_section(w, report: AuditReport) -> None:
 
 
 def _prompts_section(w, report: AuditReport) -> None:
-    w(_h2("2", "Prompts", f"{len(report.prompts)} found"))
+    w(_h2("3", "Prompts", f"{len(report.prompts)} found"))
     if not report.prompts:
         w("<p class='empty'>No prompt text found.</p>")
     for polarity in ("positive", "negative", "both", "system", "unknown"):
@@ -475,7 +538,7 @@ def _prompts_section(w, report: AuditReport) -> None:
 
 
 def _assets_section(w, report: AuditReport) -> None:
-    w(_h2("3", "Assets", f"{len(report.inputs)} in, {len(report.outputs)} out"))
+    w(_h2("4", "Assets", f"{len(report.inputs)} in, {len(report.outputs)} out"))
     if report.inputs:
         rows = []
         for asset in report.inputs:
@@ -501,7 +564,7 @@ def _assets_section(w, report: AuditReport) -> None:
 
 def _dependencies_section(w, report: AuditReport) -> None:
     installable = [p for p in report.packs if p.identified]
-    w(_h2("4", "Node dependencies",
+    w(_h2("5", "Node dependencies",
           f"{len(report.core_node_types)} core &middot; {len(installable)} custom"))
 
     if not report.packs:
@@ -546,7 +609,7 @@ def _dependencies_section(w, report: AuditReport) -> None:
 
 def _automation_section(w, report: AuditReport) -> None:
     auto = report.automation
-    w(_h2("5", "Automation vs human intervention", f"{auto.index}/100"))
+    w(_h2("6", "Automation vs human intervention", f"{auto.index}/100"))
     w(f"<div class='block {_auto_tone(auto.index)}'>"
       f"<div class='block-head'><span class='name'>{_e(auto.band)}</span>"
       f"<span class='tag'>index {auto.index}/100</span></div>"
@@ -579,7 +642,7 @@ def _automation_section(w, report: AuditReport) -> None:
 
 def _risk_section(w, report: AuditReport) -> None:
     risk = report.risk
-    w(_h2("6", "Production risks", f"{len(risk.findings)} findings"))
+    w(_h2("7", "Operational risks", f"{len(risk.findings)} findings"))
     if not risk.findings:
         w("<div class='block ok'><p>No risks identified.</p></div>")
         return
@@ -647,6 +710,23 @@ def _colophon(w, report: AuditReport) -> None:
 def _h2(num: str, title: str, count: str = "") -> str:
     tail = f"<span class='count'>{_e(count)}</span>" if count else ""
     return (f"<h2><span class='num'>{_e(num)}</span>{_e(title)}{tail}</h2>")
+
+
+def _composition(lic: Any) -> str:
+    """Licence positions as counts. Information, not a ruling."""
+    if not lic.counts:
+        return ("<div class='composition'><div class='head'>Licences</div>"
+                "<div class='none'>No models found</div></div>")
+    rows = []
+    for position in ("permissive", "conditional", "non-commercial", "unstated"):
+        count = lic.counts.get(position)
+        if not count:
+            continue
+        tone = POSITION_TONE.get(position, "flat")
+        rows.append(f"<div class='row {tone}'><span class='n'>{count}</span>"
+                    f"<span class='lbl'>{_e(position)}</span></div>")
+    return ("<div class='composition'><div class='head'>Licences &middot; "
+            f"{lic.total_models} model(s)</div>" + "".join(rows) + "</div>")
 
 
 def _readout(key: str, value: str, detail: str, tone: str, pct: int | None = None) -> str:

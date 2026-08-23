@@ -103,9 +103,7 @@ def extract(wf: Workflow) -> tuple[list[PackRef], list[str], list[str]]:
 def _resolve_pack(node_type: str, cnr_id: str, aux_id: str) -> dict | None:
     """Prefer what the workflow declares, fall back to the class-name index."""
     if aux_id:
-        found = catalog.pack_by_repo("github.com/" + aux_id if "/" not in aux_id[:8] else aux_id)
-        if found is None:
-            found = catalog.pack_by_repo(aux_id)
+        found = catalog.pack_by_repo(aux_id)
         if found:
             return found
     if cnr_id:

@@ -168,13 +168,27 @@ def find_pack(class_type: str) -> dict[str, Any] | None:
 
 
 def pack_by_repo(repo_url: str) -> dict[str, Any] | None:
+    """Find a pack by repository, however the reference is written.
+
+    The frontend stamps ``aux_id`` as a bare ``owner/repo`` while the index is
+    keyed by host, so a lookup that does not try both silently misses - which
+    reads as "unidentified node" for a pack that is sitting right there.
+    """
     key = re.sub(r"\.git$", "", (repo_url or "").strip().rstrip("/"))
     key = re.sub(r"^https?://(www\.)?", "", key).lower()
-    rec = node_packs()["packs"].get(key)
-    if rec:
-        out = dict(rec)
-        out["repo"] = key
-        return out
+    if not key:
+        return None
+
+    packs = node_packs()["packs"]
+    candidates = [key]
+    if key.count("/") == 1 and "." not in key.split("/")[0]:
+        candidates += [f"github.com/{key}", f"gitlab.com/{key}"]
+    for candidate in candidates:
+        rec = packs.get(candidate)
+        if rec:
+            out = dict(rec)
+            out["repo"] = candidate
+            return out
     return None
 
 

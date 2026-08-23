@@ -160,7 +160,8 @@ def build_tools(report: AuditReport, collector: Collector,
         note("describe_workflow()")
         return _json({
             "source": report.source,
-            "commercial_verdict": report.risk.commercial_verdict,
+            "licence_summary": report.licensing.headline,
+            "licence_counts": report.licensing.counts,
             "risk_score": report.risk.score,
             "automation_index": report.automation.index,
             "automation_band": report.automation.band,

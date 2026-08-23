@@ -9,14 +9,7 @@ from .. import __version__
 from ..audit import AuditReport
 from ..records import Finding, ModelRef
 from . import review as review_section
-
-VERDICT_LABEL = {
-    "blocked": "BLOCKED - not deliverable commercially as it stands",
-    "conditional": "CONDITIONAL - deliverable if the conditions are met",
-    "unclear": "UNCLEAR - cannot be cleared without more information",
-    "clear": "CLEAR - all identified models permit commercial use",
-    "unknown": "UNKNOWN - no models identified",
-}
+from ..score import licensing
 
 SEVERITY_MARK = {"critical": "CRITICAL", "high": "HIGH", "medium": "MEDIUM",
                  "low": "LOW", "info": "INFO"}
@@ -36,21 +29,23 @@ def render(report: AuditReport) -> str:
     w("")
 
     # -- verdict -----------------------------------------------------------
-    w("## Verdict")
+    lic = report.licensing
+    w("## Summary")
     w("")
     w("| | |")
     w("|---|---|")
-    w(f"| **Commercial clearance** | {VERDICT_LABEL.get(report.risk.commercial_verdict, 'Unknown')} |")
-    w(f"| **Production risk** | {report.risk.score}/100 - {report.risk.band} |")
+    w(f"| **Licences** | {lic.headline or 'No models found.'} |")
+    w(f"| **Operational risk** | {report.risk.score}/100 - {report.risk.band} |")
     w(f"| **Automation index** | {report.automation.index}/100 - {report.automation.band} |")
     w(f"| **Graph** | {src.get('nodes_total', 0)} nodes "
       f"({src.get('nodes_disabled', 0)} disabled), {len(report.models)} models, "
       f"{len(report.packs)} custom packs |")
     w("")
-    if report.risk.commercial_detail:
-        w(f"{report.risk.commercial_detail}")
-        w("")
     w(f"{report.risk.band_detail} {report.automation.band_detail}")
+    w("")
+    w("*This report describes what the licences say. It does not decide whether "
+      "they suit your job - that depends on the client, the territory and any "
+      "agreements you already hold.*")
     w("")
 
     counts = report.risk.counts()
@@ -62,8 +57,11 @@ def render(report: AuditReport) -> str:
 
     _headline_actions(w, report)
 
+    # -- licence composition -----------------------------------------------
+    _licence_section(w, report)
+
     # -- models ------------------------------------------------------------
-    w("## 1. Models and licensing")
+    w("## 2. Models")
     w("")
     if not report.models:
         w("No model references were found in this workflow.")
@@ -86,7 +84,7 @@ def render(report: AuditReport) -> str:
         _model_details(w, report.models)
 
     # -- prompts -----------------------------------------------------------
-    w("## 2. Prompts")
+    w("## 3. Prompts")
     w("")
     if not report.prompts:
         w("No prompt text was found.")
@@ -137,7 +135,7 @@ def render(report: AuditReport) -> str:
         w("")
 
     # -- assets ------------------------------------------------------------
-    w("## 3. Assets")
+    w("## 4. Assets")
     w("")
     if report.inputs:
         w("**Inputs**")
@@ -164,7 +162,7 @@ def render(report: AuditReport) -> str:
         w("")
 
     # -- dependencies ------------------------------------------------------
-    w("## 4. Node dependencies")
+    w("## 5. Node dependencies")
     w("")
     w(f"Core ComfyUI node types used: **{len(report.core_node_types)}**"
       + (f" | Hosted API node types: **{len(report.api_node_types)}**" if report.api_node_types else ""))
@@ -206,7 +204,7 @@ def render(report: AuditReport) -> str:
         w("")
 
     # -- automation --------------------------------------------------------
-    w("## 5. Automation vs human intervention")
+    w("## 6. Automation vs human intervention")
     w("")
     auto = report.automation
     w(f"**{auto.index}/100 - {auto.band}.** {auto.band_detail}")
@@ -242,7 +240,7 @@ def render(report: AuditReport) -> str:
         w("")
 
     # -- risks -------------------------------------------------------------
-    w("## 6. Production risks")
+    w("## 7. Operational risks")
     w("")
     if not report.risk.findings:
         w("No risks were identified.")
@@ -286,12 +284,71 @@ def render(report: AuditReport) -> str:
 # --------------------------------------------------------------------------
 
 
+def _licence_section(w, report: AuditReport) -> None:
+    """What the licences in this workflow say, grouped and sourced."""
+    lic = report.licensing
+    w("## 1. Licence summary")
+    w("")
+    if not lic.groups:
+        w("No models were found, so there is nothing to report here.")
+        w("")
+        return
+
+    w("| Licence | Models | Commercial use | Fee | Confidence |")
+    w("|---|---|---|---|---|")
+    for group in lic.groups:
+        w(f"| {_cell(group.licence)} | {group.count} | {group.position} | "
+          f"{_cell(licensing.describe_fee(group.fee))} | {group.confidence} |")
+    w("")
+
+    for group in lic.groups:
+        w(f"**{group.licence}** — {', '.join(f'`{m}`' for m in group.models[:8])}"
+          + (f" and {len(group.models) - 8} more" if len(group.models) > 8 else ""))
+        w("")
+        if group.summary:
+            w(group.summary)
+            w("")
+        if group.restrictions:
+            for restriction in group.restrictions[:10]:
+                w(f"- {restriction}")
+            w("")
+        if group.url:
+            w(f"*[Licence terms]({group.url})*")
+            w("")
+
+    if lic.obligations:
+        w("### Obligations that come with these licences")
+        w("")
+        for obligation in lic.obligations:
+            w(f"- {obligation}")
+        w("")
+
+    if lic.to_verify:
+        w("### Worth confirming at source")
+        w("")
+        w("These are the entries the tool is least sure about. A licence is matched "
+          "from a filename, and filenames can be changed by anyone.")
+        w("")
+        for item in lic.to_verify:
+            w(f"- {item}")
+        w("")
+
+    if lic.hosted_api_types:
+        w("### Hosted models")
+        w("")
+        w(f"{len(lic.hosted_api_types)} node type(s) call a vendor API rather than "
+          "loading local weights. Their terms come from that vendor's contract, "
+          "which is not visible in the workflow: "
+          + ", ".join(f"`{t}`" for t in lic.hosted_api_types))
+        w("")
+
+
 def _headline_actions(w, report: AuditReport) -> None:
-    """The three things a supervisor should do first."""
+    """The operational items most likely to bite first."""
     top = [f for f in report.risk.findings if f.severity in ("critical", "high")][:3]
     if not top:
         return
-    w("### Do these first")
+    w("### Most likely to bite first")
     w("")
     for i, finding in enumerate(top, 1):
         w(f"{i}. **{finding.title}** - {finding.recommendation or finding.detail}")

@@ -152,14 +152,45 @@ def test_non_commercial_models_are_caught(beauty):
     assert "4x-UltraSharp.pth" in blocked
 
 
-def test_workflow_with_a_blocked_model_is_not_clearable(beauty):
-    assert beauty.risk.commercial_verdict == "blocked"
+def test_non_commercial_models_are_counted_not_judged(beauty):
+    """The report states the composition; it does not rule on it."""
+    counts = beauty.licensing.counts
+    assert counts.get("non-commercial", 0) >= 3
+    assert "non-commercial" in beauty.licensing.headline
+    # No verdict field exists any more - that was the point of the change.
+    assert not hasattr(beauty.risk, "commercial_verdict")
 
 
-def test_permissive_workflow_clears(clean):
-    assert clean.risk.commercial_verdict in ("clear", "conditional")
+def test_licences_are_grouped_with_their_models(beauty):
+    group = next(g for g in beauty.licensing.groups if "CodeFormer" in g.licence)
+    assert group.position == "non-commercial"
+    assert "codeformer-v0.1.0.pth" in group.models
+    assert group.url
+
+
+def test_permissive_workflow_reads_as_permissive(clean):
+    assert clean.licensing.counts.get("permissive", 0) >= 1
     schnell = next(m for m in clean.models if "schnell" in m.filename)
     assert schnell.license.commercial_use == "yes"
+
+
+def test_obligations_are_surfaced_separately(beauty):
+    """Attribution and revenue caps are easy to miss at delivery."""
+    text = " ".join(beauty.licensing.obligations)
+    assert "Attribution" in text or "licence must be obtained" in text
+
+
+def test_low_confidence_entries_are_flagged_for_checking(beauty):
+    assert beauty.licensing.to_verify
+    assert any("no licence could be identified" in item
+               for item in beauty.licensing.to_verify)
+
+
+def test_licence_position_does_not_move_the_risk_score(beauty):
+    """Policy is the reader's; the score measures operational readiness only."""
+    ids = {f.id for f in beauty.risk.findings}
+    assert not any(i.startswith("licence.") for i in ids)
+    assert "licensing" not in beauty.risk.by_category
 
 
 def test_schnell_is_not_confused_with_dev():
@@ -236,7 +267,6 @@ def test_setup_cost_is_kept_out_of_the_headline_index(beauty):
 
 def test_risky_workflow_scores_higher_than_the_clean_one(beauty, clean):
     assert beauty.risk.score > clean.risk.score
-    assert beauty.risk.band in ("High", "Severe")
 
 
 def test_findings_carry_evidence_and_a_recommendation(beauty):
@@ -261,11 +291,13 @@ def test_unpinned_packs_raise_a_reproducibility_finding(beauty):
 
 def test_markdown_report_covers_every_section(beauty):
     text = md_report.render(beauty)
-    for heading in ("## Verdict", "## 1. Models and licensing", "## 2. Prompts",
-                    "## 3. Assets", "## 4. Node dependencies",
-                    "## 5. Automation vs human intervention", "## 6. Production risks"):
+    for heading in ("## Summary", "## 1. Licence summary", "## 2. Models",
+                    "## 3. Prompts", "## 4. Assets", "## 5. Node dependencies",
+                    "## 6. Automation vs human intervention",
+                    "## 7. Operational risks"):
         assert heading in text
     assert "not legal advice" in text
+    assert "does not decide whether they suit your job" in text
 
 
 def test_markdown_escapes_pipes_so_tables_do_not_break():
@@ -300,7 +332,8 @@ def test_html_body_fragment_omits_the_document_skeleton(beauty):
 def test_json_report_round_trips(beauty):
     payload = json.loads(json.dumps(beauty.to_dict()))
     assert payload["schema"] == "comfyaudit/1"
-    assert payload["verdict"]["commercial_use"] == "blocked"
+    assert payload["summary"]["licences"] == beauty.licensing.headline
+    assert payload["licensing"]["counts"]["non-commercial"] >= 3
     assert len(payload["models"]) == len(beauty.models)
 
 

@@ -8,13 +8,13 @@ requires-python = ">=3.9"
 authors = [{ name = "Doug Hogan" }]
 keywords = ["comfyui", "vfx", "pipeline", "audit", "licensing", "clearance", "claude"]
 
-# The auditor itself is standard library only, so it cannot break a ComfyUI
-# environment. The Anthropic SDK is needed only for the Claude review node and
-# the plugin degrades gracefully without it.
-dependencies = ["anthropic>=0.40"]
+# Standard library only, so installing this cannot disturb a ComfyUI environment.
+dependencies = []
 
 [project.optional-dependencies]
-dev = ["pytest>=7"]
+# The Claude Review node. Everything else works without it.
+claude = ["anthropic>=1.0"]
+dev = ["pytest>=7", "anthropic>=1.0"]
 
 [project.urls]
 Repository = "https://github.com/dughogan/dughogan"
@@ -23,6 +23,7 @@ Repository = "https://github.com/dughogan/dughogan"
 PublisherId = "dughogan"
 DisplayName = "ComfyAudit"
 Icon = ""
+includes = []
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
