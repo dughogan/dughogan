@@ -40,16 +40,36 @@ Not in the ComfyUI-Manager registry yet, so for now it's a manual install:
 
 ```bash
 cd ComfyUI/custom_nodes
-git clone https://github.com/dughogan/dughogan comfyaudit-src
-ln -s "$PWD/comfyaudit-src/comfyaudit" comfyaudit
+git clone https://github.com/dughogan/comfyaudit
 ```
-
-(ComfyUI loads a pack by directory name, so the folder it sees has to be
-`comfyaudit`. Once this moves to a repository of its own, the clone is the
-whole of it.)
 
 Restart ComfyUI. That's it — ComfyAudit is pure standard library, so installing
 it cannot disturb your environment or fight with anything else you have.
+
+**If ComfyUI says IMPORT FAILED**, it is almost always the directory level.
+ComfyUI loads a pack by looking for `__init__.py` directly inside
+`custom_nodes/<name>/`, so the folder it sees must be the pack itself, not a
+repository containing one:
+
+```
+custom_nodes/
+  comfyaudit/
+    __init__.py      <-- ComfyUI needs to find this here
+    core/
+    nodes/
+```
+
+If you cloned a repository that has the pack nested one level down, either move
+the inner folder up or symlink it:
+
+```bash
+cd ComfyUI/custom_nodes
+ln -s "$PWD/<cloned-repo>/comfyaudit" comfyaudit
+```
+
+Anything else shows up as a Python traceback in the ComfyUI console, printed
+just above the IMPORT FAILED line — that traceback is the answer, and the pack
+now raises rather than loading empty so you actually get one.
 
 The optional **Claude Review** node needs one extra package. Every other node
 works without it, and that node tells you if it's missing:

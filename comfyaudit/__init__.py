@@ -25,8 +25,15 @@ WEB_DIRECTORY = "./web"
 
 try:
     from .nodes import NODE_CLASS_MAPPINGS, NODE_DISPLAY_NAME_MAPPINGS
-except Exception as exc:  # noqa: BLE001 - a broken pack must not break ComfyUI
+except Exception as exc:  # noqa: BLE001 - logged before it is re-raised
+    # Deliberately fatal for this pack. ComfyUI already isolates a failing
+    # custom node - it catches this, prints the traceback and carries on
+    # without us - so raising costs nothing and buys a real diagnosis. The
+    # alternative, loading with an empty mapping, is worse: ComfyUI counts
+    # that as a successful import, so the pack appears installed, contributes
+    # no nodes, and gives nobody a reason why.
     log.exception("comfyaudit: nodes failed to load (%s)", exc)
+    raise
 
 
 def _bootstrap() -> None:
