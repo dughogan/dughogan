@@ -192,6 +192,17 @@ pre.tab::-webkit-scrollbar-thumb{background:var(--rule-2);border-radius:9px}
 .bars{display:flex;flex-direction:column;gap:12px}
 .barrow .l{font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);margin-bottom:5px}
 .barrow .b{font-family:"IBM Plex Mono",monospace;font-size:15px;letter-spacing:.04em;overflow-x:auto;white-space:pre;padding-bottom:2px}
+.splinks{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.splink{
+  display:inline-flex;align-items:center;gap:7px;text-decoration:none;
+  border:1px solid var(--rule-2);border-radius:999px;padding:6px 13px 6px 10px;
+  color:var(--ink);font-family:"IBM Plex Mono",monospace;font-size:11.5px;letter-spacing:.02em;
+  background:var(--raise);
+}
+.splink:hover{border-color:var(--good);color:var(--good)}
+.splink .dur{color:var(--ink-3);font-variant-numeric:tabular-nums}
+.splink:hover .dur{color:inherit}
+.splink svg{flex:none;color:var(--good)}
 .verify{margin-top:14px;font-size:12.5px;color:var(--hot);display:flex;gap:8px;align-items:flex-start;line-height:1.45}
 .verify svg{flex:none;margin-top:2px}
 
@@ -418,7 +429,7 @@ footer .prose{max-width:70ch}
 
   <footer>
     <div class="prose">
-      <p><strong>How the rotation works.</strong> One tune a day, drawn from a 24-song book in a shuffled no-repeat cycle — you see everything before you see anything twice. Each pass through the book comes back under a different lens (Changes, Riff, Solo, Jam), so a repeat is a new assignment, not a rerun. Everything you mark or type stays in this browser.</p>
+      <p><strong>How the rotation works.</strong> One tune a day, drawn from a 24-song book in a shuffled no-repeat cycle — you see everything before you see anything twice. Each pass through the book comes back under a different lens (Changes, Riff, Solo, Jam), so a repeat is a new assignment, not a rerun. Everything you mark or type stays in this browser.</p>\n      <p style="margin-top:12px"><strong>The recordings.</strong> Every tune links to real Spotify tracks — the reference take, and where one exists the long live version, with its actual running time. The Jam lens uses that running time as the length of the session.</p>
       <p style="margin-top:12px"><strong>On the tabs.</strong> Figures are labelled: <span class="kind PART">PART</span> is my transcription of the actual part; <span class="kind STYLE">STYLE</span> is a line written in that player's vocabulary over the real changes; <span class="kind DRILL">DRILL</span> is an exercise built from the tune's key and technique. Charts marked <span style="color:var(--hot)">verify</span> are my best read of the harmony — trust the record over me. Goose cards are ear-first by design: that catalog is thinly tabbed, so the first job is finding the key yourself, which is how the band learned it too.</p>
     </div>
   </footer>
@@ -541,7 +552,7 @@ D|--------9-----------------------|
 A|--7-----------------------------|
     E   B   D#  G#  B   D#  E`}
   ],
-  listen:"8/27/72 Veneta, Oregon. The Eyes there is the whole argument for this band.",
+  listen:"The studio take first; then hunt down 8/27/72 Veneta, which is the whole argument for this band.",
   watch:"Nobody plays a downbeat. Everything is placed just after — that is the swing."
 },
 {
@@ -575,7 +586,7 @@ D|----------------14--12----------|
 A|------------------------14------|
     D   B   A   G   E   D   B`}
   ],
-  listen:"12/31/78 Winterland. Also worth hearing how much space the studio take leaves.",
+  listen:"Oakland, 12/26/79 — thirteen minutes of it. Then hear how much space the studio take leaves.",
   watch:"The guitar is a percussion instrument for four minutes before it becomes anything else."
 },
 {
@@ -808,7 +819,7 @@ G|--0---2---0---0-------------|
 D|------------------------0---|
     G   A   G   G   D   G   D`}
   ],
-  listen:"4/29/71 Fillmore East.",
+  listen:"Fillmore East, April 1971 — fast and loud.",
   watch:"Nothing here is difficult. Everything here is relentless."
 },
 {
@@ -1206,6 +1217,59 @@ Target = 3rd or 7th of the NEXT chord`}
 }
 ];
 
+/* ── Spotify: real tracks, pulled from the catalogue and pinned per tune ──
+   a = the reference take, b = the long one to play along with.           */
+const SPOTIFY = {
+ franklins:{a:{u:"https://open.spotify.com/track/3PgIhd4XmwtmV2XGU5qhzZ?utm_source=anthropic&utm_medium=claude",ms:274942,l:"Blues for Allah"},
+            b:{u:"https://open.spotify.com/track/7ylOP2XUFwDxJMI1olIchg?utm_source=anthropic&utm_medium=claude",ms:440233,l:"6/5/75 rehearsal — instrumental"}},
+ fire:{a:{u:"https://open.spotify.com/track/4DpBfWl3q8e0gGB76lAaox?utm_source=anthropic&utm_medium=claude",ms:229009,l:"Shakedown Street"},
+       b:{u:"https://open.spotify.com/track/0r9ZSCNXKinpOBUl943m3l?utm_source=anthropic&utm_medium=claude",ms:940426,l:"Barton Hall, 5/8/77"}},
+ eyes:{a:{u:"https://open.spotify.com/track/5pHVAQ5LD3RgDG5m11r2Jt?utm_source=anthropic&utm_medium=claude",ms:320502,l:"Wake of the Flood"},
+       b:{u:"https://open.spotify.com/track/52MqDE277uUvpgLmTv5O6t?utm_source=anthropic&utm_medium=claude",ms:378747,l:"Take 16, 8/10/73"}},
+ shakedown:{a:{u:"https://open.spotify.com/track/1lNRVjK8MukRZpeurYssIx?utm_source=anthropic&utm_medium=claude",ms:300209,l:"Shakedown Street"},
+            b:{u:"https://open.spotify.com/track/5G34d3lA8ZiQYDYFio49di?utm_source=anthropic&utm_medium=claude",ms:832000,l:"Oakland, 12/26/79"}},
+ althea:{a:{u:"https://open.spotify.com/track/5sz1xQRiw9Tu3mkLzhcHTj?utm_source=anthropic&utm_medium=claude",ms:412333,l:"Go to Heaven"},
+         b:{u:"https://open.spotify.com/track/6tLJfms92i27IibnbaMbsz?utm_source=anthropic&utm_medium=claude",ms:502533,l:"Nassau Coliseum, 5/80"}},
+ ujb:{a:{u:"https://open.spotify.com/track/0kp728Knw5PYvU3QzMZ0yJ?utm_source=anthropic&utm_medium=claude",ms:284909,l:"Workingman's Dead"},
+      b:{u:"https://open.spotify.com/track/4LgIygjK2c1aBHKrNCdDQy?utm_source=anthropic&utm_medium=claude",ms:443754,l:"Oakland, 7/24/87"}},
+ ripple:{a:{u:"https://open.spotify.com/track/1OE5l6sedVcIFELMuxQOPI?utm_source=anthropic&utm_medium=claude",ms:249733,l:"American Beauty"}},
+ truckin:{a:{u:"https://open.spotify.com/track/1I6l01BaBgBCVkfQCpIlR6?utm_source=anthropic&utm_medium=claude",ms:306973,l:"American Beauty"}},
+ estimated:{a:{u:"https://open.spotify.com/track/3DI8C3OSwuXd8E947MWiSi?utm_source=anthropic&utm_medium=claude",ms:336578,l:"Terrapin Station"},
+            b:{u:"https://open.spotify.com/track/7LyhNlqeMeuFCWsCyQmlut?utm_source=anthropic&utm_medium=claude",ms:1397560,l:"Estimated > Terrapin, Hershey 6/28/85"}},
+ playing:{a:{u:"https://open.spotify.com/track/2cmjjIyZVgaPSU0rHLEQRI?utm_source=anthropic&utm_medium=claude",ms:735706,l:"Lyceum, London 5/24/72"},
+          b:{u:"https://open.spotify.com/track/2AdeCWEkjE4bzsJ9sDcNkU?utm_source=anthropic&utm_medium=claude",ms:1081800,l:"Lyceum, London 5/26/72"}},
+ bertha:{a:{u:"https://open.spotify.com/track/3IWEh4iRJVXqjwecoUG1hH?utm_source=anthropic&utm_medium=claude",ms:206360,l:"Studio"},
+         b:{u:"https://open.spotify.com/track/3ZYSrBWQXYgTe4tyKKIZ0D?utm_source=anthropic&utm_medium=claude",ms:340306,l:"Fillmore East, 4/27/71"}},
+ darkstar:{a:{u:"https://open.spotify.com/track/07CwWCJetytT1cSnQOgRMU?utm_source=anthropic&utm_medium=claude",ms:1398706,l:"Live/Dead, Fillmore West 1969"},
+           b:{u:"https://open.spotify.com/track/2vlf8Kfh8OqPO1u8avPuEN?utm_source=anthropic&utm_medium=claude",ms:1887533,l:"Veneta, Oregon 8/27/72"}},
+ arcadia:{a:{u:"https://open.spotify.com/track/0oGnHTdtPTgTqTJVeWw0EU?utm_source=anthropic&utm_medium=claude",ms:395013,l:"Studio"},
+          b:{u:"https://open.spotify.com/track/6NfciAMS6T3QWvRIxtViJM?utm_source=anthropic&utm_medium=claude",ms:1092477,l:"Live, with Trey Anastasio"}},
+ madhuvan:{a:{u:"https://open.spotify.com/track/0eP1h0dYEYZd8NVZ8lLcJC?utm_source=anthropic&utm_medium=claude",ms:615750,l:"Studio"},
+           b:{u:"https://open.spotify.com/track/0yxufZyt74bTM5omaD26gR?utm_source=anthropic&utm_medium=claude",ms:1244606,l:"Live"}},
+ yeti:{a:{u:"https://open.spotify.com/track/1usJfJH0qtWv2yoTT0a1jz?utm_source=anthropic&utm_medium=claude",ms:317826,l:"Studio"},
+       b:{u:"https://open.spotify.com/track/10iafsibschWkQpVYVmQRV?utm_source=anthropic&utm_medium=claude",ms:532624,l:"Live, 12.21.19"}},
+ hottea:{a:{u:"https://open.spotify.com/track/1zsZmJz6s6azGJQiWBt3eL?utm_source=anthropic&utm_medium=claude",ms:434394,l:"Studio"},
+         b:{u:"https://open.spotify.com/track/3vM6d0LGwzhjmpry8GlW6w?utm_source=anthropic&utm_medium=claude",ms:1019624,l:"Live, 8.10.19"}},
+ arrow:{a:{u:"https://open.spotify.com/track/1K4A2plberZZomPeQlJS6u?utm_source=anthropic&utm_medium=claude",ms:351637,l:"Studio"},
+        b:{u:"https://open.spotify.com/track/6eTjb2mDYgQ0s955XRytHI?utm_source=anthropic&utm_medium=claude",ms:1666827,l:"Live"}},
+ tumble:{a:{u:"https://open.spotify.com/track/5QcDEzitMKdiWSOswPFRrc?utm_source=anthropic&utm_medium=claude",ms:364778,l:"Studio"},
+         b:{u:"https://open.spotify.com/track/2VUfnnfIvIrhKebmlARrfH?utm_source=anthropic&utm_medium=claude",ms:1265600,l:"Part I, live"}},
+ elizabeth:{a:{u:"https://open.spotify.com/track/5m9lJbFwrTj9FdSEOtTPS6?utm_source=anthropic&utm_medium=claude",ms:238037,l:"Studio"},
+            b:{u:"https://open.spotify.com/track/6qM2L9IGHukpGFiGoT3NAj?utm_source=anthropic&utm_medium=claude",ms:350760,l:"Live"}},
+ drdarkness:{a:{u:"https://open.spotify.com/track/1LkjfVfNFLMsagyTCoklJG?utm_source=anthropic&utm_medium=claude",ms:356928,l:"Studio"},
+             b:{u:"https://open.spotify.com/track/28XVFutCpAmiT1iisswng8?utm_source=anthropic&utm_medium=claude",ms:418687,l:"Live"}},
+ turnedclouds:{a:{u:"https://open.spotify.com/track/1hg62xKv8YPbkQ01nak3yH?utm_source=anthropic&utm_medium=claude",ms:390506,l:"Studio"},
+               b:{u:"https://open.spotify.com/track/1W5NrzPqrw3gVn0HsUANob?utm_source=anthropic&utm_medium=claude",ms:756435,l:"Live"}},
+ creatures:{a:{u:"https://open.spotify.com/track/6zW6MbzW17w6wnDsPu4zX1?utm_source=anthropic&utm_medium=claude",ms:932013,l:"Studio"},
+            b:{u:"https://open.spotify.com/track/3pfTgcjlw4cpDz6wkQARAM?utm_source=anthropic&utm_medium=claude",ms:1277525,l:"Extended"}},
+ slowready:{a:{u:"https://open.spotify.com/track/19AXHJvTBkh8n9aRrlRqv6?utm_source=anthropic&utm_medium=claude",ms:306562,l:"Studio"},
+            b:{u:"https://open.spotify.com/track/2ejjD17iYBt8dt7sXSoDgT?utm_source=anthropic&utm_medium=claude",ms:242752,l:"Orebolo, acoustic — OurVinyl"}},
+ hungersite:{a:{u:"https://open.spotify.com/track/5FKKjiUjOXu9Kinlkc1VzA?utm_source=anthropic&utm_medium=claude",ms:426602,l:"Studio"},
+             b:{u:"https://open.spotify.com/track/1sDaTKoUr1C6kSc6Y8g8Qp?utm_source=anthropic&utm_medium=claude",ms:1079711,l:"Live"}}
+};
+BOOK.forEach(s => { s.sp = SPOTIFY[s.id] || null; });
+function mmss(ms){ const t=Math.round(ms/1000); return Math.floor(t/60)+":"+String(t%60).padStart(2,"0"); }
+
 /* ══════════════════════════════════════════════════════════════════════════
    ENGINE
    ══════════════════════════════════════════════════════════════════════════ */
@@ -1307,12 +1371,19 @@ function buildPlan(song, lens){
       ["8 min","Free over the vamp at "+bpm+" bpm","Four-bar phrases with a full bar of silence between each. The silence is not optional."],
       ["3 min","One idea, developed","Take your best phrase from the last eight minutes and spend three minutes doing only that."]
     ],
-    jam:[
-      ...earStep,
-      ["2 min","Warm up on the changes","Loosely. You're not rehearsing, you're getting the shape back."],
-      ["16 min","Play the record through","Start to finish, no stopping, no rewinding. When you fall off, find your way back in without pausing."],
-      ["2 min","Write down where it broke","One line in the notebook below. Which section, which bar, what happened."]
-    ]
+    jam:(()=>{
+      const t = song.sp && (song.sp.b || song.sp.a);
+      const len = t ? mmss(t.ms) : "16 min";
+      return [
+        ...earStep,
+        ["2 min","Warm up on the changes","Loosely. You're not rehearsing, you're getting the shape back."],
+        [len, t ? "Play "+(/^(Live|Studio|Extended)$/.test(t.l) ? "the "+t.l.toLowerCase()+" version" : t.l)+" through"
+                : "Play the record through",
+         "Start to finish, no stopping, no rewinding. When you fall off, find your way back in without pausing."+
+         (t ? " The link is under Reference recording above." : "")],
+        ["2 min","Write down where it broke","One line in the notebook below. Which section, which bar, what happened."]
+      ];
+    })()
   };
   return plans[lens.id];
 }
@@ -1498,7 +1569,23 @@ function render(){
     const w=document.createElement("div");
     const lb=document.createElement("span"); lb.className="l"; lb.textContent=l;
     const pp=document.createElement("p"); pp.textContent=v;
-    w.appendChild(lb); w.appendChild(pp); ref.appendChild(w);
+    w.appendChild(lb); w.appendChild(pp);
+    if (l==="Reference recording" && song.sp){
+      const row=document.createElement("div"); row.className="splinks";
+      ["a","b"].forEach(k=>{
+        const t=song.sp[k]; if(!t) return;
+        const a=document.createElement("a");
+        a.className="splink"; a.href=t.u; a.target="_blank"; a.rel="noopener noreferrer";
+        a.innerHTML='<svg width="13" height="13" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor">'+
+          '<path d="M12 2a10 10 0 100 20 10 10 0 000-20zm4.6 14.4a.75.75 0 01-1 .25c-2.8-1.7-6.3-2.1-10.4-1.15a.75.75 0 11-.33-1.46c4.5-1.02 8.4-.56 11.5 1.34.35.22.46.68.24 1.02zm1.2-2.9a.94.94 0 01-1.3.3c-3.2-1.96-8-2.53-11.8-1.4a.94.94 0 11-.54-1.8c4.3-1.3 9.6-.66 13.3 1.6.44.27.58.85.31 1.3zm.1-3a1.12 1.12 0 01-1.54.37c-3.6-2.14-9.6-2.34-13.1-1.29a1.12 1.12 0 11-.65-2.15c4-1.2 10.6-.97 14.8 1.5.53.32.7 1.01.38 1.55z"/></svg>'+
+          '<span></span><span class="dur"></span>';
+        a.querySelectorAll("span")[0].textContent=t.l;
+        a.querySelectorAll("span")[1].textContent=mmss(t.ms);
+        row.appendChild(a);
+      });
+      w.appendChild(row);
+    }
+    ref.appendChild(w);
   });
 
   // plan
