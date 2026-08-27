@@ -59,6 +59,7 @@
 }
 
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 body{
   margin:0;
   background:var(--ground);
@@ -187,6 +188,31 @@ pre.tab{
 }
 pre.tab::-webkit-scrollbar{height:9px}
 pre.tab::-webkit-scrollbar-thumb{background:var(--rule-2);border-radius:9px}
+
+/* ─── arrangement ──────────────────────────────────────────────────────── */
+.arr{list-style:none;margin:0;padding:0;counter-reset:sec}
+.arr li{display:grid;gap:4px 20px;padding:18px 0;border-top:1px solid var(--rule)}
+.arr li:first-child{border-top:0}
+@media(min-width:720px){.arr li{grid-template-columns:150px minmax(0,1fr)}}
+.arrhead{display:flex;flex-direction:column;gap:3px}
+@media(min-width:720px){.arrhead{padding-top:2px}}
+.arrname{font-family:"Anton","Arial Narrow",Impact,sans-serif;text-transform:uppercase;
+  letter-spacing:.045em;font-size:19px;line-height:1.05;color:var(--ink)}
+.arrbars{font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.11em;
+  text-transform:uppercase;color:var(--ink-3)}
+.arrbody{min-width:0;display:flex;flex-direction:column;gap:9px}
+.arrchords{font-family:"IBM Plex Mono",monospace;font-size:15.5px;letter-spacing:.03em;
+  color:var(--amber);white-space:pre;overflow-x:auto;padding-bottom:3px}
+.arrcue{font-size:14.5px;line-height:1.5;color:var(--ink-2);font-style:italic;max-width:60ch}
+.arrcue::before{content:"\201C"}
+.arrcue::after{content:"\201D"}
+.arrnote{font-size:13.5px;line-height:1.55;color:var(--ink-2);max-width:64ch}
+.soft{display:inline-flex;align-items:center;gap:5px;align-self:flex-start;
+  border:1px solid var(--hot);color:var(--hot);border-radius:2px;padding:1px 6px;
+  font-family:"IBM Plex Mono",monospace;font-size:9px;font-weight:600;letter-spacing:.11em;text-transform:uppercase}
+.pending{border:1px dashed var(--rule-2);border-radius:3px;padding:20px;margin:14px 0 6px}
+.pending strong{display:block;font-size:15px;margin-bottom:8px}
+.pending p{font-size:14px;line-height:1.6;color:var(--ink-2);max-width:62ch}
 
 /* ─── chart ────────────────────────────────────────────────────────────── */
 .bars{display:flex;flex-direction:column;gap:12px}
@@ -331,24 +357,27 @@ footer .prose{max-width:70ch}
     </div>
   </section>
 
-  <!-- ── chart ─────────────────────────────────────────────────────────── -->
+  <!-- ── the arrangement ───────────────────────────────────────────────── -->
   <section class="sect">
-    <div class="secthead"><h2>The chart</h2><span class="line"></span></div>
-    <div class="grid two">
-      <div class="panel">
-        <div class="bars" id="bars"></div>
-        <div class="verify" id="verifyNote" hidden></div>
-      </div>
-      <div class="panel">
-        <div class="eyebrow" style="margin-bottom:14px">Voicings used</div>
-        <div class="chords" id="chords"></div>
-      </div>
+    <div class="secthead"><h2>Play it through</h2><span class="line"></span></div>
+    <div class="panel" style="padding:8px 20px 20px">
+      <ol class="arr" id="arr"></ol>
+      <div class="pending" id="pending" hidden></div>
+    </div>
+    <div class="panel" id="chartNote" style="margin-top:18px" hidden>
+      <div class="eyebrow" id="chartNoteTitle" style="margin-bottom:12px">Where the chart is soft</div>
+      <div class="bars" id="bars"></div>
+      <div class="verify" id="verifyNote" hidden></div>
+    </div>
+    <div class="panel" style="margin-top:18px">
+      <div class="eyebrow" style="margin-bottom:14px">Voicings used</div>
+      <div class="chords" id="chords"></div>
     </div>
   </section>
 
-  <!-- ── figures ───────────────────────────────────────────────────────── -->
+  <!-- ── woodshed ──────────────────────────────────────────────────────── -->
   <section class="sect">
-    <div class="secthead"><h2>Figures</h2><span class="line"></span></div>
+    <div class="secthead"><h2>Woodshed</h2><span class="line"></span></div>
     <div id="figs"></div>
   </section>
 
@@ -429,7 +458,8 @@ footer .prose{max-width:70ch}
 
   <footer>
     <div class="prose">
-      <p><strong>How the rotation works.</strong> One tune a day, drawn from a 24-song book in a shuffled no-repeat cycle — you see everything before you see anything twice. Each pass through the book comes back under a different lens (Changes, Riff, Solo, Jam), so a repeat is a new assignment, not a rerun. Everything you mark or type stays in this browser.</p>\n      <p style="margin-top:12px"><strong>The recordings.</strong> Every tune links to real Spotify tracks — the reference take, and where one exists the long live version, with its actual running time. The Jam lens uses that running time as the length of the session.</p>
+      <p><strong>How the rotation works.</strong> One tune a day, drawn from a 24-song book in a shuffled no-repeat cycle — you see everything before you see anything twice. Each pass through the book comes back under a different lens (Changes, Riff, Solo, Jam), so a repeat is a new assignment, not a rerun. Everything you mark or type stays in this browser.</p>\n      <p style="margin-top:12px"><strong>Play it through.</strong> Each card opens with the full arrangement — every section in order, with its bar count, its chords, and a line of the lyric so you always know where you are. Sections marked <span style="color:var(--hot)">verify this section</span> are the ones where my reading of the harmony is softest; trust the record over me there. Cards with no chart say so plainly rather than guessing.</p>
+      <p style="margin-top:12px"><strong>The recordings.</strong> Every tune links to real Spotify tracks — the reference take, and where one exists the long live version, with its actual running time. The Jam lens uses that running time as the length of the session.</p>
       <p style="margin-top:12px"><strong>On the tabs.</strong> Figures are labelled: <span class="kind PART">PART</span> is my transcription of the actual part; <span class="kind STYLE">STYLE</span> is a line written in that player's vocabulary over the real changes; <span class="kind DRILL">DRILL</span> is an exercise built from the tune's key and technique. Charts marked <span style="color:var(--hot)">verify</span> are my best read of the harmony — trust the record over me. Goose cards are ear-first by design: that catalog is thinly tabbed, so the first job is finding the key yourself, which is how the band learned it too.</p>
     </div>
   </footer>
@@ -1217,6 +1247,108 @@ Target = 3rd or 7th of the NEXT chord`}
 }
 ];
 
+/* ── Full arrangements: sections in order, with bar counts, chords and a
+      lyric cue so you always know where you are. Dead cards only for now —
+      the Goose charts are pending a source I can actually reach.        */
+const ARRANGEMENTS = {
+franklins:[
+ {n:"Intro",b:"8 bars",c:"|  A  |  G  |  D  |  A  |   ×2",note:"Straight into the vamp. Everything below sits on these same four bars — the sections are marked by the vocal, not by a chord change."},
+ {n:"Verse 1",b:"8 bars",c:"|  A  |  G  |  D  |  A  |   ×2",q:"In another time's forgotten space / Your eyes looked from your mother's face"},
+ {n:"Chorus",b:"8 bars",c:"|  A  |  G  |  D  |  A  |   ×2",q:"Roll away… the dew",note:"The band leans on the downbeat of each \"roll away\" and leaves the second half of the bar open. Answer it — this is where the guitar talks back to the vocal."},
+ {n:"Verse 2",b:"8 bars",c:"|  A  |  G  |  D  |  A  |   ×2",q:"Wildflower seed on the sand and stone / May the four winds blow you safely home"},
+ {n:"Jam",b:"open",c:"|  A  |  G  |  D  |  A  |   repeat",note:"Where the tune actually lives. Ten minutes is normal. Use the Mixolydian run below and keep the phrases long."},
+ {n:"Out",b:"open",c:"|  A  |  G  |  D  |  A  |   repeat",q:"Roll away… the dew",note:"Chorus repeats and fades, or crashes straight into whatever's next."}],
+
+fire:[
+ {n:"Intro",b:"16 bars",c:"|  B  |  A  |   ×8",note:"Long, unhurried. Let the groove establish before anyone plays anything clever."},
+ {n:"Verse 1",b:"16 bars",c:"|  B  |  A  |   ×8",q:"Long distance runner, what you standin' there for?"},
+ {n:"Chorus",b:"8 bars",c:"|  B  |  A  |   ×4",q:"Fire! Fire on the mountain"},
+ {n:"Verse 2",b:"16 bars",c:"|  B  |  A  |   ×8",q:"Almost ablaze still you don't feel the heat"},
+ {n:"Jam",b:"open",c:"|  B  |  A  |   repeat",note:"Two chords, no destination. The whole art is the D♯/D half-step in the lick below."},
+ {n:"Out",b:"open",c:"|  B  |  A  |   repeat",q:"Fire! Fire on the mountain"}],
+
+eyes:[
+ {n:"Intro",b:"8 bars",c:"|  Emaj7  |  Emaj7  |  Bm7  |  Bm7  |   ×2",note:"The riff enters over Emaj7. Play the 6ths figure below rather than strumming — this tune is never strummed."},
+ {n:"Verse 1",b:"16 bars",c:"|  Emaj7  |  Emaj7  |  Bm7  |  Bm7  |   ×4",q:"Right outside this lazy summer home / You ain't got time to call your soul a critic"},
+ {n:"Chorus",b:"8 bars",c:"|  A  |  B  |  E  |  E  |   ×2",q:"Wake up to find out that you are the eyes of the world",v:1},
+ {n:"Verse 2",b:"16 bars",c:"|  Emaj7  |  Emaj7  |  Bm7  |  Bm7  |   ×4",q:"Wake up to find out that you are the eyes of the world"},
+ {n:"Bridge",b:"8 bars",c:"|  A  |  Amaj7  |  E  |  E  |   ×2",q:"Sometimes we live no particular way but our own",v:1},
+ {n:"Jam",b:"open",c:"|  Emaj7  |  Bm7  |   repeat",note:"Chord tones, not scales. The D♯ is what makes it Eyes — lean on it."},
+ {n:"Coda",b:"open",c:"|  Emaj7  |  Bm7  |   repeat",note:"The tune winds down through the same two chords rather than resolving. Let it drift."}],
+
+shakedown:[
+ {n:"Intro",b:"8 bars",c:"|  E9  |  E9  |  E9  |  E9  |   ×2",note:"Scratch groove only, no melody. Get the right hand moving before anything else happens."},
+ {n:"Verse 1",b:"16 bars",c:"|  E9  |  E9  |  E9  |  E9  |   ×4",q:"You tell me this town ain't got no heart"},
+ {n:"Chorus",b:"8 bars",c:"|  A  |  A  |  E9  |  E9  |   ×2",q:"Nothin' shakin' on Shakedown Street",v:1},
+ {n:"Verse 2",b:"16 bars",c:"|  E9  |  E9  |  E9  |  E9  |   ×4",q:"Maybe you had too much of that Shakedown"},
+ {n:"Jam",b:"open",c:"|  E9  |   repeat",note:"One chord. Keep scratching — the moment the right hand stops, the tune stops."},
+ {n:"Out",b:"open",c:"|  A  |  A  |  E9  |  E9  |   repeat",q:"Nothin' shakin' on Shakedown Street"}],
+
+althea:[
+ {n:"Intro",b:"4 bars",c:"|  Am  |  G  |  Fmaj7  |  G  |"},
+ {n:"Verse 1",b:"8 bars",c:"|  Am  |  G  |  Fmaj7  |  G  |   ×2",q:"I told Althea I was feeling lost / Lacking in some direction",v:1},
+ {n:"Refrain",b:"8 bars",c:"|  Am  |  G  |  Fmaj7  |  G  |   ×2",q:"Althea, told me upon investigation…",v:1},
+ {n:"Verse 2",b:"8 bars",c:"|  Am  |  G  |  Fmaj7  |  G  |   ×2",q:"I told Althea I'm a roving sign"},
+ {n:"Bridge",b:"8 bars",c:"|  Fmaj7  |  G  |  Am  |  Am  |   ×2",q:"There are things you can replace / And others you cannot",v:1},
+ {n:"Solo",b:"open",c:"|  Am  |  G  |  Fmaj7  |  G  |   repeat",note:"Slow. Leave whole bars empty. The temptation to fill them is the thing to resist."}],
+
+ujb:[
+ {n:"Intro",b:"8 bars",c:"|  G  |  C  |  G  |  C  |   ×2",note:"Picked, not strummed. Hold each shape down for the whole bar."},
+ {n:"Verse 1",b:"16 bars",c:"|  G  |  C  |  G  |  C  |  G  |  D  |  G  |  G  |   ×2",q:"Well the first days are the hardest days, don't you worry any more"},
+ {n:"Chorus",b:"8 bars",c:"|  G  |  C  |  G  |  D  |   ×2",q:"Come hear Uncle John's Band, playing to the tide",v:1},
+ {n:"Verse 2",b:"16 bars",c:"|  G  |  C  |  G  |  C  |  G  |  D  |  G  |  G  |   ×2",q:"It's the same story the crow told me"},
+ {n:"Bridge — in 7",b:"8 bars of 7/4",c:"|  G  |  C  |  G  |  C  |   ×2   (count 1 2 3 4 5 6 7)",q:"Whoa-oh, what I want to know: how does the song go?",v:1,note:"This is the whole reason the tune is hard. Set the click to 7 before you try it, accent 1 and 5, and count out loud."},
+ {n:"Instrumental",b:"16 bars",c:"|  G  |  C  |  G  |  C  |   ×4",note:"Back in 4. The picked figure carries it."},
+ {n:"Out",b:"8 bars",c:"|  G  |  C  |  G  |  D  |   ×2",q:"Come hear Uncle John's Band"}],
+
+ripple:[
+ {n:"Intro",b:"4 bars",c:"|  G  |  G  |  C  |  G  |",note:"Travis pattern from the first note. Thumb steady, fingers on the off-beats."},
+ {n:"Verse 1",b:"8 bars",c:"|  G  |  G  |  C  |  G  |  G  |  G  |  D  |  G  |",q:"If my words did glow with the gold of sunshine",v:1},
+ {n:"Verse 2",b:"8 bars",c:"|  G  |  G  |  C  |  G  |  G  |  G  |  D  |  G  |",q:"It's a hand-me-down, the thoughts are broken"},
+ {n:"Chorus",b:"8 bars",c:"|  C  |  G  |  C  |  G  |  Am  |  D  |  G  |  G  |",q:"Ripple in still water / When there is no pebble tossed",v:1},
+ {n:"Break",b:"8 bars",c:"|  G  |  G  |  C  |  G  |  G  |  G  |  D  |  G  |",note:"The mandolin melody. Play it on the top two strings and keep the alternating bass going underneath — that's the hard part."},
+ {n:"Verse 3",b:"8 bars",c:"|  G  |  G  |  C  |  G  |  G  |  G  |  D  |  G  |",q:"You who choose to lead must follow"},
+ {n:"Out",b:"8 bars",c:"|  C  |  G  |  C  |  G  |  Am  |  D  |  G  |  G  |",q:"La da da da…"}],
+
+truckin:[
+ {n:"Intro",b:"4 bars",c:"|  E  |  E  |  E  |  E  |",note:"Boogie figure straight in. Shuffle the eighths from the first bar or it never recovers."},
+ {n:"Verse 1",b:"12 bars",c:"|  E  |  E  |  E  |  E  |  A  |  A  |  E  |  E  |  B7  |  A  |  E  |  E  |",q:"Truckin', got my chips cashed in"},
+ {n:"Verse 2",b:"12 bars",c:"|  E  |  E  |  E  |  E  |  A  |  A  |  E  |  E  |  B7  |  A  |  E  |  E  |",q:"Most of the cats that you meet on the street speak of true love"},
+ {n:"Chorus",b:"8 bars",c:"|  A  |  A  |  E  |  E  |  A  |  A  |  E  |  E  |",q:"Sometimes the light's all shinin' on me",v:1},
+ {n:"Tag",b:"4 bars",c:"|  B7  |  A  |  E  |  E  |",q:"What a long, strange trip it's been"},
+ {n:"Solo",b:"12 bars",c:"|  E  |  E  |  E  |  E  |  A  |  A  |  E  |  E  |  B7  |  A  |  E  |  E  |",note:"Over the verse. Turnaround below lands on the last two bars."}],
+
+estimated:[
+ {n:"Intro",b:"4 bars of 7/4",c:"|  F♯  |  F♯  |  F♯  |  F♯  |   (count 1 2 3 4 5 6 7)",note:"Upstroke skank, nothing on the beat. Set the click to 7 and leave it there for the whole session."},
+ {n:"Verse 1",b:"8 bars of 7/4",c:"|  F♯  |  F♯  |  F♯  |  F♯  |   ×2",q:"My time coming, any day, don't worry about me, no"},
+ {n:"Chorus",b:"8 bars",c:"|  B  |  B  |  E  |  E  |   ×2",q:"California! Preaching on the burning shore",v:1,note:"The feel opens up here — the seven relaxes into something squarer. Listen hard to where the band puts the accent."},
+ {n:"Verse 2",b:"8 bars of 7/4",c:"|  F♯  |  F♯  |  F♯  |  F♯  |   ×2",q:"My time coming, voices saying they tell me where to go"},
+ {n:"Jam",b:"open",c:"|  F♯  |   repeat in 7",note:"Stays in seven. This is the payoff for all the counting."}],
+
+playing:[
+ {n:"Riff",b:"in 10",c:"|  D … … … …  C  ·  B  |   (count in fives: 1 2 3 4 5 | 1 2 3 4 5)",v:1,note:"Ten beats to the bar, counted as two fives. The D–C–B descent at the end is what turns it around."},
+ {n:"Verse 1",b:"8 bars",c:"|  D  |  D  |  C  |  C  |  G  |  G  |  D  |  D  |",q:"Some folks trust to reason, others trust to might",v:1},
+ {n:"Chorus",b:"8 bars",c:"|  D  |  C  |  G  |  D  |   ×2",q:"Playin', playin' in the band",v:1},
+ {n:"Jam",b:"open",c:"|  D  |   D Mixolydian, meter optional",note:"The band leaves the ten behind almost immediately and goes wherever it goes. Follow."},
+ {n:"Return",b:"in 10",c:"|  D … … … …  C  ·  B  |   repeat",note:"The riff comes back to signal the end. Everyone lands on it together, from wherever they were."}],
+
+bertha:[
+ {n:"Intro",b:"4 bars",c:"|  G  |  G  |  G  |  G  |"},
+ {n:"Verse 1",b:"8 bars",c:"|  G  |  G  |  C  |  G  |   ×2",q:"I had a hard run, runnin' from your window",v:1},
+ {n:"Chorus",b:"8 bars",c:"|  C  |  G  |  D  |  G  |   ×2",q:"Bertha, don't you come around here anymore",v:1},
+ {n:"Verse 2",b:"8 bars",c:"|  G  |  G  |  C  |  G  |   ×2",q:"I ran into a rainstorm, ducked back in a bar door"},
+ {n:"Solo",b:"16 bars",c:"|  G  |  G  |  C  |  G  |   ×4",note:"Open position, big and loud. Bar sixty has to sound like bar one — that's the whole test."},
+ {n:"Out",b:"8 bars",c:"|  C  |  G  |  D  |  G  |   ×2",q:"Bertha, don't you come around here anymore"}],
+
+darkstar:[
+ {n:"Theme",b:"8 bars",c:"|  A  |  A  |  G  |  A  |   ×2",note:"The descending Mixolydian theme below. Play it once cleanly, then start taking it apart."},
+ {n:"Verse 1",b:"8 bars",c:"|  A  |  A  |  G  |  A  |   ×2",q:"Dark star crashes, pouring its light into ashes"},
+ {n:"Jam",b:"open — usually 20 minutes plus",c:"|  A  |   A Mixolydian, or wherever it goes",note:"Ninety percent of the tune. One idea, developed until it becomes a different idea. Nobody counts anything."},
+ {n:"Verse 2",b:"8 bars",c:"|  A  |  A  |  G  |  A  |   ×2",q:"Mirror shatters in formless reflections of matter",note:"Arrives whenever the band decides it does, often after a very long time away."},
+ {n:"Out",b:"open",c:"|  A  |   repeat or leave",note:"Rarely ends. Usually turns into the next tune."}]
+};
+BOOK.forEach(s => { s.arr = ARRANGEMENTS[s.id] || null; if (s.arr) s.form = null; });
+
 /* ── Spotify: real tracks, pulled from the catalogue and pinned per tune ──
    a = the reference take, b = the long one to play along with.           */
 const SPOTIFY = {
@@ -1350,19 +1482,29 @@ function buildPlan(song, lens){
     ? [["3 min","Ear check first","Root, then third, then sixth. Do not skip this — every other step depends on it."]]
     : [];
   const plans = {
-    changes:[
+    changes:(()=>{
+      const secs = song.arr ? song.arr.filter(x=>!/^(Jam|Solo|Out|Return|Coda|Break)/.test(x.n)) : null;
+      const names = secs && secs.length ? secs.map(x=>x.n).join(" → ") : null;
+      return [
       ...earStep,
-      ["3 min","Chord shapes, no rhythm","Finger each voicing in the panel above, one at a time. Check every string sounds before you move."],
-      ["5 min","Changes at "+slow+" bpm","Click on. One chord per bar, change cleanly. If a change is late, stay here longer."],
-      ["7 min","Full form at "+mid+" bpm","Play the whole chart through, four times, without stopping to fix anything."],
+      ["3 min","Chord shapes, no rhythm","Finger each voicing in the panel below, one at a time. Check every string sounds before you move."],
+      ["5 min","Sections at "+slow+" bpm", names
+        ? "One section at a time, in order: "+names+". Get each one clean on its own before you join any two together."
+        : "Click on. One chord per bar, change cleanly. If a change is late, stay here longer."],
+      ["7 min","Top to bottom at "+mid+" bpm", song.arr
+        ? "Now the whole arrangement, start to finish, four times. No stopping to fix things — note where it breaks and keep going."
+        : "Play the whole chart through, four times, without stopping to fix anything."],
       ["5 min","Up to "+bpm+" bpm","Tempo. Accept that it gets scrappy — that is information about which change is weakest."]
-    ],
+      ];
+    })(),
     riff:[
       ...earStep,
       ["4 min",'"'+figRiff+'" at '+slow+" bpm","Slow enough that it is boring. Every note clean, correct fingering, no exceptions."],
       ["8 min","Ladder to tempo","Up eight bpm at a time. Three clean passes before each increase; drop back two steps on any buzz."],
       ["5 min",'"'+figTwo+'"',"Second figure, same treatment, less time. Get it under the fingers, not up to speed."],
-      ["3 min","In context","Play the figure into the changes and back out. A riff you can only play in isolation isn't learned."]
+      ["3 min","In context", song.arr
+        ? "Drop the figure into the arrangement above — play the section it belongs to, then the one after it. A riff you can only play in isolation isn't learned."
+        : "Play the figure into the changes and back out. A riff you can only play in isolation isn't learned."]
     ],
     solo:[
       ...earStep,
@@ -1598,14 +1740,48 @@ function render(){
     plan.appendChild(li);
   });
 
-  // chart
+  // the arrangement
+  const arr=$("arr"), pend=$("pending");
+  arr.innerHTML="";
+  if (song.arr){
+    pend.hidden=true;
+    song.arr.forEach(sec=>{
+      const li=document.createElement("li");
+      const h=document.createElement("div"); h.className="arrhead";
+      const nm=document.createElement("span"); nm.className="arrname"; nm.textContent=sec.n;
+      const bb=document.createElement("span"); bb.className="arrbars"; bb.textContent=sec.b;
+      h.appendChild(nm); h.appendChild(bb);
+      const bd=document.createElement("div"); bd.className="arrbody";
+      const ch=document.createElement("div"); ch.className="arrchords"; ch.textContent=sec.c;
+      bd.appendChild(ch);
+      if (sec.q){ const q=document.createElement("div"); q.className="arrcue"; q.textContent=sec.q; bd.appendChild(q); }
+      if (sec.v){ const v=document.createElement("span"); v.className="soft"; v.textContent="verify this section"; bd.appendChild(v); }
+      if (sec.note){ const nt=document.createElement("p"); nt.className="arrnote"; nt.textContent=sec.note; bd.appendChild(nt); }
+      li.appendChild(h); li.appendChild(bd); arr.appendChild(li);
+    });
+  } else {
+    pend.hidden=false;
+    pend.innerHTML='<strong>No chart yet — and I would rather leave it blank than guess.</strong>'+
+      '<p>I can\'t reconstruct this one\'s chords reliably, and inventing a progression would just fight the record when you play along. '+
+      'The tab sites are blocked from where this was built, so the fix is to hand me the chart directly — paste the tab into the chat, or drop it in Google Drive and say where. '+
+      'It becomes a full arrangement like the others the same day.</p>'+
+      '<p style="margin-top:10px">Until then this card is ear-first: find the key, work the technique below, play along with the record.</p>';
+  }
+
+  // chart note — the ear check on pending cards, the caveat on charted ones
+  $("chartNoteTitle").textContent = song.arr ? "Before you trust this chart" : "Ear check";
+  $("chartNote").hidden = !(song.form || song.verify);
   const bars=$("bars"); bars.innerHTML="";
-  song.form.forEach(([label, body])=>{
+  const noteTitle = $("chartNoteTitle").textContent.toLowerCase();
+  (song.form || []).forEach(([label, body])=>{
     const w=document.createElement("div"); w.className="barrow";
-    const l=document.createElement("div"); l.className="l"; l.textContent=label;
+    if (!label.toLowerCase().startsWith(noteTitle)){          // don't echo the panel heading
+      const l=document.createElement("div"); l.className="l"; l.textContent=label;
+      w.appendChild(l);
+    }
     const b=document.createElement("div"); b.className="b"; b.textContent=body;
     if (song.ear) b.style.fontSize="13px";
-    w.appendChild(l); w.appendChild(b); bars.appendChild(w);
+    w.appendChild(b); bars.appendChild(w);
   });
   const vn=$("verifyNote");
   if (song.verify){ vn.hidden=false;
