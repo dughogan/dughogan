@@ -113,6 +113,19 @@ button{font:inherit;color:inherit}
   border-radius:3px;padding:2px 7px;font-family:"IBM Plex Mono",monospace;
   font-size:9.5px;font-weight:600;letter-spacing:.1em;text-transform:uppercase}
 
+.riffhead{display:flex;align-items:baseline;gap:10px;margin:30px 0 4px}
+.riffhead h2{font-family:"Anton","Arial Narrow",Impact,sans-serif;text-transform:uppercase;
+  letter-spacing:.03em;font-size:24px;line-height:1}
+.riffsub{font-size:14.5px;line-height:1.5;color:var(--ink-2);margin-bottom:4px}
+.riff{margin-top:20px}
+.riffname{font-family:"IBM Plex Mono",monospace;font-size:11px;font-weight:600;letter-spacing:.13em;
+  text-transform:uppercase;color:var(--amber-ink);background:var(--amber);border-radius:3px;
+  padding:4px 9px;display:inline-block;margin-bottom:10px}
+.rifftab{font-family:"IBM Plex Mono",monospace;font-size:13px;line-height:1.55;white-space:pre;
+  overflow-x:auto;background:var(--sunk);border:1px solid var(--rule);border-radius:6px;
+  padding:12px 14px;color:var(--ink)}
+.riffnote{font-size:14.5px;line-height:1.55;color:var(--ink-2);margin-top:10px}
+
 /* ── solo section ── */
 .solo{margin-top:42px;padding-top:26px;border-top:2px solid var(--rule)}
 .solohead{display:flex;align-items:baseline;gap:10px;margin-bottom:6px}
@@ -192,6 +205,8 @@ footer{margin-top:40px;padding-top:20px;border-top:1px solid var(--rule);
 
   <div class="shelf" id="shelf" hidden><div class="shelfrow" id="shelfrow"></div></div>
 
+  <div id="lead"></div>
+  <div class="sname" id="changesHead" hidden><b>The changes</b><i></i></div>
   <div id="chart"></div>
 
   <div class="solo" id="solo" hidden>
@@ -569,8 +584,27 @@ function render(){
     c.appendChild(t); c.appendChild(svg); row.appendChild(c);
   });
 
+  const lw2=$("lead"); lw2.innerHTML="";
+  $("changesHead").hidden = !s.lead;
+  if (s.lead){
+    const h=document.createElement("div"); h.className="riffhead";
+    const t=document.createElement("h2"); t.className="stencil"; t.textContent="Play it as it's heard";
+    h.appendChild(t); lw2.appendChild(h);
+    const w=document.createElement("p"); w.className="riffsub"; w.textContent=s.lead.why; lw2.appendChild(w);
+    s.lead.r.forEach(r=>{
+      const d=document.createElement("div"); d.className="riff";
+      const n=document.createElement("div"); n.className="riffname"; n.textContent=r.n;
+      const tb=document.createElement("div"); tb.className="rifftab"; tb.textContent=r.tab;
+      d.appendChild(n); d.appendChild(tb);
+      if (r.note){ const p=document.createElement("p"); p.className="riffnote"; p.textContent=r.note; d.appendChild(p); }
+      lw2.appendChild(d);
+    });
+  }
+
   const chart=$("chart"); chart.innerHTML="";
-  s.s.forEach(sec=>{
+  const norm = x => x.toLowerCase().split("—")[0].replace(/[×x]\s*\d+/g,"").replace(/[^a-z ]/g,"").trim();
+  const covered = s.lead ? s.lead.r.map(r=>norm(r.n)) : [];
+  s.s.filter(sec => covered.indexOf(norm(sec.n)) < 0).forEach(sec=>{
     const w=document.createElement("div"); w.className="sect";
     const h=document.createElement("div"); h.className="sname";
     const b=document.createElement("b"); b.textContent=sec.n;
@@ -601,6 +635,82 @@ function render(){
   window.scrollTo({top:0,behavior:"auto"});
 }
 
+
+
+/* ══ the part as played — riff-led tunes open with this, not with chords ══ */
+const LEAD = {
+ royal:{why:"A riff tune. The intro voicings and the single-note line are the song — the chord chart below is what sits under them.",
+  r:[{n:"Intro — 6/4, ×4",tab:
+"e|--------------|\nB|-10--8---8----|\nG|-11--7---9----|\nD|-12--5---10---|\nA|-12------10---|\nE|-10--7---8----|\n    D   G/B  C",
+    note:"Three shapes up around the 10th fret. Let each ring into the next — this is the sound the tune opens with."},
+   {n:"Main riff",tab:
+"e|------------------------------------------|\nB|------------------------------------------|\nG|------------------------------------------|\nD|---------------------7---9---7---(7)------|\nA|-------------8---9-------------------8----|\nE|-10--8---10-------------------------------|",
+    note:"Hammer the 8→10 on the low E, slide into the 9s. The bracketed 7 is held, not re-picked."}]},
+
+ thatch:{why:"Built on a walking bass line, not a chord progression. Learn the line first — the chords underneath it come second.",
+  r:[{n:"Intro riff — ×3",tab:
+"e|--------------------------------------------------|\nB|--------------------------------------------------|\nG|--------------------------------------------------|\nD|--------------------------------------------------|\nA|---------2---4---4---5---5---4---2---4---2---4----|\nE|-15--0--------------------------------------------|",
+    note:"Slide down from the 15th to the open E to start it, then the line walks on the A string. Let every note ring its full length."}]},
+
+ franklins:{why:"The vamp is the part. Everyone plays it; the difference is what you do inside it.",
+  r:[{n:"The vamp, with the sus moves",tab:
+"      A                    G                    D\ne|--0---0---0---0-|--3---3---3---3-|--2---2---2---2-|\nB|--2---2---3---0-|--3---3---3---3-|--3---3---3---3-|\nG|--2---2---2---2-|--0---0---0---0-|--2---2---2---2-|\nD|--2---2---2---2-|--0---0---0---0-|--0---0---0---0-|\nA|--0---0---0---0-|--2---2---2---2-|----------------|\nE|----------------|--3---3---3---3-|----------------|\n      A  A  sus4 sus2",
+    note:"Move only the index finger on the B string — 2 up to 3, down to 0 — while everything else stays planted. Sixteenths, right hand never stops."}]},
+
+ fire:{why:"Nobody plays barre chords on this. It's two inverted triads sliding down two frets.",
+  r:[{n:"The two-chord comp",tab:
+"        B                     A\ne|----------------|----------------|\nB|--7---7---7-----|--5---5---5-----|\nG|--8---8---8-----|--6---6---6-----|\nD|--9---9---9-----|--7---7---7-----|\nA|----------------|----------------|",
+    note:"Top three notes only. Slide the whole shape down two frets for the A and leave room for whoever's soloing."}]},
+
+ eyes:{why:"The intro figure is diatonic 6ths, not a strum. Strumming this tune kills it.",
+  r:[{n:"Sixths up E major",tab:
+"e|--0---2---4---5---7---9--11--12-|\nG|--1---2---4---6---8---9--11--13-|\n   E   F♯  G♯  A   B   C♯  D♯  E",
+    note:"Strings 3 and 1, hybrid-picked or thumb-and-finger. Every pair is a chord fragment you can drop over the vamp."}]},
+
+ shakedown:{why:"A rhythm part, not a chord chart. The groove is the song.",
+  r:[{n:"E9 scratch groove",tab:
+"        E9\ne|--7---x---x---7---7---x---x---7-|\nB|--7---x---x---7---7---x---x---7-|\nG|--7---x---x---7---7---x---x---7-|\nD|--6---x---x---6---6---x---x---6-|\nA|--7---x---x---7---7---x---x---7-|\n   D   u   d   u   D   u   d   u",
+    note:"x is a dead scratch — left hand relaxed off the frets. Strum continuous down-up sixteenths and let the left hand pick which ones sound."}]},
+
+ truckin:{why:"A boogie figure, not three chords. Root and fifth, root and sixth, shuffled.",
+  r:[{n:"The boogie",tab:
+"       E                A                B7\nE|--0---0---0---0-|----------------|----------------|\nA|--2---4---2---4-|--0---0---0---0-|--2---2---2---2-|\nD|----------------|--2---4---2---4-|--4---6---4---6-|\n   5   6   5   6    5   6   5   6    5   6   5   6",
+    note:"Same shape moves to each chord. Shuffle the eighths — long-short — and dig in with a downstroke on every one."}]},
+
+ playing:{why:"The riff in 10 is the whole identity. Learn it before you touch the chords.",
+  r:[{n:"The riff — count in fives",tab:
+"   1   2   3   4   5   1   2   3   4   5\nG|--7---7---7---5---7---7---7---7---5---4-|\nD|--7---7---7---5---7---7---7---7---5---4-|\nA|--5---5---5---3---5---5---5---5---3---2-|\n    D   D   D   C   D   D   D   D   C   B",
+    note:"Ten beats to the bar, counted as two fives. The D–C–B at the end is what turns it around."}]},
+
+ darkstar:{why:"The theme is the only written part in the whole tune. Everything else is invented on the night.",
+  r:[{n:"The descending theme",tab:
+"e|----------------------------------------|\nB|-10---8---7---5-------------------------|\nG|----------------7---6---4---------------|\nD|----------------------------7---5---4---|\n   A   G   F♯  E   D   C♯  B   A   G   F♯",
+    note:"Play it once cleanly. Then twice as slow. Then four times as slow, filling the gaps with silence rather than notes."}]},
+
+ ripple:{why:"Fingerpicked throughout. The picking pattern is the arrangement.",
+  r:[{n:"Alternating bass",tab:
+"       1   &   2   &   3   &   4   &\ne|--------------------------------3---|\nB|--------------0---------------------|\nG|----------0---------------0---------|\nD|--------------------0---------------|\nE|--3-------------------------3-------|\n   T   i   T   m   T   i   T   a",
+    note:"Thumb keeps time on the beat; fingers land on the off-beats. Practise the thumb alone for a full minute before adding anything on top."}]},
+
+ ujb:{why:"The picked intro figure is what everyone recognises. Strumming it loses the tune.",
+  r:[{n:"The intro figure",tab:
+"     G                        C\ne|--3-------3-------3-----|--0-------0-------0-----|\nB|------0-------0---------|------1-------1---------|\nG|----------0-------0-----|----------0-------0-----|\nA|------------------------|--3---------------------|\nE|--3---------------------|------------------------|",
+    note:"Hold each chord shape down for the whole bar — no note should be cut short by a finger lifting early."}]},
+
+ merrygoround:{why:"The picking pattern is the part. Capo 4; everything below is relative to the capo.",
+  r:[{n:"Picking pattern",tab:
+"4  (32)  231  231  232\n\ne|----------------0-------0-------0---|\nB|------------2-------2-------2-------|\nG|--------2-------2-------2-----------|\nD|--0---------------------------------|\n   (from the capo — sounds four frets higher)",
+    note:"Straight off the handwritten chart. Thumb on the D string, fingers rolling through the top three."}]},
+
+ xmascard:{why:"Fingerpicked and conversational — the fills between vocal lines are most of the character. The charts you sent are chords-only, so the picking below is the approach rather than a note-for-note lift.",
+  r:[{n:"Picking approach",tab:
+"       F♯                       A♯7\ne|--------------2---------|--------------2---------|\nB|----------2-------2-----|----------2-------2-----|\nG|------3---------------3-|------3---------------3-|\nD|--4---------------------|--4---------------------|\n   T   i   m   a   m   i",
+    note:"Thumb on the bass, fingers rolling above it. Leave the bar half-empty where the vocal sits and fill the gap at the end of each line."},
+   {n:"The Waits original — richer voicings",tab:
+"Key of F, from Blue Valentines:\n\nIntro   Gm  Am7  Bb  Bb/C\nVerse   F  A7  Bb9  ·  Gm7  F/A  Bb9  Bb/C  F\nAlso    C11  Dm7  F/Eb  Fadd9/A  C7\n\nBb9 = x10111    Bb/C = x3x331\nFadd9/A = x03213    C11 = 033333",
+    note:"These voicings are much of what makes the original sound like itself. Worth learning alongside the Orebolo version in F♯ below."}]}
+};
+BOOK.forEach(s => { s.lead = LEAD[s.id] || null; });
 
 /* ══ soloing: scales, positions and licks per tune ══ */
 const SC = {
