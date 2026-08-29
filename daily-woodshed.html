@@ -113,6 +113,35 @@ button{font:inherit;color:inherit}
   border-radius:3px;padding:2px 7px;font-family:"IBM Plex Mono",monospace;
   font-size:9.5px;font-weight:600;letter-spacing:.1em;text-transform:uppercase}
 
+/* ── solo section ── */
+.solo{margin-top:42px;padding-top:26px;border-top:2px solid var(--rule)}
+.solohead{display:flex;align-items:baseline;gap:10px;margin-bottom:6px}
+.solohead h2{font-family:"Anton","Arial Narrow",Impact,sans-serif;text-transform:uppercase;
+  letter-spacing:.03em;font-size:26px;line-height:1}
+.solosub{font-size:15px;line-height:1.5;color:var(--ink-2);margin-bottom:18px}
+.picks{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:16px}
+.pick{border:1px solid var(--rule-2);background:var(--deck);border-radius:20px;padding:8px 14px;
+  cursor:pointer;font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--ink-2);
+  min-height:40px;display:inline-flex;align-items:center}
+.pick.on{border-color:var(--amber);color:var(--amber);background:var(--tape)}
+.board{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 -18px;padding:0 18px}
+.board::-webkit-scrollbar{height:0}
+.board svg{display:block}
+.key{display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin-top:12px;
+  font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--ink-2)}
+.key i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:-1px}
+.aim{margin-top:18px;padding:14px 16px;background:var(--deck);border-left:3px solid var(--amber);
+  border-radius:0 6px 6px 0;font-size:15px;line-height:1.55}
+.aim b{color:var(--amber);font-weight:600}
+.lick{margin-top:22px}
+.lickname{font-family:"IBM Plex Mono",monospace;font-size:11px;font-weight:600;letter-spacing:.13em;
+  text-transform:uppercase;color:var(--ink);background:var(--tape);border-radius:3px;
+  padding:4px 9px;display:inline-block;margin-bottom:10px}
+.licktab{font-family:"IBM Plex Mono",monospace;font-size:13px;line-height:1.55;white-space:pre;
+  overflow-x:auto;background:var(--sunk);border:1px solid var(--rule);border-radius:6px;
+  padding:12px 14px;color:var(--ink)}
+.licknote{font-size:14.5px;line-height:1.55;color:var(--ink-2);margin-top:10px}
+
 .after{margin-top:30px;padding:16px;border:1px dashed var(--rule-2);border-radius:8px;
   font-size:14.5px;line-height:1.55;color:var(--ink-2)}
 .after strong{color:var(--ink)}
@@ -164,6 +193,22 @@ footer{margin-top:40px;padding-top:20px;border-top:1px solid var(--rule);
   <div class="shelf" id="shelf" hidden><div class="shelfrow" id="shelfrow"></div></div>
 
   <div id="chart"></div>
+
+  <div class="solo" id="solo" hidden>
+    <div class="solohead"><h2 class="stencil">Solo over it</h2></div>
+    <p class="solosub" id="soloOver"></p>
+    <div class="picks" id="scalePicks"></div>
+    <div class="picks" id="posPicks"></div>
+    <div class="board"><svg id="board" role="img" aria-label="Scale shape on the fretboard"></svg></div>
+    <div class="key">
+      <span><i style="background:var(--hot)"></i>Root</span>
+      <span><i style="background:var(--amber)"></i>Chord tone</span>
+      <span><i style="background:var(--ink-3)"></i>Scale note</span>
+      <button class="pick" id="nameToggle" type="button" style="margin-left:auto">Show notes</button>
+    </div>
+    <div class="aim" id="aim"></div>
+    <div id="licks"></div>
+  </div>
 
   <div class="after" id="after" hidden></div>
 
@@ -499,6 +544,7 @@ function parseLine(src){
 /* ── render ── */
 function render(){
   const s = current(), today = pickToday();
+  scIdx = 0; posIdx = 0;
   $("todayLbl").textContent = (s.id===today.id && !viewing) ? "Today's tune" : "From the book";
   $("wm").textContent = s.t;
   $("title").textContent = s.t;
@@ -546,12 +592,243 @@ function render(){
     chart.appendChild(w);
   });
 
+  renderSolo(s);
+
   const after=$("after");
   if (s.src){ after.hidden=false; after.innerHTML="<strong>Source.</strong> "; after.append(s.src+"."); }
   else { after.hidden=false; after.innerHTML="<strong>Later verses</strong> run on the same changes as verse one."; }
 
   window.scrollTo({top:0,behavior:"auto"});
 }
+
+
+/* ══ soloing: scales, positions and licks per tune ══ */
+const SC = {
+ major:     {i:[0,2,4,5,7,9,11],  d:["1","2","3","4","5","6","7"]},
+ mixolydian:{i:[0,2,4,5,7,9,10],  d:["1","2","3","4","5","6","♭7"]},
+ dorian:    {i:[0,2,3,5,7,9,10],  d:["1","2","♭3","4","5","6","♭7"]},
+ aeolian:   {i:[0,2,3,5,7,8,10],  d:["1","2","♭3","4","5","♭6","♭7"]},
+ lydian:    {i:[0,2,4,6,7,9,11],  d:["1","2","3","♯4","5","6","7"]},
+ majpent:   {i:[0,2,4,7,9],       d:["1","2","3","5","6"]},
+ minpent:   {i:[0,3,5,7,10],      d:["1","♭3","4","5","♭7"]},
+ blues:     {i:[0,3,5,6,7,10],    d:["1","♭3","4","♭5","5","♭7"]}
+};
+const NOTE = ["C","C♯","D","D♯","E","F","F♯","G","G♯","A","A♯","B"];
+const PC = {C:0,"C#":1,D:2,"D#":3,Eb:3,E:4,F:5,"F#":6,G:7,"G#":8,Ab:8,A:9,"A#":10,Bb:10,B:11};
+const OPEN = [4,9,2,7,11,4];                       // low E → high e
+const SLAB = ["E","A","D","G","B","e"];
+const TONE = new Set(["3","♭3","5","7","♭7"]);
+
+const SOLO = {
+ franklins:{over:"The A–G–D vamp. It never stops, so you can solo over the whole tune.",
+   sc:[{r:"A",t:"mixolydian",l:"A Mixolydian"},{r:"A",t:"majpent",l:"A major pentatonic"}], pos:[5,12],
+   aim:"The <b>G natural</b> is the flavour — it's the note that makes this Mixolydian and not just A major. Land on it, hang there, then fall to F♯.",
+   licks:[{n:"Coming down the neck",tab:
+"e|--9---7---5-----------------|\nB|----------------8---7---5---|\nG|--------------------------7-|\n   C♯  B   A   G   F♯  E   D",
+     note:"Jerry's stock exit. Start high, walk straight down the mode, land on the root."}]},
+
+ fire:{over:"The two-chord B–A vamp — the whole song and the whole jam.",
+   sc:[{r:"B",t:"mixolydian",l:"B Mixolydian"},{r:"B",t:"minpent",l:"B minor pentatonic"}], pos:[7,12],
+   aim:"Slide the G-string 8 down to 7 — <b>D♯ to D natural</b>. That half-step between the major and minor third is the entire flavour of this tune.",
+   licks:[{n:"The major/minor third",tab:
+"e|----------------------------|\nB|-10--12--10-----------------|\nG|------------11---9---8---7--|\n   A   B   A   F♯  E   D♯  D",
+     note:"The last move (8 → 7) leaves the scale on purpose. Slide into it, don't pick it, and get off it quickly."}]},
+
+ eyes:{over:"The Emaj7 → Bm7 vamp. Chord tones, not scales — this is the jazziest thing in the book.",
+   sc:[{r:"E",t:"major",l:"E major"},{r:"E",t:"lydian",l:"E Lydian"}], pos:[7,4],
+   aim:"Target the <b>D♯</b> — the major 7th. It's what makes this Eyes and not a generic E jam. Blunder in with E minor pentatonic and the tune collapses.",
+   licks:[{n:"Emaj7 arpeggio",tab:
+"e|------------------7--11-----|\nB|--------------9-------------|\nG|----------8-----------------|\nD|------9---------------------|\nA|--7-------------------------|\n   E   B   D♯  G♯  B   D♯",
+     note:"Every note is a chord tone. Play it slowly enough to hear each interval, then start displacing the rhythm."}]},
+
+ shakedown:{over:"The one-chord E9 groove. Funk phrasing: clipped, staccato, lots of space.",
+   sc:[{r:"E",t:"minpent",l:"E minor pentatonic"},{r:"E",t:"dorian",l:"E Dorian"}], pos:[12,5],
+   aim:"Where you <b>stop</b> matters as much as where you start. Cut every phrase short and let the rhythm guitar carry the bar.",
+   licks:[{n:"Twelfth position, coming down",tab:
+"e|----------------------------|\nB|-15--12---------------------|\nG|---------14--12-------------|\nD|-----------------14--12-----|\n   D   B   A   G   E   D",
+     note:"Two notes per string. Keep it clipped — funk lines breathe."}]},
+
+ althea:{over:"The Am–G–Fmaj7 loop. Slow enough that every note is exposed.",
+   sc:[{r:"A",t:"minpent",l:"A minor pentatonic"},{r:"A",t:"aeolian",l:"A natural minor"}], pos:[5,12],
+   aim:"Leave <b>whole bars empty</b>. At this tempo there is room for every note you choose, which means room for every note you choose badly.",
+   licks:[{n:"Fifth position",tab:
+"e|--8---5---------------------|\nB|----------8---5-------------|\nG|------------------7---5-----|\n   C   A   G   E   D   C",
+     note:"Play it once as written. Then play it again taking twice as long, filling the gaps with silence."}]},
+
+ ujb:{over:"The G–C verse. Bright, major, country-flavoured.",
+   sc:[{r:"G",t:"majpent",l:"G major pentatonic"},{r:"G",t:"major",l:"G major"}], pos:[3,0],
+   aim:"Major pentatonic has <b>no wrong notes</b> here — which means phrasing is the only thing carrying you. Sing the line before you play it.",
+   licks:[{n:"Third position",tab:
+"e|--3---5---7-----------------|\nB|--------------5---3---------|\nG|----------------------4---2-|\n   G   A   B   E   D   B   A",
+     note:"Up then down. Try it as straight eighths first, then break the rhythm up."}]},
+
+ ripple:{over:"The G–C–D verse. Open position, acoustic, gentle.",
+   sc:[{r:"G",t:"majpent",l:"G major pentatonic"}], pos:[0,3],
+   aim:"Use the <b>open strings</b> — let them ring into the fretted notes. That shimmer is half the sound of this record.",
+   licks:[{n:"Open position",tab:
+"e|--0---3---------------------|\nB|----------0---3-------------|\nG|------------------0---2-----|\nD|--------------------------0-|\n   E   G   B   D   G   A   D",
+     note:"Fingerpick it rather than using a pick, and let every note ring its full value."}]},
+
+ truckin:{over:"The E boogie. Shuffle everything.",
+   sc:[{r:"E",t:"blues",l:"E blues"},{r:"E",t:"minpent",l:"E minor pentatonic"}], pos:[0,12],
+   aim:"The <b>♭5</b> is a passing note, not a destination. Slide through it and land on the 5 or the root.",
+   licks:[{n:"Open blues",tab:
+"e|--3---0---------------------|\nB|----------3---0-------------|\nG|------------------2---0-----|\n   G   E   D   B   A   G",
+     note:"Shuffle it — long-short, long-short. Straight eighths kill this tune instantly."}]},
+
+ estimated:{over:"The F♯ vamp, in 7/4. Count while you solo.",
+   sc:[{r:"F#",t:"mixolydian",l:"F♯ Mixolydian"},{r:"F#",t:"majpent",l:"F♯ major pentatonic"}], pos:[2,9],
+   aim:"Phrase across the bar line, not inside it. In seven, a four-note phrase <b>lands somewhere new every time</b> — that's the sound you want.",
+   licks:[{n:"Second position",tab:
+"e|--6---4---2-----------------|\nB|----------------5---4---2---|\nG|--------------------------4-|\n   A♯  G♯  F♯  E   D♯  C♯  B",
+     note:"Loop it over a 7/4 count and hear where it lands each time round."}]},
+
+ playing:{over:"The D jam. The meter goes out the window almost immediately — follow the band.",
+   sc:[{r:"D",t:"mixolydian",l:"D Mixolydian"},{r:"D",t:"minpent",l:"D minor pentatonic"}], pos:[5,10],
+   aim:"The <b>C natural</b> is the pivot. It's what lets the jam slide out of D major and into somewhere stranger.",
+   licks:[{n:"Fifth position",tab:
+"e|--8---7---5-----------------|\nB|----------------8---7---5---|\nG|--------------------------7-|\n   C   B   A   G   F♯  E   D",
+     note:"Straight down D Mixolydian. Once it's under your fingers, start it from a different note each time."}]},
+
+ bertha:{over:"The G–C–D changes, fast.",
+   sc:[{r:"G",t:"majpent",l:"G major pentatonic"},{r:"G",t:"mixolydian",l:"G Mixolydian"}], pos:[3,0],
+   aim:"At this tempo, <b>fewer notes</b>. Two-note phrases repeated with conviction beat sixteenth-note runs every time.",
+   licks:[{n:"Open and third",tab:
+"e|--------------------3-------|\nB|--------------3---0---------|\nG|--0---2---0-----------------|\n   G   A   G   D   B   G",
+     note:"Double-stops work well here too — grab the B and e strings together."}]},
+
+ darkstar:{over:"The A vamp. Twenty minutes plus, one chord, nowhere to be.",
+   sc:[{r:"A",t:"mixolydian",l:"A Mixolydian"},{r:"A",t:"dorian",l:"A Dorian"}], pos:[5,12],
+   aim:"Take <b>one three-note idea</b> and refuse to abandon it. Sequence it, displace it, invert it. That's the whole tune.",
+   licks:[{n:"The long descent",tab:
+"e|----------------------------|\nB|-10---8---7---5-------------|\nG|------------------7---6---4-|\nD|--------------------------7-|\n   A   G   F♯  E   D   C♯  B   A",
+     note:"Play it once. Then twice as slow. Then four times as slow, filling the gaps with silence rather than notes."}]},
+
+ dreadful:{over:"The E–A–D–B changes. A folk melody, so play the tune, not the scale.",
+   sc:[{r:"E",t:"majpent",l:"E major pentatonic"},{r:"E",t:"major",l:"E major"}], pos:[4,9],
+   aim:"Major pentatonic dodges the clash: the tune uses both <b>D natural and D♯</b> depending on the chord, and the pentatonic simply avoids the argument.",
+   licks:[{n:"Fourth position",tab:
+"e|--4---7---9-----------------|\nB|----------------9---7---5---|\nG|--------------------------6-|\n   G♯  B   C♯  G♯  F♯  E   C♯",
+     note:"Play it like a fiddle line — legato, with slides between notes rather than picking each one."}]},
+
+ xmascard:{over:"The F♯ – A♯7 – B7 progression. Waits by way of Orebolo: sparse and conversational.",
+   sc:[{r:"F#",t:"majpent",l:"F♯ major pentatonic"},{r:"F#",t:"major",l:"F♯ major"}], pos:[2,9],
+   aim:"This is a <b>storytelling song</b> — fills go between the vocal lines, never underneath them. Two or three notes, then get out of the way.",
+   licks:[{n:"Second position fill",tab:
+"e|--2---4---6-----------------|\nB|----------------7---4---2---|\nG|--------------------------3-|\n   F♯  G♯  A♯  F♯  D♯  C♯  A♯",
+     note:"Use it as a turnaround between verses, not as a solo."}]},
+
+ antichrist:{over:"The Cm – B♭ – E♭ – A♭ loop, at 169 with a 36-beat cycle.",
+   sc:[{r:"C",t:"aeolian",l:"C natural minor"},{r:"C",t:"minpent",l:"C minor pentatonic"}], pos:[8,3],
+   aim:"All four chords come from <b>one scale</b>, so you can stay in C minor the whole way. The hard part is the count, not the notes.",
+   licks:[{n:"Eighth position",tab:
+"e|-11--10---8-----------------|\nB|---------------11---9---8---|\nG|-------------------------10-|\n   E♭  D   C   B♭  A♭  G   F",
+     note:"Loop it against the 36-beat pattern until you stop losing your place."}]},
+
+ merrygoround:{over:"The D–G verse and the G–D chorus. Capo 4 — fret numbers below are relative to the capo.",
+   sc:[{r:"D",t:"majpent",l:"D major pentatonic"},{r:"D",t:"major",l:"D major"}], pos:[0,5],
+   aim:"Everything is <b>relative to the capo</b> — treat it as your nut and the shapes are ordinary D shapes. It sounds in F♯.",
+   licks:[{n:"Open position, from the capo",tab:
+"e|--0---2---5-----------------|\nB|--------------3---0---------|\nG|----------------------2-----|\n   E   F♯  A   D   B   A",
+     note:"Fingerpicked, following the picking pattern in the chart above."}]},
+
+ royal:{over:"The D–G–C intro and the verse changes. 6/4, so phrases have room to stretch.",
+   sc:[{r:"D",t:"majpent",l:"D major pentatonic"},{r:"D",t:"mixolydian",l:"D Mixolydian"}], pos:[10,5],
+   aim:"The <b>C natural</b> in the intro means D Mixolydian there; the F♯m and A in the verse pull it back to D major. Pentatonic works over both.",
+   licks:[{n:"Tenth position",tab:
+"e|-14--12--10-----------------|\nB|---------------12--10-------|\nG|-------------------------11-|\n   F♯  E   D   B   A   F♯",
+     note:"In 6/4 you have two extra beats per bar. Use them for silence."}]},
+
+ thatch:{over:"The A7 chord section and the G7 break. The source tab calls the break 'bouncy G pentatonic riffs' — take it literally.",
+   sc:[{r:"A",t:"mixolydian",l:"A Mixolydian"},{r:"G",t:"majpent",l:"G major pentatonic"}], pos:[5,3],
+   aim:"Two scales, two sections: <b>A Mixolydian over the A7</b>, then switch to <b>G major pentatonic</b> for the break. Practise the handover.",
+   licks:[{n:"Over the A7",tab:
+"e|--5---7---9-----------------|\nB|----------------8---7---5---|\nG|--------------------------7-|\n   A   B   C♯  G   F♯  E   D",
+     note:"Bouncy and swung, not straight. Then drop into G major pentatonic when the break lands."}]}
+};
+BOOK.forEach(s => { s.solo = SOLO[s.id] || null; });
+
+/* ── fretboard box: 6 frets from a position ── */
+let scIdx = 0, posIdx = 0, showNames = false;
+function drawBoard(song){
+  const sv = $("board"), sol = song.solo; if (!sol) return;
+  const sc = sol.sc[scIdx] || sol.sc[0];
+  const pos = sol.pos[posIdx] !== undefined ? sol.pos[posIdx] : sol.pos[0];
+  const root = PC[sc.r], def = SC[sc.t], N = 6;
+  const FW=48, SH=25, PADL=(pos===0?34:30), PADT=20;
+  const W = PADL + N*FW + 26, H = PADT + 5*SH + 30;
+  const ns="http://www.w3.org/2000/svg";
+  sv.setAttribute("viewBox",`0 0 ${W} ${H}`); sv.setAttribute("width",W); sv.setAttribute("height",H);
+  while (sv.firstChild) sv.removeChild(sv.firstChild);
+  const el=(t,a)=>{const n=document.createElementNS(ns,t); for(const k in a) n.setAttribute(k,a[k]); return n;};
+  const first = pos===0 ? 1 : pos;                       // first fretted fret shown
+  for (let f=0; f<=N; f++)
+    sv.appendChild(el("line",{x1:PADL+f*FW,y1:PADT,x2:PADL+f*FW,y2:PADT+5*SH,
+      stroke:(pos===0&&f===0)?"var(--ink)":"var(--rule-2)","stroke-width":(pos===0&&f===0)?4:1}));
+  for (let st=0; st<6; st++){
+    sv.appendChild(el("line",{x1:PADL,y1:PADT+st*SH,x2:PADL+N*FW,y2:PADT+st*SH,
+      stroke:"var(--rule-2)","stroke-width":0.7+(5-st)*0.2}));
+    const t=el("text",{x:PADL-10,y:PADT+st*SH+4,"text-anchor":"end",fill:"var(--ink-3)",
+      "font-size":10,"font-family":"IBM Plex Mono, monospace"});
+    t.textContent = SLAB[5-st]; sv.appendChild(t);
+  }
+  for (let f=0; f<N; f++){
+    const fr = first+f;
+    if ([3,5,7,9,12,15,17,19,21].indexOf(fr)<0) continue;
+    const t=el("text",{x:PADL+(f+.5)*FW,y:PADT+5*SH+19,"text-anchor":"middle",fill:"var(--ink-3)",
+      "font-size":10,"font-family":"IBM Plex Mono, monospace"});
+    t.textContent = fr; sv.appendChild(t);
+  }
+  const dot = (cx,cy,pcv,iv) => {
+    const k = def.i.indexOf(iv); if (k<0) return;
+    const deg = def.d[k], isR = iv===0, isT = TONE.has(deg);
+    sv.appendChild(el("circle",{cx,cy,r:10,fill:isR?"var(--hot)":isT?"var(--amber)":"var(--deck)",
+      stroke:(isR||isT)?"none":"var(--ink-3)","stroke-width":1.2}));
+    const t=el("text",{x:cx,y:cy+3.6,"text-anchor":"middle","font-size":9.5,"font-weight":600,
+      "font-family":"IBM Plex Mono, monospace",fill:(isR||isT)?"var(--amber-ink)":"var(--ink-2)"});
+    t.textContent = showNames ? NOTE[pcv] : deg; sv.appendChild(t);
+  };
+  for (let st=0; st<6; st++){
+    const op = OPEN[5-st], cy = PADT+st*SH;
+    if (pos===0){ const pcv=op%12; dot(PADL-19, cy, pcv, (pcv-root+12)%12); }
+    for (let f=0; f<N; f++){
+      const fr = first+f, pcv=(op+fr)%12;
+      dot(PADL+(f+.5)*FW, cy, pcv, (pcv-root+12)%12);
+    }
+  }
+}
+
+function renderSolo(song){
+  const box = $("solo"), sol = song.solo;
+  if (!sol){ box.hidden = true; return; }
+  box.hidden = false;
+  $("soloOver").textContent = sol.over;
+  const sp = $("scalePicks"); sp.innerHTML="";
+  sol.sc.forEach((sc,i)=>{
+    const b=document.createElement("button"); b.type="button";
+    b.className="pick"+(i===scIdx?" on":""); b.textContent=sc.l;
+    b.onclick=()=>{ scIdx=i; renderSolo(song); }; sp.appendChild(b);
+  });
+  const pp = $("posPicks"); pp.innerHTML="";
+  sol.pos.forEach((f,i)=>{
+    const b=document.createElement("button"); b.type="button";
+    b.className="pick"+(i===posIdx?" on":""); b.textContent = f===0 ? "Open position" : "Fret "+f;
+    b.onclick=()=>{ posIdx=i; renderSolo(song); }; pp.appendChild(b);
+  });
+  $("nameToggle").textContent = showNames ? "Show degrees" : "Show notes";
+  drawBoard(song);
+  $("aim").innerHTML = "<b>Aim for.</b> " + sol.aim;
+  const lw = $("licks"); lw.innerHTML="";
+  (sol.licks||[]).forEach(l=>{
+    const d=document.createElement("div"); d.className="lick";
+    const n=document.createElement("div"); n.className="lickname"; n.textContent=l.n;
+    const t=document.createElement("div"); t.className="licktab"; t.textContent=l.tab;
+    d.appendChild(n); d.appendChild(t);
+    if (l.note){ const p=document.createElement("p"); p.className="licknote"; p.textContent=l.note; d.appendChild(p); }
+    lw.appendChild(d);
+  });
+}
+$("nameToggle").onclick = () => { showNames=!showNames; renderSolo(current()); };
 
 /* ── song list ── */
 function buildList(){
