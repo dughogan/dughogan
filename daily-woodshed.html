@@ -4,1946 +4,587 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
 
 <style>
-/* ─── tokens: dark-first (stage light on a warm dark deck) ─────────────── */
 :root{
-  --ground:#14100C;
-  --deck:#1D1712;
-  --raise:#261F18;
-  --sunk:#0E0B08;
-  --ink:#F3E9DB;
-  --ink-2:#B7A48C;
-  --ink-3:#7C6B57;
-  --rule:#382D23;
-  --rule-2:#4A3C2F;
-  --amber:#E8A33D;
-  --amber-ink:#14100C;
-  --hot:#DF6438;
-  --dead:#E2685C;
-  --goose:#57BFA6;
-  --good:#7FBF6A;
-  --tape:rgba(232,163,61,.10);
-  --shadow:0 1px 0 rgba(255,255,255,.03), 0 10px 30px -18px rgba(0,0,0,.9);
+  --ground:#14100C; --deck:#1D1712; --raise:#261F18; --sunk:#0E0B08;
+  --ink:#F6EEE2; --ink-2:#B7A48C; --ink-3:#7C6B57;
+  --rule:#382D23; --rule-2:#4A3C2F;
+  --amber:#F0AC44; --amber-ink:#14100C; --hot:#DF6438;
+  --dead:#E2685C; --goose:#57BFA6; --good:#7FBF6A;
+  --tape:rgba(240,172,68,.10);
   color-scheme:dark;
 }
 @media (prefers-color-scheme:light){
   :root:not([data-theme="dark"]){
-    --ground:#EFE8DC;
-    --deck:#F8F4EC;
-    --raise:#FFFDF8;
-    --sunk:#E4DACA;
-    --ink:#1F1811;
-    --ink-2:#5E5044;
-    --ink-3:#8C7C6B;
-    --rule:#D8CCB9;
-    --rule-2:#C3B49D;
-    --amber:#9A620C;
-    --amber-ink:#FFFDF8;
-    --hot:#B5431A;
-    --dead:#A93A33;
-    --goose:#1E7663;
-    --good:#4B7C36;
-    --tape:rgba(154,98,12,.09);
-    --shadow:0 1px 0 rgba(255,255,255,.6), 0 10px 26px -20px rgba(60,40,20,.55);
+    --ground:#F3ECE0; --deck:#FBF7F0; --raise:#FFFFFF; --sunk:#E7DDCC;
+    --ink:#1B150F; --ink-2:#584A3D; --ink-3:#8C7C6B;
+    --rule:#DCD0BC; --rule-2:#C3B49D;
+    --amber:#8A5606; --amber-ink:#FFFDF8; --hot:#B5431A;
+    --dead:#A93A33; --goose:#1E7663; --good:#3F6E2C;
+    --tape:rgba(138,86,6,.08);
     color-scheme:light;
   }
 }
 :root[data-theme="light"]{
-  --ground:#EFE8DC; --deck:#F8F4EC; --raise:#FFFDF8; --sunk:#E4DACA;
-  --ink:#1F1811; --ink-2:#5E5044; --ink-3:#8C7C6B;
-  --rule:#D8CCB9; --rule-2:#C3B49D;
-  --amber:#9A620C; --amber-ink:#FFFDF8; --hot:#B5431A;
-  --dead:#A93A33; --goose:#1E7663; --good:#4B7C36;
-  --tape:rgba(154,98,12,.09);
-  --shadow:0 1px 0 rgba(255,255,255,.6), 0 10px 26px -20px rgba(60,40,20,.55);
+  --ground:#F3ECE0; --deck:#FBF7F0; --raise:#FFFFFF; --sunk:#E7DDCC;
+  --ink:#1B150F; --ink-2:#584A3D; --ink-3:#8C7C6B;
+  --rule:#DCD0BC; --rule-2:#C3B49D;
+  --amber:#8A5606; --amber-ink:#FFFDF8; --hot:#B5431A;
+  --dead:#A93A33; --goose:#1E7663; --good:#3F6E2C;
+  --tape:rgba(138,86,6,.08);
   color-scheme:light;
 }
 
 *{box-sizing:border-box}
 [hidden]{display:none!important}
+html{-webkit-text-size-adjust:100%}
 body{
-  margin:0;
-  background:var(--ground);
-  color:var(--ink);
-  font:400 16px/1.6 "IBM Plex Sans","Helvetica Neue",Arial,sans-serif;
+  margin:0;background:var(--ground);color:var(--ink);
+  font:400 17px/1.5 "IBM Plex Sans","Helvetica Neue",Arial,sans-serif;
   -webkit-font-smoothing:antialiased;
 }
-h1,h2,h3{margin:0;text-wrap:balance}
+h1,h2{margin:0;text-wrap:balance}
 p{margin:0}
-a{color:var(--amber)}
-:focus-visible{outline:2px solid var(--amber);outline-offset:3px;border-radius:2px}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--amber);outline-offset:2px;border-radius:3px}
 
-.wrap{max-width:1080px;margin:0 auto;padding:0 20px 96px}
-.prose{max-width:66ch}
+.page{max-width:620px;margin:0 auto;padding:0 18px 120px}
+.stencil{font-family:"Anton","Arial Narrow",Impact,sans-serif;font-weight:400;text-transform:uppercase;letter-spacing:.02em;line-height:.96}
+.mono{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace;font-variant-numeric:tabular-nums}
 
-/* ─── type roles ───────────────────────────────────────────────────────── */
-.stencil{font-family:"Anton","Arial Narrow",Impact,sans-serif;font-weight:400;text-transform:uppercase;letter-spacing:.02em;line-height:.95}
-.mono{font-family:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;font-variant-numeric:tabular-nums}
-.eyebrow{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:11px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3)}
+/* ── top bar ─────────────────────────────────────────────────────────── */
+.bar{position:sticky;top:0;z-index:40;background:var(--ground);border-bottom:1px solid var(--rule)}
+.bar-in{max-width:620px;margin:0 auto;padding:11px 18px;display:flex;align-items:center;gap:12px}
+.bar .wm{font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.15em;
+  text-transform:uppercase;color:var(--ink-3);margin-right:auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tb{border:1px solid var(--rule-2);background:transparent;border-radius:20px;
+  padding:7px 14px;cursor:pointer;font-family:"IBM Plex Mono",monospace;font-size:11px;
+  letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2);white-space:nowrap;
+  min-height:40px;display:inline-flex;align-items:center;gap:6px}
+.tb:active{background:var(--tape)}
+.tb.pri{background:var(--amber);border-color:var(--amber);color:var(--amber-ink);font-weight:600}
 
-/* ─── deck header ──────────────────────────────────────────────────────── */
-.deckbar{
-  position:sticky;top:0;z-index:30;
-  background:color-mix(in srgb,var(--ground) 88%,transparent);
-  backdrop-filter:blur(10px);
-  border-bottom:1px solid var(--rule);
-}
-.deckbar-in{max-width:1080px;margin:0 auto;padding:12px 20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
-.mark{display:flex;align-items:baseline;gap:9px;margin-right:auto}
-.mark .lamp{width:9px;height:9px;border-radius:50%;background:var(--amber);box-shadow:0 0 12px var(--amber);flex:none;align-self:center}
-.mark h1{font-size:20px;letter-spacing:.06em}
-.mark .v{font-size:10px;letter-spacing:.18em;color:var(--ink-3)}
-.counter{display:flex;gap:14px;align-items:center}
-.counter .cell{text-align:right;line-height:1.1}
-.counter .n{font-family:"IBM Plex Mono",monospace;font-size:17px;font-weight:600;font-variant-numeric:tabular-nums}
-.counter .l{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3)}
-.iconbtn{
-  border:1px solid var(--rule-2);background:transparent;color:var(--ink-2);
-  border-radius:3px;padding:6px 9px;cursor:pointer;font-family:"IBM Plex Mono",monospace;font-size:11px;
-  letter-spacing:.08em;text-transform:uppercase;
-}
-.iconbtn:hover{border-color:var(--amber);color:var(--amber)}
-@media(max-width:560px){
-  .mark .v{display:none}
-  .mark h1{font-size:17px}
-  .deckbar-in{padding:10px 20px;gap:10px}
-  .counter{gap:11px}
-  .counter .n{font-size:15px}
-  .counter .l{font-size:8px;letter-spacing:.1em}
-  .iconbtn{padding:5px 8px;font-size:10px}
-  .songline{margin-top:16px}
-  .lens{margin-left:0}
-}
+/* ── song head ───────────────────────────────────────────────────────── */
+.head{padding:26px 0 0}
+.today{font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--amber);margin-bottom:12px}
+.title{font-size:clamp(34px,9.5vw,52px);margin-bottom:10px}
+.meta{display:flex;flex-wrap:wrap;gap:7px;align-items:center;margin-bottom:16px}
+.tag{border:1px solid currentColor;border-radius:3px;padding:3px 8px;
+  font-family:"IBM Plex Mono",monospace;font-size:10px;font-weight:600;
+  letter-spacing:.11em;text-transform:uppercase}
+.tag.dead{color:var(--dead)} .tag.goose{color:var(--goose)}
+.tag.key{color:var(--amber)} .tag.plain{color:var(--ink-3)}
+.play{display:inline-flex;align-items:center;gap:8px;text-decoration:none;
+  border:1px solid var(--rule-2);border-radius:20px;padding:9px 16px;color:var(--ink);
+  font-family:"IBM Plex Mono",monospace;font-size:12px;background:var(--deck);min-height:40px}
+.play svg{color:var(--good);flex:none}
+.play:active{background:var(--tape)}
 
-/* ─── the day slip ─────────────────────────────────────────────────────── */
-.slip{position:relative;margin:34px 0 0;padding:0}
-.sliphead{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;padding-bottom:14px;border-bottom:2px solid var(--ink)}
-.datestamp{font-family:"IBM Plex Mono",monospace;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-2)}
-.lens{
-  margin-left:auto;display:inline-flex;align-items:center;gap:8px;
-  border:1px solid var(--amber);color:var(--amber);border-radius:2px;
-  padding:4px 10px;font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.12em;text-transform:uppercase;
-}
-.songline{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin:22px 0 6px}
-.songnum{font-family:"IBM Plex Mono",monospace;font-size:13px;color:var(--ink-3);letter-spacing:.1em}
-.songtitle{font-size:clamp(38px,7.5vw,74px);letter-spacing:.005em}
-.byline{display:flex;align-items:center;gap:10px;flex-wrap:wrap;color:var(--ink-2);font-size:14px}
-.chip{
-  display:inline-flex;align-items:center;gap:6px;border-radius:2px;padding:3px 8px;
-  font-family:"IBM Plex Mono",monospace;font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;
-  border:1px solid currentColor;
-}
-.chip.dead{color:var(--dead)}
-.chip.goose{color:var(--goose)}
-.chip.ear{color:var(--hot)}
-.chip.tier{color:var(--ink-3)}
+/* ── chord fingerings ────────────────────────────────────────────────── */
+.shelf{margin:22px -18px 0;padding:0 18px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.shelf::-webkit-scrollbar{height:0}
+.shelfrow{display:flex;gap:12px;padding-bottom:4px;width:max-content}
+.card{background:var(--deck);border:1px solid var(--rule);border-radius:8px;
+  padding:10px 10px 8px;text-align:center;flex:none}
+.card .nm{font-family:"IBM Plex Mono",monospace;font-size:13px;font-weight:600;
+  margin-bottom:6px;color:var(--ink)}
 
-.pitch{margin:18px 0 0;font-size:17px;line-height:1.55;color:var(--ink);max-width:62ch}
-.pitch em{color:var(--amber);font-style:normal}
+/* ── the chart ───────────────────────────────────────────────────────── */
+.sect{margin-top:30px}
+.sname{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.sname b{font-family:"IBM Plex Mono",monospace;font-size:11px;font-weight:600;
+  letter-spacing:.15em;text-transform:uppercase;color:var(--ink);
+  background:var(--tape);border-radius:3px;padding:4px 9px}
+.sname i{flex:1;height:1px;background:var(--rule);font-style:normal}
+.sname em{font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--ink-3);font-style:normal}
 
-/* ─── spec strip ───────────────────────────────────────────────────────── */
-.spec{
-  display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
-  gap:1px;background:var(--rule);border:1px solid var(--rule);border-radius:3px;
-  margin:26px 0 0;overflow:hidden;
-}
-.spec div{background:var(--deck);padding:11px 13px}
-.spec .l{font-family:"IBM Plex Mono",monospace;font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--ink-3);display:block;margin-bottom:3px}
-.spec .v{font-family:"IBM Plex Mono",monospace;font-size:15px;font-weight:500}
+.bars{font-family:"IBM Plex Mono",monospace;font-size:15px;color:var(--amber);
+  letter-spacing:.02em;background:var(--deck);border:1px solid var(--rule);
+  border-radius:6px;padding:12px 14px;overflow-x:auto;white-space:pre}
 
-.reference{
-  display:grid;gap:14px;margin-top:14px;padding:15px 17px;
-  border:1px solid var(--rule);border-left:3px solid var(--amber);border-radius:3px;background:var(--deck);
-}
-@media(min-width:760px){.reference{grid-template-columns:1fr 1fr;gap:26px}}
-.reference .l{font-family:"IBM Plex Mono",monospace;font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--ink-3);display:block;margin-bottom:4px}
-.reference p{font-size:14px;line-height:1.5;color:var(--ink-2);max-width:52ch}
+.line{display:flex;flex-wrap:wrap;align-items:flex-end;row-gap:3px;margin-bottom:14px}
+.line:last-child{margin-bottom:0}
+.u{display:inline-flex;flex-direction:column;align-items:flex-start}
+.u .c{font-family:"IBM Plex Mono",monospace;font-size:13.5px;font-weight:600;
+  line-height:1.1;height:16px;color:var(--amber);white-space:pre;letter-spacing:0}
+.u .w{font-size:16.5px;line-height:1.4;white-space:pre}
+.snote{font-size:14.5px;line-height:1.5;color:var(--ink-2);margin-top:10px}
+.soft{display:inline-block;margin-top:9px;border:1px solid var(--hot);color:var(--hot);
+  border-radius:3px;padding:2px 7px;font-family:"IBM Plex Mono",monospace;
+  font-size:9.5px;font-weight:600;letter-spacing:.1em;text-transform:uppercase}
 
-/* ─── panels ───────────────────────────────────────────────────────────── */
-.panel{background:var(--deck);border:1px solid var(--rule);border-radius:3px;padding:20px;box-shadow:var(--shadow);min-width:0}
-.grid{display:grid;gap:18px;margin-top:18px;grid-template-columns:minmax(0,1fr)}
-.grid > *{min-width:0}
-@media(min-width:880px){
-  .grid.two{grid-template-columns:repeat(2,minmax(0,1fr))}
-  .grid.tools{grid-template-columns:minmax(0,330px) minmax(0,1fr)}
-}
-.sect{margin-top:44px}
-.secthead{display:flex;align-items:center;gap:12px;margin-bottom:14px}
-.secthead h2{font-size:15px;letter-spacing:.14em;font-family:"IBM Plex Mono",monospace;font-weight:600;text-transform:uppercase}
-.secthead .line{flex:1;height:1px;background:var(--rule)}
+.after{margin-top:30px;padding:16px;border:1px dashed var(--rule-2);border-radius:8px;
+  font-size:14.5px;line-height:1.55;color:var(--ink-2)}
+.after strong{color:var(--ink)}
 
-/* ─── tab blocks ───────────────────────────────────────────────────────── */
-.fig{border:1px solid var(--rule);border-radius:3px;overflow:hidden;background:var(--sunk)}
-.fig + .fig{margin-top:16px}
-.fighead{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 14px;background:var(--deck);border-bottom:1px solid var(--rule)}
-.fighead .nm{font-weight:600;font-size:14px}
-.kind{border-radius:2px;padding:2px 7px;font-family:"IBM Plex Mono",monospace;font-size:9px;font-weight:600;letter-spacing:.13em}
-.kind.PART{background:var(--amber);color:var(--amber-ink)}
-.kind.STYLE{border:1px solid var(--amber);color:var(--amber)}
-.kind.DRILL{border:1px solid var(--ink-3);color:var(--ink-2)}
-.fignote{padding:10px 14px 0;font-size:13.5px;color:var(--ink-2);max-width:70ch}
-pre.tab{
-  margin:0;padding:14px;overflow-x:auto;
-  font-family:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
-  font-size:12.5px;line-height:1.5;color:var(--ink);white-space:pre;
-}
-pre.tab::-webkit-scrollbar{height:9px}
-pre.tab::-webkit-scrollbar-thumb{background:var(--rule-2);border-radius:9px}
+/* ── song list sheet ─────────────────────────────────────────────────── */
+.sheet{position:fixed;inset:0;z-index:60;background:var(--ground);overflow-y:auto;
+  -webkit-overflow-scrolling:touch}
+.sheet-in{max-width:620px;margin:0 auto;padding:0 18px 60px}
+.sheethead{position:sticky;top:0;background:var(--ground);border-bottom:1px solid var(--rule);
+  display:flex;align-items:center;gap:12px;padding:11px 0;margin-bottom:6px}
+.sheethead h2{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.15em;
+  text-transform:uppercase;color:var(--ink-3);margin-right:auto}
+.grp{font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--ink-3);padding:22px 0 8px}
+.row{display:flex;align-items:center;gap:12px;width:100%;text-align:left;
+  background:none;border:0;border-bottom:1px solid var(--rule);padding:15px 2px;cursor:pointer;min-height:56px}
+.row:active{background:var(--tape)}
+.row .rn{flex:1;min-width:0}
+.row .rt{font-size:17px;font-weight:500;display:block}
+.row .rs{font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--ink-3);display:block;margin-top:2px}
+.row .rk{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--amber);flex:none}
+.row .rk.none{color:var(--ink-3)}
+.row.on .rt{color:var(--amber)}
 
-/* ─── arrangement ──────────────────────────────────────────────────────── */
-.arr{list-style:none;margin:0;padding:0;counter-reset:sec}
-.arr li{display:grid;gap:4px 20px;padding:18px 0;border-top:1px solid var(--rule)}
-.arr li:first-child{border-top:0}
-@media(min-width:720px){.arr li{grid-template-columns:150px minmax(0,1fr)}}
-.arrhead{display:flex;flex-direction:column;gap:3px}
-@media(min-width:720px){.arrhead{padding-top:2px}}
-.arrname{font-family:"Anton","Arial Narrow",Impact,sans-serif;text-transform:uppercase;
-  letter-spacing:.045em;font-size:19px;line-height:1.05;color:var(--ink)}
-.arrbars{font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.11em;
-  text-transform:uppercase;color:var(--ink-3)}
-.arrbody{min-width:0;display:flex;flex-direction:column;gap:9px}
-.arrchords{font-family:"IBM Plex Mono",monospace;font-size:15.5px;letter-spacing:.03em;
-  color:var(--amber);white-space:pre;overflow-x:auto;padding-bottom:3px}
-.arrcue{font-size:14.5px;line-height:1.5;color:var(--ink-2);font-style:italic;max-width:60ch}
-.arrcue::before{content:"\201C"}
-.arrcue::after{content:"\201D"}
-.arrnote{font-size:13.5px;line-height:1.55;color:var(--ink-2);max-width:64ch}
-.soft{display:inline-flex;align-items:center;gap:5px;align-self:flex-start;
-  border:1px solid var(--hot);color:var(--hot);border-radius:2px;padding:1px 6px;
-  font-family:"IBM Plex Mono",monospace;font-size:9px;font-weight:600;letter-spacing:.11em;text-transform:uppercase}
-.pending{border:1px dashed var(--rule-2);border-radius:3px;padding:20px;margin:14px 0 6px}
-.pending strong{display:block;font-size:15px;margin-bottom:8px}
-.pending p{font-size:14px;line-height:1.6;color:var(--ink-2);max-width:62ch}
-
-/* ─── chart ────────────────────────────────────────────────────────────── */
-.bars{display:flex;flex-direction:column;gap:12px}
-.barrow .l{font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);margin-bottom:5px}
-.barrow .b{font-family:"IBM Plex Mono",monospace;font-size:15px;letter-spacing:.04em;overflow-x:auto;white-space:pre;padding-bottom:2px}
-.splinks{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
-.splink{
-  display:inline-flex;align-items:center;gap:7px;text-decoration:none;
-  border:1px solid var(--rule-2);border-radius:999px;padding:6px 13px 6px 10px;
-  color:var(--ink);font-family:"IBM Plex Mono",monospace;font-size:11.5px;letter-spacing:.02em;
-  background:var(--raise);
-}
-.splink:hover{border-color:var(--good);color:var(--good)}
-.splink .dur{color:var(--ink-3);font-variant-numeric:tabular-nums}
-.splink:hover .dur{color:inherit}
-.splink svg{flex:none;color:var(--good)}
-.verify{margin-top:14px;font-size:12.5px;color:var(--hot);display:flex;gap:8px;align-items:flex-start;line-height:1.45}
-.verify svg{flex:none;margin-top:2px}
-
-/* ─── chord boxes ──────────────────────────────────────────────────────── */
-.chords{display:flex;flex-wrap:wrap;gap:14px}
-.chordbox{text-align:center}
-.chordbox .cn{font-family:"IBM Plex Mono",monospace;font-size:12px;font-weight:600;margin-bottom:5px;letter-spacing:.04em}
-
-/* ─── practice plan ────────────────────────────────────────────────────── */
-.plan{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
-.plan li{display:flex;gap:14px;padding:13px 0;border-top:1px solid var(--rule);align-items:flex-start}
-.plan li:first-child{border-top:0;padding-top:0}
-.plan .t{font-family:"IBM Plex Mono",monospace;font-size:13px;color:var(--amber);flex:none;width:52px;padding-top:1px;font-weight:600}
-.plan .body strong{display:block;font-size:14.5px;font-weight:600;margin-bottom:2px}
-.plan .body span{font-size:13.5px;color:var(--ink-2);line-height:1.5}
-
-/* ─── metronome ────────────────────────────────────────────────────────── */
-.metro{display:flex;flex-direction:column;gap:16px}
-.bpmrow{display:flex;align-items:baseline;gap:10px}
-.bpmnum{font-family:"IBM Plex Mono",monospace;font-size:52px;font-weight:600;line-height:1;letter-spacing:-.02em}
-.bpmpct{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--ink-3);letter-spacing:.1em}
-input[type=range]{width:100%;accent-color:var(--amber);height:22px}
-.beats{display:flex;gap:6px;flex-wrap:wrap}
-.beat{width:15px;height:15px;border-radius:50%;border:1px solid var(--rule-2);transition:background .06s linear,box-shadow .06s linear}
-.beat.on{background:var(--amber);box-shadow:0 0 10px var(--amber);border-color:var(--amber)}
-.beat.one{border-color:var(--hot)}
-.beat.one.on{background:var(--hot);box-shadow:0 0 12px var(--hot)}
-.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-.btn{
-  border:1px solid var(--rule-2);background:var(--raise);color:var(--ink);
-  padding:8px 14px;border-radius:3px;cursor:pointer;
-  font-family:"IBM Plex Mono",monospace;font-size:12px;letter-spacing:.08em;text-transform:uppercase;font-weight:500;
-}
-.btn:hover{border-color:var(--amber)}
-.btn.pri{background:var(--amber);border-color:var(--amber);color:var(--amber-ink);font-weight:600}
-.btn.pri:hover{filter:brightness(1.08)}
-.btn.on{border-color:var(--amber);color:var(--amber)}
-.btn.sm{padding:5px 9px;font-size:11px}
-
-/* ─── fretboard ────────────────────────────────────────────────────────── */
-.fbwrap{overflow-x:auto;padding-bottom:6px}
-.fbwrap svg{display:block}
-.legend{display:flex;gap:16px;flex-wrap:wrap;font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--ink-2);margin-top:10px}
-.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:-1px}
-
-/* ─── log / notes ──────────────────────────────────────────────────────── */
-textarea{
-  width:100%;min-height:96px;resize:vertical;background:var(--sunk);color:var(--ink);
-  border:1px solid var(--rule);border-radius:3px;padding:11px 13px;
-  font:400 14px/1.6 "IBM Plex Sans",sans-serif;
-}
-textarea::placeholder{color:var(--ink-3)}
-
-/* ─── library ──────────────────────────────────────────────────────────── */
-.filters{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
-table.lib{width:100%;border-collapse:collapse;font-size:14px}
-table.lib th{
-  text-align:left;font-family:"IBM Plex Mono",monospace;font-size:9.5px;letter-spacing:.14em;
-  text-transform:uppercase;color:var(--ink-3);font-weight:600;padding:0 10px 8px 0;border-bottom:1px solid var(--rule);
-}
-table.lib td{padding:11px 10px 11px 0;border-bottom:1px solid var(--rule);vertical-align:baseline}
-table.lib tr.r{cursor:pointer}
-table.lib tr.r:hover td{background:var(--tape)}
-table.lib .tt{font-weight:600}
-table.lib .mk{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.06em;color:var(--ink-3)}
-table.lib .mk.got{color:var(--good)}
-table.lib .mk.work{color:var(--amber)}
-.dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:8px;vertical-align:1px}
-.dot.dead{background:var(--dead)}
-.dot.goose{background:var(--goose)}
-
-footer{margin-top:64px;padding-top:22px;border-top:1px solid var(--rule);color:var(--ink-3);font-size:13px;line-height:1.6}
-footer .prose{max-width:70ch}
-@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+footer{margin-top:40px;padding-top:20px;border-top:1px solid var(--rule);
+  color:var(--ink-3);font-size:13.5px;line-height:1.6}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 
-<div class="deckbar">
-  <div class="deckbar-in">
-    <div class="mark">
-      <span class="lamp"></span>
-      <h1 class="stencil">The Daily Woodshed</h1>
-      <span class="v mono">GD / GOOSE</span>
-    </div>
-    <div class="counter">
-      <div class="cell"><div class="n" id="cStreak">0</div><div class="l">Streak</div></div>
-      <div class="cell"><div class="n" id="cGot">0</div><div class="l">Under fingers</div></div>
-      <div class="cell"><div class="n" id="cDay">1</div><div class="l">Day</div></div>
-    </div>
-    <button class="iconbtn" id="themeBtn" type="button">Theme</button>
+<div class="bar">
+  <div class="bar-in">
+    <span class="wm" id="wm">The Daily Woodshed</span>
+    <button class="tb" id="themeBtn" type="button">Theme</button>
+    <button class="tb pri" id="listBtn" type="button">Songs</button>
   </div>
 </div>
 
-<div class="wrap">
+<div class="page">
+  <div class="head">
+    <div class="today" id="todayLbl">Today</div>
+    <h1 class="stencil title" id="title">—</h1>
+    <div class="meta" id="meta"></div>
+    <a class="play" id="play" target="_blank" rel="noopener noreferrer" hidden>
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zm4.6 14.4a.75.75 0 01-1 .25c-2.8-1.7-6.3-2.1-10.4-1.15a.75.75 0 11-.33-1.46c4.5-1.02 8.4-.56 11.5 1.34.35.22.46.68.24 1.02zm1.2-2.9a.94.94 0 01-1.3.3c-3.2-1.96-8-2.53-11.8-1.4a.94.94 0 11-.54-1.8c4.3-1.3 9.6-.66 13.3 1.6.44.27.58.85.31 1.3zm.1-3a1.12 1.12 0 01-1.54.37c-3.6-2.14-9.6-2.34-13.1-1.29a1.12 1.12 0 11-.65-2.15c4-1.2 10.6-.97 14.8 1.5.53.32.7 1.01.38 1.55z"/></svg>
+      <span id="playLbl">Play</span>
+    </a>
+  </div>
 
-  <!-- ── today ─────────────────────────────────────────────────────────── -->
-  <section class="slip">
-    <div class="sliphead">
-      <div class="datestamp" id="dateStamp">—</div>
-      <div class="lens"><span id="lensName">—</span></div>
-    </div>
+  <div class="shelf" id="shelf" hidden><div class="shelfrow" id="shelfrow"></div></div>
 
-    <div class="songline">
-      <span class="songnum mono" id="songNum">—</span>
-      <h2 class="stencil songtitle" id="songTitle">Loading</h2>
-    </div>
-    <div class="byline" id="byline"></div>
-    <p class="pitch" id="pitch"></p>
+  <div id="chart"></div>
 
-    <div class="spec" id="spec"></div>
-
-    <div class="reference" id="ref"></div>
-
-    <div class="row" style="margin-top:18px">
-      <button class="btn pri" id="doneBtn" type="button">Log today's session</button>
-      <button class="btn" id="swapBtn" type="button">Not feeling it — swap</button>
-      <span class="mono" id="swapNote" style="font-size:11.5px;color:var(--ink-3)"></span>
-    </div>
-  </section>
-
-  <!-- ── assignment ────────────────────────────────────────────────────── -->
-  <section class="sect">
-    <div class="secthead"><h2>Today's assignment</h2><span class="line"></span></div>
-    <div class="panel">
-      <p class="mono" id="lensBlurb" style="font-size:13.5px;color:var(--ink-2);margin-bottom:18px;max-width:70ch;line-height:1.6"></p>
-      <ol class="plan" id="plan"></ol>
-    </div>
-  </section>
-
-  <!-- ── the arrangement ───────────────────────────────────────────────── -->
-  <section class="sect">
-    <div class="secthead"><h2>Play it through</h2><span class="line"></span></div>
-    <div class="panel" style="padding:8px 20px 20px">
-      <ol class="arr" id="arr"></ol>
-      <div class="pending" id="pending" hidden></div>
-    </div>
-    <div class="panel" id="chartNote" style="margin-top:18px" hidden>
-      <div class="eyebrow" id="chartNoteTitle" style="margin-bottom:12px">Where the chart is soft</div>
-      <div class="bars" id="bars"></div>
-      <div class="verify" id="verifyNote" hidden></div>
-    </div>
-    <div class="panel" style="margin-top:18px">
-      <div class="eyebrow" style="margin-bottom:14px">Voicings used</div>
-      <div class="chords" id="chords"></div>
-    </div>
-  </section>
-
-  <!-- ── woodshed ──────────────────────────────────────────────────────── -->
-  <section class="sect">
-    <div class="secthead"><h2>Woodshed</h2><span class="line"></span></div>
-    <div id="figs"></div>
-  </section>
-
-  <!-- ── tools ─────────────────────────────────────────────────────────── -->
-  <section class="sect">
-    <div class="secthead"><h2>Bench tools</h2><span class="line"></span></div>
-    <div class="grid two tools">
-
-      <div class="panel">
-        <div class="eyebrow" style="margin-bottom:12px">Click track</div>
-        <div class="metro">
-          <div class="bpmrow">
-            <span class="bpmnum" id="bpmNum">100</span>
-            <span class="bpmpct" id="bpmPct"></span>
-          </div>
-          <input type="range" id="bpmRange" min="40" max="220" step="1" value="100" aria-label="Tempo in beats per minute">
-          <div class="beats" id="beats"></div>
-          <div class="row">
-            <button class="btn pri" id="metroBtn" type="button">Start</button>
-            <button class="btn sm" data-pct="60" type="button">60%</button>
-            <button class="btn sm" data-pct="75" type="button">75%</button>
-            <button class="btn sm" data-pct="90" type="button">90%</button>
-            <button class="btn sm" data-pct="100" type="button">Tempo</button>
-            <button class="btn sm" id="tapBtn" type="button">Tap</button>
-          </div>
-          <div class="row">
-            <button class="btn sm" id="subBtn" type="button">8ths: off</button>
-            <button class="btn sm" id="ladderBtn" type="button">Ladder: off</button>
-            <span class="mono" id="ladderNote" style="font-size:11px;color:var(--ink-3)"></span>
-          </div>
-        </div>
-      </div>
-
-      <div class="panel">
-        <div class="row" style="margin-bottom:12px;justify-content:space-between">
-          <span class="eyebrow">Fretboard</span>
-          <span class="row" id="scalePicker"></span>
-        </div>
-        <div class="fbwrap"><svg id="fb" role="img" aria-label="Fretboard diagram of the day's scale"></svg></div>
-        <div class="legend">
-          <span><i style="background:var(--hot)"></i>Root</span>
-          <span><i style="background:var(--amber)"></i>Chord tone (3 5 7)</span>
-          <span><i style="background:var(--ink-3)"></i>Scale tone</span>
-          <button class="btn sm" id="fbToggle" type="button" style="margin-left:auto">Show: degrees</button>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ── notebook ──────────────────────────────────────────────────────── -->
-  <section class="sect">
-    <div class="secthead"><h2>Notebook</h2><span class="line"></span></div>
-    <div class="panel">
-      <div class="row" style="margin-bottom:14px">
-        <span class="eyebrow" style="margin-right:auto">Where this one stands</span>
-        <button class="btn sm" data-status="new" type="button">Fresh</button>
-        <button class="btn sm" data-status="work" type="button">Working it</button>
-        <button class="btn sm" data-status="got" type="button">Under fingers</button>
-      </div>
-      <textarea id="noteBox" placeholder="What broke down today? Which bar, which fingering, what tempo did it fall apart at?"></textarea>
-      <div class="mono" id="noteSaved" style="font-size:11px;color:var(--ink-3);margin-top:8px">&nbsp;</div>
-    </div>
-  </section>
-
-  <!-- ── library ───────────────────────────────────────────────────────── -->
-  <section class="sect">
-    <div class="secthead"><h2>The book</h2><span class="line"></span></div>
-    <div class="filters" id="filters"></div>
-    <div class="panel" style="padding:20px 20px 6px">
-      <div style="overflow-x:auto">
-        <table class="lib">
-          <thead><tr><th>Tune</th><th>Key</th><th>BPM</th><th>Focus</th><th>Status</th></tr></thead>
-          <tbody id="libBody"></tbody>
-        </table>
-      </div>
-    </div>
-  </section>
+  <div class="after" id="after" hidden></div>
 
   <footer>
-    <div class="prose">
-      <p><strong>How the rotation works.</strong> One tune a day, drawn from a 24-song book in a shuffled no-repeat cycle — you see everything before you see anything twice. Each pass through the book comes back under a different lens (Changes, Riff, Solo, Jam), so a repeat is a new assignment, not a rerun. Everything you mark or type stays in this browser.</p>\n      <p style="margin-top:12px"><strong>Play it through.</strong> Each card opens with the full arrangement — every section in order, with its bar count, its chords, and a line of the lyric so you always know where you are. Sections marked <span style="color:var(--hot)">verify this section</span> are the ones where my reading of the harmony is softest; trust the record over me there. Cards with no chart say so plainly rather than guessing.</p>
-      <p style="margin-top:12px"><strong>The recordings.</strong> Every tune links to real Spotify tracks — the reference take, and where one exists the long live version, with its actual running time. The Jam lens uses that running time as the length of the session.</p>
-      <p style="margin-top:12px"><strong>On the tabs.</strong> Figures are labelled: <span class="kind PART">PART</span> is my transcription of the actual part; <span class="kind STYLE">STYLE</span> is a line written in that player's vocabulary over the real changes; <span class="kind DRILL">DRILL</span> is an exercise built from the tune's key and technique. Charts marked <span style="color:var(--hot)">verify</span> are my best read of the harmony — trust the record over me. Goose cards are ear-first by design: that catalog is thinly tabbed, so the first job is finding the key yourself, which is how the band learned it too.</p>
-    </div>
+    <p><strong>One tune a day</strong>, drawn from the book in a shuffled no-repeat cycle — you get through all of them before any comes round again. Chords sit above the word where the change lands. Fingerings are at the top: numbers are which finger, <span class="mono">×</span> means don't play that string, <span class="mono">○</span> means play it open.</p>
+    <p style="margin-top:10px">Verse 1 and the chorus are written out; later verses run on the same changes. Anything marked <span style="color:var(--hot)">check this</span> is where my ear is least sure — trust the record over me.</p>
   </footer>
 </div>
 
+<div class="sheet" id="sheet" hidden>
+  <div class="sheet-in">
+    <div class="sheethead">
+      <h2>The book</h2>
+      <button class="tb pri" id="closeSheet" type="button">Done</button>
+    </div>
+    <div id="listBody"></div>
+  </div>
+</div>
+
 <script>
-/* ══════════════════════════════════════════════════════════════════════════
-   THE BOOK
-   figure kinds:  PART  = my transcription of the actual part
-                  STYLE = a line written in that player's vocabulary
-                  DRILL = an exercise built from the tune's key + technique
-   ══════════════════════════════════════════════════════════════════════════ */
-
-const VOICINGS = {
-  "A":[-1,0,2,2,2,0], "Asus4":[-1,0,2,2,3,0], "Asus2":[-1,0,2,2,0,0],
-  "Am":[-1,0,2,2,1,0], "Am7":[-1,0,2,0,1,0], "A/E":[0,0,2,2,2,0],
-  "B":[-1,2,4,4,4,2], "B7":[-1,2,1,2,0,2], "Bm":[-1,2,4,4,3,2], "Bm7":[-1,2,4,2,3,2],
-  "C":[-1,3,2,0,1,0], "Cadd9":[-1,3,2,0,3,0], "Cmaj7":[-1,3,2,0,0,0],
-  "D":[-1,-1,0,2,3,2], "Dmaj7":[-1,-1,0,2,2,2], "D7":[-1,-1,0,2,1,2],
-  "E":[0,2,2,1,0,0], "Em":[0,2,2,0,0,0], "Em7":[0,2,2,0,3,0], "Emaj7":[0,2,1,1,0,0],
-  "E9":[-1,7,6,7,7,7],
-  "Fmaj7":[-1,-1,3,2,1,0], "F#":[2,4,4,3,2,2],
-  "G":[3,2,0,0,0,3], "G/F#":[2,2,0,0,0,3], "Gmaj7":[3,2,0,0,0,2]
+/* ══ voicings: [frets low→high, -1 = mute], fingers, optional barre ══ */
+const V = {
+ "A":[[-1,0,2,2,2,0],[0,0,1,2,3,0]], "Asus4":[[-1,0,2,2,3,0],[0,0,1,2,3,0]],
+ "Am":[[-1,0,2,2,1,0],[0,0,2,3,1,0]], "Am7":[[-1,0,2,0,1,0],[0,0,2,0,1,0]],
+ "A7":[[5,7,5,6,5,5],[1,3,1,2,1,1],5], "A/E":[[0,0,2,2,2,0],[0,0,1,2,3,0]],
+ "A#":[[-1,1,3,3,3,1],[0,1,2,3,4,1],1], "A#7":[[-1,1,3,1,3,1],[0,1,3,1,4,1],1],
+ "A#m7":[[-1,1,3,1,2,1],[0,1,3,1,2,1],1], "A#dim7":[[-1,-1,8,9,8,9],[0,0,1,3,2,4]],
+ "Ab":[[-1,4,6,6,6,4],[0,1,3,4,2,1],4],
+ "B":[[-1,2,4,4,4,2],[0,1,2,3,4,1],2], "B7":[[-1,2,1,2,0,2],[0,2,1,3,0,4]],
+ "Bb":[[-1,1,3,3,3,1],[0,1,2,3,4,1],1], "Bbdim7":[[-1,-1,8,9,8,9],[0,0,1,3,2,4]],
+ "Bm":[[-1,2,4,4,3,2],[0,1,3,4,2,1],2], "Bm7":[[-1,2,4,2,3,2],[0,1,3,1,2,1],2],
+ "C":[[-1,3,2,0,1,0],[0,3,2,0,1,0]], "Cadd9":[[-1,3,2,0,3,0],[0,2,1,0,3,0]],
+ "C7":[[-1,3,2,3,1,0],[0,3,2,4,1,0]], "C#7":[[-1,4,6,4,6,4],[0,1,3,1,4,1],4],
+ "C#m":[[-1,4,6,6,5,4],[0,1,3,4,2,1],4], "C#dim7":[[-1,-1,5,6,5,6],[0,0,1,3,2,4]],
+ "Cm":[[-1,3,5,5,4,3],[0,1,3,4,2,1],3],
+ "D":[[-1,-1,0,2,3,2],[0,0,0,1,3,2]], "D7":[[-1,-1,0,2,1,2],[0,0,0,2,1,3]],
+ "Dmaj7":[[-1,-1,0,2,2,2],[0,0,0,1,2,3]], "D/F#":[[2,0,0,2,3,2],[2,0,0,1,4,3]],
+ "D#m":[[-1,6,8,8,7,6],[0,1,3,4,2,1],6], "D#m7":[[-1,6,8,6,7,6],[0,1,3,1,2,1],6],
+ "E":[[0,2,2,1,0,0],[0,2,3,1,0,0]], "Em":[[0,2,2,0,0,0],[0,2,3,0,0,0]],
+ "Em7":[[0,2,2,0,3,0],[0,2,3,0,4,0]], "Emaj7":[[0,2,1,1,0,0],[0,3,1,2,0,0]],
+ "E9":[[-1,7,6,7,7,7],[0,2,1,3,3,3]], "Eb":[[-1,-1,1,3,4,3],[0,0,1,2,4,3]],
+ "F#":[[2,4,4,3,2,2],[1,3,4,2,1,1],2], "F#7":[[2,4,2,3,2,2],[1,3,1,2,1,1],2],
+ "F#m":[[2,4,4,2,2,2],[1,3,4,1,1,1],2], "F#m7":[[2,4,2,2,2,2],[1,3,1,1,1,1],2],
+ "Fm":[[1,3,3,1,1,1],[1,3,4,1,1,1],1], "Fmaj7":[[-1,-1,3,2,1,0],[0,0,3,2,1,0]],
+ "G":[[3,2,0,0,0,3],[2,1,0,0,0,3]], "G7":[[3,2,0,0,0,1],[3,2,0,0,0,1]],
+ "Gmaj7":[[3,2,0,0,0,2],[3,2,0,0,0,1]], "G/B":[[-1,2,0,0,3,3],[0,1,0,0,2,3]],
+ "G/F#":[[2,2,0,0,0,3],[2,1,0,0,0,3]], "G#m7":[[4,6,6,4,4,4],[1,3,4,1,1,1],4],
+ "G#dim7":[[-1,-1,6,7,6,7],[0,0,1,3,2,4]]
 };
 
+/* ══ the book — chords over the word where the change lands ══ */
 const BOOK = [
+{id:"franklins",t:"Franklin's Tower",a:"Grateful Dead",sub:"Blues for Allah · 1975",band:"dead",key:"A",
+ sp:"https://open.spotify.com/track/3PgIhd4XmwtmV2XGU5qhzZ?utm_source=anthropic&utm_medium=claude",
+ ch:["A","G","D","Asus4"],
+ s:[{n:"Intro",b:"|  A  |  G  |  D  |  A  |   ×2"},
+    {n:"Verse 1",l:["[A]In another time's for[G]gotten space","[D]Your eyes looked from your [A]mother's face",
+                    "[A]Wildflower seed on the [G]sand and stone","[D]May the four winds blow you [A]safely home"]},
+    {n:"Chorus",l:["[A]Roll a[G]way… the [D]dew","[A]Roll a[G]way… the [D]dew"],
+     note:"Same three chords as the verse — the band just leans harder on each downbeat."},
+    {n:"Jam",b:"|  A  |  G  |  D  |  A  |   repeat",note:"Ten minutes is normal. Nothing changes but you."}]},
 
-/* ─────────────────────────── GRATEFUL DEAD ─────────────────────────────── */
-{
-  id:"franklins", band:"dead", title:"Franklin's Tower", sub:"Blues for Allah · 1975",
-  tier:2, key:"A", keyLabel:"A Mixolydian", bpm:118, beats:4, meter:"4/4",
-  focus:"Melodic improv over a static vamp",
-  pitch:"Ten minutes of the same three chords with <em>nothing to hide behind but your phrasing</em>. Which is exactly what makes it the best melodic-improvisation gym in the catalogue — every weakness in your note choice is audible immediately.",
-  form:[["Vamp — the entire song","|  A  |  G  |  D  |  A  |"]],
-  verify:"Some charts hold the D for two bars instead of one. Count along with the record and lock to what the band is actually doing — the ambiguity is real, not a mistake in the chart.",
-  chords:["A","G","D","Asus4","Asus2"],
-  scales:[{root:"A",type:"mixolydian",label:"A Mixolydian"},{root:"A",type:"majpent",label:"A major pentatonic"}],
-  figs:[
-    {kind:"PART", name:"The vamp, with the sus moves",
-     note:"The A bar is where the tune breathes. Move the index finger on the B string — 2 (A) up to 3 (Asus4), down to 0 (Asus2) — while everything else stays planted. Sixteenths, right hand never stops.",
-     tab:
-`      A                        G                        D                        A
-e|--0---0---0---0---0---0-|--3---3---3---3---3---3-|--2---2---2---2---2---2-|--0---0---0---0---0---0-|
-B|--2---2---3---3---0---0-|--3---3---3---3---3---3-|--3---3---3---3---3---3-|--2---2---3---3---0---0-|
-G|--2---2---2---2---2---2-|--0---0---0---0---0---0-|--2---2---2---2---2---2-|--2---2---2---2---2---2-|
-D|--2---2---2---2---2---2-|--0---0---0---0---0---0-|--0---0---0---0---0---0-|--2---2---2---2---2---2-|
-A|--0---0---0---0---0---0-|--2---2---2---2---2---2-|------------------------|--0---0---0---0---0---0-|
-E|------------------------|--3---3---3---3---3---3-|------------------------|------------------------|
-        A       sus4    sus2`},
-    {kind:"STYLE", name:"Coming down the neck in A Mixolydian",
-     note:"Jerry's signature exit move: start high, walk straight down the mode, land on the root. Pure A Mixolydian (A B C# D E F# G) — the G natural is the whole flavour, so let it ring where it falls.",
-     tab:
-`e|-12--10---9---7---5-----------------------------|
-B|--------------------8---7---5-------------------|
-G|--------------------------------7---6---4-------|
-D|--------------------------------------------7---|
-   E   D   C#  B   A   G   F#  E   D   C#  B   A`}
-  ],
-  listen:"5/8/77 Barton Hall — the Franklin's out of Help > Slip.",
-  watch:"Count how many bars Jerry plays before he repeats an idea. It is a lot longer than you think."
-},
-{
-  id:"fire", band:"dead", title:"Fire on the Mountain", sub:"Shakedown Street · 1978",
-  tier:1, key:"B", keyLabel:"B Mixolydian", bpm:104, beats:4, meter:"4/4",
-  focus:"Blending major and minor pentatonic",
-  pitch:"Two chords, forever. The whole art here is <em>the half-step between D and D#</em> — the minor third and the major third living in the same lick. Get that under your fingers and you have unlocked most of Jerry's blues vocabulary.",
-  form:[["Vamp — the entire song","|  B  |  A  |"]],
-  verify:"",
-  chords:["B","A"],
-  scales:[{root:"B",type:"mixolydian",label:"B Mixolydian"},{root:"B",type:"minpent",label:"B minor pentatonic"},{root:"B",type:"blues",label:"B blues"}],
-  figs:[
-    {kind:"PART", name:"The two-chord comp, inverted triads",
-     note:"Forget the barre chords. Play the top three notes only and slide the whole shape down two frets for the A. Lighter, and it leaves room for whoever is soloing.",
-     tab:
-`        B                          A
-e|------------------------|------------------------|
-B|--7---7-------7---7-----|--5---5-------5---5-----|
-G|--8---8-------8---8-----|--6---6-------6---6-----|
-D|--9---9-------9---9-----|--7---7-------7---7-----|
-A|------------------------|------------------------|
-E|------------------------|------------------------|
-    B    B      B    B       A    A      A    A`},
-    {kind:"STYLE", name:"The major/minor third slide",
-     note:"Slide the G-string 8 down to 7 — D# to D natural — and hang there for a beat. That one move is the difference between playing the scale and playing the song. Behind the beat, always.",
-     tab:
-`e|------------------------------------------------|
-B|-10--12--10-------------------------------------|
-G|------------11---9---8---7----------------------|
-D|-------------------------------9----------------|
-    A   B   A   F#  E   D#  D    E
-                        \\ slide \\`}
-  ],
-  listen:"5/8/77 again — Scarlet > Fire is the reference recording for a reason.",
-  watch:"The drums are playing a disco shuffle. Sit on the back of it; do not rush."
-},
-{
-  id:"eyes", band:"dead", title:"Eyes of the World", sub:"Wake of the Flood · 1973",
-  tier:3, key:"E", keyLabel:"E major", bpm:124, beats:4, meter:"4/4",
-  focus:"Major-7 arpeggios and diatonic 6ths",
-  pitch:"The jazziest thing in the book. Garcia is playing <em>chord tones, not scales</em> — the major-7 colour is the entire identity of the tune, and if you blunder in with E minor pentatonic it collapses instantly.",
-  form:[["Main vamp","|  Emaj7  |  Emaj7  |  Bm7  |  Bm7  |"],
-        ["Bridge (approach)","|  A  |  Amaj7  |  E  |  E  |"]],
-  verify:"The bridge and outro sections move around more than this two-line sketch — treat the chart as the vamp only and lift the rest by ear.",
-  chords:["Emaj7","Bm7","A"],
-  scales:[{root:"E",type:"major",label:"E major"},{root:"E",type:"lydian",label:"E Lydian"}],
-  figs:[
-    {kind:"DRILL", name:"Diatonic 6ths up E major",
-     note:"Strings 3 and 1, thumb and finger or hybrid-picked. This is the single most useful shape for this tune — every one of these pairs is a chord fragment you can drop over the vamp.",
-     tab:
-`e|--0---2---4---5---7---9--11--12-|
-G|--1---2---4---6---8---9--11--13-|
-   E   F#  G#  A   B   C#  D#  E`},
-    {kind:"STYLE", name:"Emaj7 arpeggio, seventh position",
-     note:"E – B – D# – G# and up. The D# is the note that makes it Eyes. Play it slowly enough to hear each interval, then start displacing the rhythm.",
-     tab:
-`e|--------------------7--11--12---|
-B|----------------9---------------|
-G|------------8-------------------|
-D|--------9-----------------------|
-A|--7-----------------------------|
-    E   B   D#  G#  B   D#  E`}
-  ],
-  listen:"The studio take first; then hunt down 8/27/72 Veneta, which is the whole argument for this band.",
-  watch:"Nobody plays a downbeat. Everything is placed just after — that is the swing."
-},
-{
-  id:"shakedown", band:"dead", title:"Shakedown Street", sub:"Shakedown Street · 1978",
-  tier:2, key:"E", keyLabel:"E Mixolydian / E minor pentatonic", bpm:112, beats:4, meter:"4/4",
-  focus:"16th-note funk rhythm and muting",
-  pitch:"The Dead's disco record, and the best right-hand workout they ever wrote. <em>The strumming hand never stops moving</em> — it just stops touching the strings. If your forearm isn't tired, you're not playing it.",
-  form:[["Main groove","|  E9  |  E9  |  E9  |  E9  |"]],
-  verify:"",
-  chords:["E9","Em7","A"],
-  scales:[{root:"E",type:"minpent",label:"E minor pentatonic"},{root:"E",type:"mixolydian",label:"E Mixolydian"}],
-  figs:[
-    {kind:"PART", name:"E9 scratch groove",
-     note:"x = a dead scratch, left hand relaxed off the frets. Strum continuous down-up 16ths and let the left hand decide which ones sound. Start at 60% tempo — the muting is harder than the chord.",
-     tab:
-`        E9
-e|--7---x---x---7---7---x---x---7-|
-B|--7---x---x---7---7---x---x---7-|
-G|--7---x---x---7---7---x---x---7-|
-D|--6---x---x---6---6---x---x---6-|
-A|--7---x---x---7---7---x---x---7-|
-E|--x---x---x---x---x---x---x---x-|
-    D   u   d   u   D   u   d   u`},
-    {kind:"STYLE", name:"Descending E minor pentatonic, twelfth position",
-     note:"Two notes per string coming down. Keep it clipped and staccato — funk lines are as much about where you stop as where you start.",
-     tab:
-`e|--------------------------------|
-B|-15--12-------------------------|
-G|--------14--12------------------|
-D|----------------14--12----------|
-A|------------------------14------|
-    D   B   A   G   E   D   B`}
-  ],
-  listen:"Oakland, 12/26/79 — thirteen minutes of it. Then hear how much space the studio take leaves.",
-  watch:"The guitar is a percussion instrument for four minutes before it becomes anything else."
-},
-{
-  id:"althea", band:"dead", title:"Althea", sub:"Go to Heaven · 1980",
-  tier:2, key:"A", keyLabel:"A minor / A Dorian", bpm:92, beats:4, meter:"4/4",
-  focus:"Note choice and space",
-  pitch:"A slow tune is harder than a fast one. There is <em>room for every note you choose</em>, which means there is room for every note you choose badly. This is the card for learning to leave things out.",
-  form:[["Verse loop","|  Am  |  G  |  Fmaj7  |  G  |"]],
-  verify:"This is my read of the harmony, not gospel — the bridge in particular moves somewhere this four-bar sketch does not go. Play it against the record before you commit it to memory.",
-  chords:["Am","G","Fmaj7","Am7"],
-  scales:[{root:"A",type:"aeolian",label:"A natural minor"},{root:"A",type:"dorian",label:"A Dorian"}],
-  figs:[
-    {kind:"PART", name:"The verse comp",
-     note:"Fmaj7 instead of a full F barre — it keeps the open E ringing through the change and that shimmer is most of the tune's character.",
-     tab:
-`     Am               G                Fmaj7
-e|--0---0---0---0-|--3---3---3---3-|--0---0---0---0-|
-B|--1---1---1---1-|--0---0---0---0-|--1---1---1---1-|
-G|--2---2---2---2-|--0---0---0---0-|--2---2---2---2-|
-D|--2---2---2---2-|--0---0---0---0-|--3---3---3---3-|
-A|--0---0---0---0-|--2---2---2---2-|----------------|
-E|----------------|--3---3---3---3-|----------------|`},
-    {kind:"DRILL", name:"Aeolian or Dorian — pick your sixth",
-     note:"One note separates the two colours. Play both over the Am, four bars each, and listen to which one the record is telling you. Then stop switching mid-phrase; commit.",
-     tab:
-`Natural minor — F natural, darker
-B|--5---6---8--10-|
-    E   F   G   A
+{id:"fire",t:"Fire on the Mountain",a:"Grateful Dead",sub:"Shakedown Street · 1978",band:"dead",key:"B",
+ sp:"https://open.spotify.com/track/0r9ZSCNXKinpOBUl943m3l?utm_source=anthropic&utm_medium=claude",
+ ch:["B","A"],
+ s:[{n:"Intro",b:"|  B  |  A  |   ×8",note:"Let the groove settle before anything else happens."},
+    {n:"Verse 1",l:["[B]Long distance runner, what you [A]standin' there for?","[B]Get up, get out, get out of the [A]door"]},
+    {n:"Chorus",l:["[B]Fire! [A]Fire on the mountain"]},
+    {n:"Jam",b:"|  B  |  A  |   repeat"}]},
 
-Dorian — F sharp, brighter, more hopeful
-B|--5---7---8--10-|
-    E   F#  G   A`}
-  ],
-  listen:"The studio take on Go to Heaven is the cleanest reference; the 1980 live versions stretch it.",
-  watch:"Count the bars where Jerry plays nothing at all. Copy those first."
-},
-{
-  id:"ujb", band:"dead", title:"Uncle John's Band", sub:"Workingman's Dead · 1970",
-  tier:2, key:"G", keyLabel:"G major", bpm:120, beats:7, meter:"4/4 + a 7/4 bridge",
-  focus:"Acoustic picking and odd meter",
-  pitch:"Sounds like a campfire song right up until the bridge <em>drops a beat and dares you to keep counting</em>. The click track on this card is set to 7 for exactly that reason.",
-  form:[["Verse","|  G  |  C  |  G  |  C  |  G  |  D  |  G  |  G  |"],
-        ["Bridge — in 7","|  G  |  C  |  (count 1 2 3 4 5 6 7)  |"]],
-  verify:"The verse chart is solid; the bridge harmony is sketched. Learn the count first, the chords second.",
-  chords:["G","C","D","Am"],
-  scales:[{root:"G",type:"major",label:"G major"},{root:"G",type:"majpent",label:"G major pentatonic"}],
-  figs:[
-    {kind:"STYLE", name:"The picked intro figure",
-     note:"Thumb on the bass, index and middle alternating above. Keep the chord shape held down the whole bar — no note should be cut short by a finger lifting early.",
-     tab:
-`     G                        C
-e|--3-------3-------3-----|--0-------0-------0-----|
-B|------0-------0---------|------1-------1---------|
-G|----------0-------0-----|----------0-------0-----|
-D|------------------------|------------------------|
-A|------------------------|--3---------------------|
-E|--3---------------------|------------------------|`},
-    {kind:"DRILL", name:"Counting in seven",
-     note:"Set the click to 7 and strum one chord per bar, accenting beats 1 and 5. Once that is automatic, try grouping it 3+4 instead of 4+3 — same bar, completely different feel.",
-     tab:
-`Seven beats to the bar. Accent 1 and 5.
-        1   2   3   4   5   6   7
-e|----3---3---3---3---3---3---3---|
-B|----0---0---0---0---0---0---0---|
-G|----0---0---0---0---0---0---0---|
-D|----0---0---0---0---0---0---0---|
-A|----2---2---2---2---2---2---2---|
-E|----3---3---3---3---3---3---3---|
-        >               >
+{id:"eyes",t:"Eyes of the World",a:"Grateful Dead",sub:"Wake of the Flood · 1973",band:"dead",key:"E",
+ sp:"https://open.spotify.com/track/5pHVAQ5LD3RgDG5m11r2Jt?utm_source=anthropic&utm_medium=claude",
+ ch:["Emaj7","Bm7","A","B","E"],
+ s:[{n:"Intro",b:"|  Emaj7  |  Emaj7  |  Bm7  |  Bm7  |",note:"Picked, never strummed. The D♯ in the Emaj7 is the whole sound."},
+    {n:"Verse 1",l:["[Emaj7]Right outside this lazy summer [Bm7]home","[Emaj7]You ain't got time to call your soul a [Bm7]critic, no"]},
+    {n:"Chorus",l:["[A]Wake up to find out that [B]you are the eyes of the [E]world"],v:1},
+    {n:"Jam",b:"|  Emaj7  |  Bm7  |   repeat"}]},
 
-Then regroup:  3 + 4   ( 1 2 3 | 1 2 3 4 )`}
-  ],
-  listen:"The studio version — the vocal arrangement tells you where the bar lines are.",
-  watch:"The moment the bridge lands, count out loud. Everyone does."
-},
-{
-  id:"ripple", band:"dead", title:"Ripple", sub:"American Beauty · 1970",
-  tier:1, key:"G", keyLabel:"G major", bpm:90, beats:4, meter:"4/4",
-  focus:"Travis picking, thumb independence",
-  pitch:"The gentlest tune in the book and the one most likely to expose a sloppy right hand. <em>The thumb keeps time; the fingers play the song.</em> If the two ever fall into lockstep, you have lost it.",
-  form:[["Verse","|  G  |  C  |  G  |  D  |  G  |  C  |  G  |  G  |"],
-        ["Chorus","|  Am  |  C  |  G  |  D  |"]],
-  verify:"",
-  chords:["G","C","D","Am","Cadd9"],
-  scales:[{root:"G",type:"major",label:"G major"},{root:"G",type:"majpent",label:"G major pentatonic"}],
-  figs:[
-    {kind:"PART", name:"Alternating-bass pattern",
-     note:"Thumb on the beat — sixth string, fourth string, sixth, fourth — while the fingers land on the off-beats. Practise the thumb alone for one full minute before adding anything on top.",
-     tab:
-`       1   &   2   &   3   &   4   &
-e|--------------------------------3---|
-B|--------------0---------------------|
-G|----------0---------------0---------|
-D|--------------------0---------------|
-A|------------------------------------|
-E|--3-------------------------3-------|
-   T   i   T   m   T   i   T   a`},
-    {kind:"DRILL", name:"Thumb alone, then hands together",
-     note:"Sixty seconds of thumb only at 90 bpm, dead even. Then add one finger note per bar. Add the next only when the thumb hasn't flinched.",
-     tab:
-`Stage 1 — thumb only
-E|--3-------3-------3-------3-----|
-D|------0-------0-------0-------0-|
+{id:"shakedown",t:"Shakedown Street",a:"Grateful Dead",sub:"Shakedown Street · 1978",band:"dead",key:"E",
+ sp:"https://open.spotify.com/track/5G34d3lA8ZiQYDYFio49di?utm_source=anthropic&utm_medium=claude",
+ ch:["E9","A"],
+ s:[{n:"Intro",b:"|  E9  |  E9  |  E9  |  E9  |",note:"Scratchy 16ths — the strumming hand never stops, it just stops touching the strings."},
+    {n:"Verse 1",l:["[E9]You tell me this town ain't got no heart","[E9]You just gotta poke around"]},
+    {n:"Chorus",l:["[A]Nothin' shakin' on Shake[E9]down Street"],v:1},
+    {n:"Jam",b:"|  E9  |   repeat"}]},
 
-Stage 2 — add one finger note on the "&" of 2
-E|--3-------3-------3-------3-----|
-D|------0-------0-------0-------0-|
-B|----------0---------------0-----|`}
-  ],
-  listen:"American Beauty, studio. Nothing live improves on it.",
-  watch:"Every note rings its full value. Nothing is choked."
-},
-{
-  id:"truckin", band:"dead", title:"Truckin'", sub:"American Beauty · 1970",
-  tier:1, key:"E", keyLabel:"E Mixolydian", bpm:120, beats:4, meter:"4/4 shuffle",
-  focus:"Boogie shuffle and turnarounds",
-  pitch:"A shuffle is a rhythm test disguised as an easy song. <em>The swing has to be in the pick hand, not in your head</em> — play it straight for one bar and the whole thing dies.",
-  form:[["Verse boogie","|  E  |  E  |  A  |  A  |  E  |  B7  |  A  |  E  |"]],
-  verify:"",
-  chords:["E","A","B7"],
-  scales:[{root:"E",type:"mixolydian",label:"E Mixolydian"},{root:"E",type:"blues",label:"E blues"}],
-  figs:[
-    {kind:"PART", name:"The boogie figure, three chords",
-     note:"Root plus fifth, then root plus sixth. Same shape moves to each chord. Shuffle the eighths — long-short, long-short — and dig in with a downstroke on every one.",
-     tab:
-`       E                          A                          B7
-E|--0---0---0---0---0---0-|------------------------|------------------------|
-A|--2---4---2---4---2---4-|--0---0---0---0---0---0-|--2---2---2---2---2---2-|
-D|------------------------|--2---4---2---4---2---4-|--4---6---4---6---4---6-|
-    5   6   5   6   5   6     5   6   5   6   5   6     5   6   5   6   5   6`},
-    {kind:"STYLE", name:"The turnaround",
-     note:"Classic descending blues turnaround in E — the B string walks down while the chord underneath holds. Land it on the last two beats of the eighth bar and go straight back round.",
-     tab:
-`e|------------------------0---|
-B|--3---2---1---0---------0---|
-G|--1---1---1---1---------1---|
-D|--2---2---2---2---------2---|
-E|--0---0---0---0---------0---|
-    E7  E6  E+5 E5         E`}
-  ],
-  listen:"American Beauty for the arrangement, any 1972 version for the drive.",
-  watch:"Weir's rhythm part is doing more work than Jerry's lead. Learn Weir's."
-},
-{
-  id:"estimated", band:"dead", title:"Estimated Prophet", sub:"Terrapin Station · 1977",
-  tier:3, key:"F#", keyLabel:"F# Lydian-ish", bpm:104, beats:7, meter:"7/4",
-  focus:"Playing in seven",
-  pitch:"Weir's masterpiece and the hardest counting job in the book. <em>Seven beats, reggae upstrokes, and a straight face.</em> The click on this card is already set to 7 — leave it there for the whole session.",
-  form:[["Main vamp — in 7","|  F#  |  F#  |  (7 beats each)  |"]],
-  verify:"The verse harmony sits on F# far longer than a chart suggests. Count first; chase the chords later.",
-  chords:["F#","B","E"],
-  scales:[{root:"F#",type:"lydian",label:"F# Lydian"},{root:"F#",type:"mixolydian",label:"F# Mixolydian"}],
-  figs:[
-    {kind:"PART", name:"Upstroke skank in seven",
-     note:"Nothing on the beat. Every attack is an upstroke on the '&', muted immediately after. Fourteen of them per bar. Count 1-2-3-4-5-6-7 out loud until you stop having to.",
-     tab:
-`        1   +   2   +   3   +   4   +   5   +   6   +   7   +
-e|------2-------2-------2-------2-------2-------2-------2-----|
-B|------2-------2-------2-------2-------2-------2-------2-----|
-G|------3-------3-------3-------3-------3-------3-------3-----|
-D|----------------------------------------------------------|
-        u       u       u       u       u       u       u`},
-    {kind:"DRILL", name:"Regroup the seven",
-     note:"Same bar, three different feels. Play four bars of each without stopping the click. This is the exercise that makes odd meter stop feeling odd.",
-     tab:
-`4 + 3     >...  >..        1 2 3 4 | 1 2 3
-3 + 4     >..  >...        1 2 3 | 1 2 3 4
-2+2+3     >. >. >..        1 2 | 1 2 | 1 2 3`}
-  ],
-  listen:"5/8/77. Also the Terrapin Station studio take for the arrangement.",
-  watch:"The bass is playing a different grouping of the seven than the guitar. That is the point."
-},
-{
-  id:"playing", band:"dead", title:"Playing in the Band", sub:"Ace / Europe '72",
-  tier:3, key:"D", keyLabel:"D Mixolydian", bpm:112, beats:10, meter:"10/4",
-  focus:"Odd-meter riff, modal jamming",
-  pitch:"Ten beats to the bar, and it swaggers hard enough that you never notice. <em>Count it in fives</em> — two groups of five, not five groups of two — and the riff snaps into place.",
-  form:[["Main riff — in 10","|  D ......  C ..  B ..  |"]],
-  verify:"The riff shape below is written in the tune's mode and shape rather than lifted note-for-note. Use it as scaffolding and correct it against the record.",
-  chords:["D","C","G"],
-  scales:[{root:"D",type:"mixolydian",label:"D Mixolydian"},{root:"D",type:"minpent",label:"D minor pentatonic"}],
-  figs:[
-    {kind:"STYLE", name:"The riff, counted in fives",
-     note:"Ten beats: five, then five. The descent D – C – B at the end of the bar is what turns it around. Keep the same shape and just slide it.",
-     tab:
-`   1   2   3   4   5   1   2   3   4   5
-G|--7---7---7---5---7---7---7---7---5---4-|
-D|--7---7---7---5---7---7---7---7---5---4-|
-A|--5---5---5---3---5---5---5---5---3---2-|
-    D   D   D   C   D   D   D   D   C   B`},
-    {kind:"DRILL", name:"D Mixolydian, three positions",
-     note:"The jam out of this tune goes anywhere, but it starts in D Mixolydian. Play the mode ascending in one position, descending in the next, ascending in the third — no stopping between them.",
-     tab:
-`Position 5
-e|-------------------5---7---|
-B|---------------7---8-------|
-G|-------5---7---------------|
-D|--5---7--------------------|
-    D   E   F#  G   A   B   C   D`}
-  ],
-  listen:"Europe '72. Then anything from 1973 for the long-form version.",
-  watch:"The band is not counting. They're feeling the turnaround. Eventually so will you."
-},
-{
-  id:"bertha", band:"dead", title:"Bertha", sub:"Skull & Roses · 1971",
-  tier:1, key:"G", keyLabel:"G major", bpm:150, beats:4, meter:"4/4",
-  focus:"Uptempo strumming stamina",
-  pitch:"Fast, loud, three chords, no mercy. This is a <em>stamina and consistency card</em> — the test is whether bar sixty sounds like bar one.",
-  form:[["Verse","|  G  |  G  |  C  |  C  |  G  |  D  |  C  |  G  |"]],
-  verify:"",
-  chords:["G","C","D"],
-  scales:[{root:"G",type:"majpent",label:"G major pentatonic"},{root:"G",type:"mixolydian",label:"G Mixolydian"}],
-  figs:[
-    {kind:"PART", name:"The changes, wide open",
-     note:"Big open shapes, all six strings, driving eighths. Do not choke the ringing — the open strings are half the sound of this band.",
-     tab:
-`      G                    C                    D                    G
-e|--3---3---3---3-|--0---0---0---0-|--2---2---2---2-|--3---3---3---3-|
-B|--3---3---3---3-|--1---1---1---1-|--3---3---3---3-|--3---3---3---3-|
-G|--0---0---0---0-|--0---0---0---0-|--2---2---2---2-|--0---0---0---0-|
-D|--0---0---0---0-|--2---2---2---2-|--0---0---0---0-|--0---0---0---0-|
-A|--2---2---2---2-|--3---3---3---3-|----------------|--2---2---2---2-|
-E|--3---3---3---3-|----------------|----------------|--3---3---3---3-|`},
-    {kind:"STYLE", name:"Open-position fills between the changes",
-     note:"G major pentatonic in open position, played as fills in the gaps rather than as a solo. Two bars of chords, one lick, back to the chords.",
-     tab:
-`e|--------------------3---3---|
-B|--------------3---3---3-----|
-G|--0---2---0---0-------------|
-D|------------------------0---|
-    G   A   G   G   D   G   D`}
-  ],
-  listen:"Fillmore East, April 1971 — fast and loud.",
-  watch:"Nothing here is difficult. Everything here is relentless."
-},
-{
-  id:"darkstar", band:"dead", title:"Dark Star", sub:"Live/Dead · 1969",
-  tier:3, key:"A", keyLabel:"A Mixolydian", bpm:96, beats:4, meter:"4/4",
-  focus:"Modal improvisation, motif development",
-  pitch:"One chord and forty-five minutes. This card is not about notes — it is about <em>developing a single idea until it turns into a different idea</em>. The hardest thing on this list and the most worth doing.",
-  form:[["Vamp","|  A  |  A  |  G  |  A  |"]],
-  verify:"Dark Star is a two-chord frame that the band abandons constantly. The chart is a launch pad, nothing more.",
-  chords:["A","G","Am7"],
-  scales:[{root:"A",type:"mixolydian",label:"A Mixolydian"},{root:"A",type:"dorian",label:"A Dorian"}],
-  figs:[
-    {kind:"STYLE", name:"The long descent",
-     note:"Ten notes straight down A Mixolydian across three strings. Play it once as written. Then play it again taking twice as long. Then again taking four times as long, filling the gaps with silence rather than notes.",
-     tab:
-`e|----------------------------------------|
-B|-10---8---7---5-------------------------|
-G|----------------7---6---4---------------|
-D|----------------------------7---5---4---|
-    A   G   F#  E   D   C#  B   A   G   F#`},
-    {kind:"DRILL", name:"One motif, four treatments",
-     note:"Take any three-note idea. Play it, then repeat it starting a scale step higher, then repeat it rhythmically doubled, then invert it — same intervals, opposite direction. That sequence is what improvisation actually is.",
-     tab:
-`Motif        e|--5---7---8---|      A   B   C
-Sequenced    e|--7---8--10---|      B   C   D
-Doubled      e|--5-5-7-7-8-8-|
-Inverted     e|--8---7---5---|      C   B   A`}
-  ],
-  listen:"2/27/69, Fillmore West — the Live/Dead version.",
-  watch:"Listen for the moment the whole band changes direction at once. Nobody signals it."
-},
+{id:"althea",t:"Althea",a:"Grateful Dead",sub:"Go to Heaven · 1980",band:"dead",key:"Am",
+ sp:"https://open.spotify.com/track/5sz1xQRiw9Tu3mkLzhcHTj?utm_source=anthropic&utm_medium=claude",
+ ch:["Am","G","Fmaj7"],
+ s:[{n:"Verse 1",l:["[Am]I told Althea I was [G]feeling lost","[Fmaj7]Lacking in some di[G]rection"],v:1},
+    {n:"Refrain",l:["[Am]Althea told me upon in[G]vesti[Fmaj7]ga[G]tion"],v:1},
+    {n:"Solo",b:"|  Am  |  G  |  Fmaj7  |  G  |   repeat",note:"Slow enough to leave whole bars empty. Do."}]},
 
-/* ─────────────────────────────── GOOSE ─────────────────────────────────────
-   Goose cards are ear-first. The catalogue is thinly and unreliably tabbed,
-   so rather than hand you a chart I'm not sure of, the first task is finding
-   the key yourself. The drill material below is exact — transpose it to
-   whatever you find. This is how the band learned these too.
-   ──────────────────────────────────────────────────────────────────────── */
-{
-  id:"arcadia", band:"goose", title:"Arcadia", sub:"Long-form centrepiece", ear:true,
-  tier:3, key:"?", keyLabel:"Find it by ear", bpm:96, beats:4, meter:"4/4",
-  focus:"Building an eight-minute arc",
-  pitch:"The card for learning <em>patience</em>. Rick's approach here is one idea, held, developed, and slowly raised over minutes — not bars. The drill below is arpeggio scaffolding; the real work is refusing to peak early.",
-  form:[["Ear check — before you play a note","1. Find the root. Hum the note the tune keeps landing on, then find it on the low E string.\n2. Major or minor third? Sing the third above the root and hunt for it.\n3. Now play the drill below transposed to that root."]],
-  verify:"",
-  chords:["Dmaj7","Bm7","Gmaj7"],
-  scales:[{root:"D",type:"major",label:"D major (practice key)"},{root:"D",type:"lydian",label:"D Lydian"}],
-  figs:[
-    {kind:"DRILL", name:"Arpeggio scaffolding — Imaj7 / vi / IVmaj7",
-     note:"Written in D. Pick it clean, one note at a time, no strums. Then play the whole loop four times: first at a whisper, then slightly louder each pass, arriving at full only on the fourth. That dynamic ladder is the tune.",
-     tab:
-`   Dmaj7                    Bm7                      Gmaj7
-e|--2---------2-----------|--2---------2-----------|--2---------2-----------|
-B|------2---------2-------|------3---------3-------|------3---------3-------|
-G|--------2---------2-----|--------2---------2-----|--------0---------0-----|
-D|--0---------0-----------|------------------------|------------------------|
-A|------------------------|--2---------2-----------|------------------------|
-E|------------------------|------------------------|--3---------3-----------|`},
-    {kind:"DRILL", name:"The dotted-eighth grid",
-     note:"Set a delay to a dotted eighth (or just imagine it). Play only on beats 1 and 3 and let the repeats fill 2 and 4 — you play half the notes and hear all of them. This is most of that shimmering Goose guitar sound.",
-     tab:
-`You play:      X . . .   X . . .   X . . .   X . . .
-Delay fills:   . . x .   . . x .   . . x .   . . x .
-Heard as:      X . x .   X . x .   X . x .   X . x .
+{id:"ujb",t:"Uncle John's Band",a:"Grateful Dead",sub:"Workingman's Dead · 1970",band:"dead",key:"G",
+ sp:"https://open.spotify.com/track/0kp728Knw5PYvU3QzMZ0yJ?utm_source=anthropic&utm_medium=claude",
+ ch:["G","C","D","Am"],
+ s:[{n:"Intro",b:"|  G  |  C  |  G  |  C  |",note:"Picked. Hold each shape down for the whole bar."},
+    {n:"Verse 1",l:["[G]Well the first days are the [C]hardest days","[G]Don't you worry any [C]more",
+                    "[G]When life looks like Easy [D]Street","[G]There is danger at your [C]door"]},
+    {n:"Chorus",l:["[G]Come hear Uncle John's [C]Band by the [G]riverside"],v:1},
+    {n:"Bridge — in 7/4",l:["[G]Whoa-oh what I want to know: [C]how does the song go?"],v:1,
+     note:"Seven beats to the bar. Count 1-2-3-4-5-6-7 out loud, accent 1 and 5."}]},
 
-Delay time at 96 bpm, dotted 8th = 469 ms`}
-  ],
-  listen:"Any full-length live Arcadia — the studio cut is the compressed version.",
-  watch:"Find the exact minute the band decides to go up a level. Then find what the guitar did thirty seconds before it."
-},
-{
-  id:"madhuvan", band:"goose", title:"Madhuvan", sub:"Funk jam vehicle", ear:true,
-  tier:2, key:"?", keyLabel:"Find it by ear", bpm:106, beats:4, meter:"4/4",
-  focus:"16th-note comping, one-chord discipline",
-  pitch:"A jam vehicle that lives or dies on the rhythm guitar. <em>One chord for four minutes</em> and your only job is to keep it interesting through touch, not through changes.",
-  form:[["Ear check","1. This one sits on a minor vamp. Find the root.\n2. Listen for whether the sixth is natural or flat — that decides Dorian vs Aeolian.\n3. Then play the drill in that key."]],
-  verify:"",
-  chords:["Em","A/E","Em7"],
-  scales:[{root:"E",type:"dorian",label:"E Dorian (practice key)"},{root:"E",type:"minpent",label:"E minor pentatonic"}],
-  figs:[
-    {kind:"DRILL", name:"Dorian vamp, i to IV over a pedal",
-     note:"Written in E. The bass note never moves — only the shape above it. Continuous 16ths, x = scratch. Play sixteen bars without stopping and without repeating the same accent pattern twice.",
-     tab:
-`        Em                        A/E
-e|--0---x---x---0---0---x-|--0---x---x---0---0---x-|
-B|--0---x---x---0---0---x-|--2---x---x---2---2---x-|
-G|--0---x---x---0---0---x-|--2---x---x---2---2---x-|
-D|--2---x---x---2---2---x-|--2---x---x---2---2---x-|
-A|--2---x---x---2---2---x-|--0---x---x---0---0---x-|
-E|--0---x---x---0---0---x-|--0---x---x---0---0---x-|`},
-    {kind:"DRILL", name:"Accent displacement",
-     note:"Same chord, same 16ths, four bars each. Move the accent one 16th later every four bars. When you can do this without the click drifting, you can hold down a funk jam.",
-     tab:
-`Bar 1-4    > . . .   > . . .   > . . .   > . . .
-Bar 5-8    . > . .   . > . .   . > . .   . > . .
-Bar 9-12   . . > .   . . > .   . . > .   . . > .
-Bar 13-16  . . . >   . . . >   . . . >   . . . >`}
-  ],
-  listen:"Any 15-minute-plus live version. The longer the better for this exercise.",
-  watch:"When the jam peaks, the rhythm guitar usually gets simpler, not busier."
-},
-{
-  id:"yeti", band:"goose", title:"Yeti", sub:"Type-II jam vehicle", ear:true,
-  tier:3, key:"?", keyLabel:"Find it by ear", bpm:112, beats:4, meter:"4/4",
-  focus:"Motif development, going outside",
-  pitch:"The tune where the band leaves the song entirely. Today's work is <em>taking one small idea and refusing to abandon it</em> for two full minutes — sequencing, displacing, and inverting it until it becomes something else.",
-  form:[["Ear check","1. Find the root of the jam section (not the song section — they may differ).\n2. Decide the mode by hunting the third and the sixth.\n3. Transpose the sequence drill to it."]],
-  verify:"",
-  chords:["Am7","G","D"],
-  scales:[{root:"A",type:"dorian",label:"A Dorian (practice key)"},{root:"A",type:"minpent",label:"A minor pentatonic"}],
-  figs:[
-    {kind:"DRILL", name:"Three-note motif, sequenced up the mode",
-     note:"A Dorian on the top string. Every group is the same shape starting one scale step higher. Play it up, then straight back down, then in thirds. Boring on purpose — the payoff is what it does to your improvising an hour later.",
-     tab:
-`e|--5---7---8--|--7---8--10--|--8--10--12--|-10--12--14--|-12--14--15--|
-    A   B   C     B   C   D     C   D   E     D   E   F#    E   F#  G`},
-    {kind:"DRILL", name:"One chromatic note in, one chromatic note out",
-     note:"Going outside is a rhythm trick, not a harmony trick. Add one non-scale note and leave it immediately — resolve up or down a half step onto a chord tone on a strong beat and it always sounds intentional.",
-     tab:
-`e|--5---7---8---9--10-------|
-    A   B   C   C#  D
-                \\ out /  \\ home /`}
-  ],
-  listen:"A well-regarded long Yeti — the exploratory middle is the assignment, not the composed sections.",
-  watch:"Count how many times the guitar plays the same three notes before it moves on."
-},
-{
-  id:"hottea", band:"goose", title:"Hot Tea", sub:"Clean-tone workout", ear:true,
-  tier:2, key:"?", keyLabel:"Find it by ear", bpm:100, beats:4, meter:"4/4",
-  focus:"Arpeggios over a moving bass",
-  pitch:"Bright, clean, and unforgiving — <em>every note is exposed</em>. There is no distortion to hide behind and no strumming to blur the edges. This is a picking-accuracy card.",
-  form:[["Ear check","1. Major-key tune. Find the root.\n2. Listen for the descending bass line under the held chord — that is the shape the drill imitates.\n3. Transpose and play."]],
-  verify:"",
-  chords:["G","G/F#","Em","Cadd9"],
-  scales:[{root:"G",type:"major",label:"G major (practice key)"},{root:"G",type:"majpent",label:"G major pentatonic"}],
-  figs:[
-    {kind:"DRILL", name:"Held shape, walking bass",
-     note:"Written in G. The top three notes barely change while the bass walks down — G, F#, E, C. Let every note ring into the next; this only works if nothing is cut off.",
-     tab:
-`      G             G/F#           Em             Cadd9
-e|--3-------3-|--3-------3-|--3-------3-|--3-------3-|
-B|------0-----|------0-----|------0-----|------3-----|
-G|--------0---|--------0---|--------0---|--------0---|
-D|------------|------------|------------|--2---------|
-A|------------|------------|------------|--3---------|
-E|--3---------|--2---------|--0---------|------------|
-    G           F#          E           C`},
-    {kind:"DRILL", name:"Pick-hand accuracy at speed",
-     note:"Same arpeggio, alternate picking only, no sweeps. 60 bpm until it's clean, then up in steps of eight. The instant a note buzzes, drop back two steps.",
-     tab:
-`e|------3-------3-------3-------3-|
-B|--0-------0-------0-------0-----|
-G|----0-------0-------0-------0---|
-    i   m   i   m   i   m   i   m`}
-  ],
-  listen:"A version with a long clean intro — you want to hear the picking before the band fills in.",
-  watch:"Notice how little gain is on the guitar. That is a choice, and it is why the notes speak."
-},
-{
-  id:"arrow", band:"goose", title:"Arrow", sub:"Melodic lead feature", ear:true,
-  tier:2, key:"?", keyLabel:"Find it by ear", bpm:88, beats:4, meter:"4/4",
-  focus:"Bending in tune, vibrato quality",
-  pitch:"A singing-lead tune, which means <em>a bend that lands a few cents flat ruins it</em>. Today is not about new notes. It is about the two notes you already play arriving exactly where they should.",
-  form:[["Ear check","1. Find the root and the key.\n2. Sing the main lead melody before you play it. If you can't sing it, you can't phrase it.\n3. Then work the bending drill anywhere on the neck."]],
-  verify:"",
-  chords:["D","A","Bm","G"],
-  scales:[{root:"D",type:"major",label:"D major (practice key)"},{root:"D",type:"majpent",label:"D major pentatonic"}],
-  figs:[
-    {kind:"DRILL", name:"Bend to a target you've already heard",
-     note:"Play the target note first so your ear has it. Then bend up to it from below and compare. If it's flat, you'll hear it immediately — that is the entire point of playing the target first.",
-     tab:
-`Whole step
-e|--10------------|      then  e|--8b(10)--------|
-Half step
-e|---9------------|      then  e|--8b(9)---------|
-Whole step, third string
-G|---9------------|      then  e|--7b(9)---------|
+{id:"ripple",t:"Ripple",a:"Grateful Dead",sub:"American Beauty · 1970",band:"dead",key:"G",
+ sp:"https://open.spotify.com/track/1OE5l6sedVcIFELMuxQOPI?utm_source=anthropic&utm_medium=claude",
+ ch:["G","C","D","Am"],
+ s:[{n:"Verse 1",l:["[G]If my words did [C]glow with the [G]gold of sunshine",
+                    "And my [C]tunes were played on the [G]harp un[D]strung"],v:1},
+    {n:"Chorus",l:["[C]Ripple in [G]still water","[C]When there is no [G]pebble tossed",
+                   "[Am]Nor wind to [D]blow"],v:1},
+    {n:"Break",b:"|  G  |  C  |  G  |  D  |",note:"The mandolin melody, on the top two strings, alternating bass still going underneath."}]},
 
-b = bend up to the pitch in brackets`},
-    {kind:"DRILL", name:"Vibrato with the click",
-     note:"Vibrato is a rhythm, not a wobble. Set the click to 88, bend and release in time — first as quarter notes, then eighths, then triplets. Controlled width beats fast width every time.",
-     tab:
-`Quarters    e|--10~-~-~-~-----|    one cycle per beat
-Eighths     e|--10~~~~~~~~----|    two cycles per beat
-Triplets    e|--10~~~~~~~~~~~-|    three per beat`}
-  ],
-  listen:"Any version where the lead carries the last two minutes.",
-  watch:"Where the vibrato starts. Usually late — the note speaks straight first, then it moves."
-},
-{
-  id:"tumble", band:"goose", title:"Tumble", sub:"Syncopated riff-rock", ear:true,
-  tier:2, key:"?", keyLabel:"Find it by ear", bpm:118, beats:4, meter:"4/4",
-  focus:"Syncopation, upstroke accents",
-  pitch:"A riff tune that <em>lands everywhere except the downbeat</em>. If you're playing it and it feels square, you're rounding the syncopation off — this card is about resisting that.",
-  form:[["Ear check","1. Find the root of the main riff on the low strings.\n2. Tap the riff's rhythm on the guitar body first — get it right before adding pitch.\n3. Then play the drill at that root."]],
-  verify:"",
-  chords:["A","D","E"],
-  scales:[{root:"A",type:"minpent",label:"A minor pentatonic (practice key)"},{root:"A",type:"mixolydian",label:"A Mixolydian"}],
-  figs:[
-    {kind:"DRILL", name:"Power-chord riff, syncopated",
-     note:"Written on an A5. The gaps are as important as the hits — mute hard with the palm the instant you release. Play it with the click on 2 and 4 only, which forces you to hold the pulse yourself.",
-     tab:
-`e|--------------------------------|
-B|--------------------------------|
-G|--------------------------------|
-D|--7---7-------7-------7---7-----|
-A|--7---7-------7-------7---7-----|
-E|--5---5-------5-------5---5-----|
-    1   e   +   a   2   +   3   +`},
-    {kind:"DRILL", name:"Upstroke-only bar",
-     note:"Play the same riff using only upstrokes. It will feel wrong and sound thinner — that's the sound of the accent moving off the beat. Then go back to normal picking and keep some of that lift.",
-     tab:
-`All downstrokes    D   D   D   D   D   D   D   D
-All upstrokes      u   u   u   u   u   u   u   u
-Mixed (target)     D   u   D   u   u   D   u   D`}
-  ],
-  listen:"A tight version — you want to hear the drums and guitar lock, not a loose jam.",
-  watch:"The kick drum and the riff hit together on maybe two notes per bar. Find them."
-},
-{
-  id:"elizabeth", band:"goose", title:"Elizabeth", sub:"Fingerstyle ballad", ear:true,
-  tier:2, key:"?", keyLabel:"Find it by ear", bpm:76, beats:4, meter:"4/4",
-  focus:"Chord melody, letting notes ring",
-  pitch:"Quiet, pretty, and the best card in the book for learning to <em>play a melody and its accompaniment at once</em>. Slow enough that there's no excuse for a muffled note.",
-  form:[["Ear check","1. Slow ballad — find the root and the key signature.\n2. Sing the vocal melody, then find it on the top two strings.\n3. Then add the bass underneath using the drill's approach."]],
-  verify:"",
-  chords:["C","Am","Fmaj7","G"],
-  scales:[{root:"C",type:"major",label:"C major (practice key)"},{root:"C",type:"majpent",label:"C major pentatonic"}],
-  figs:[
-    {kind:"DRILL", name:"Melody on top, bass underneath",
-     note:"Written in C. Thumb takes the bass on the beat, the melody note follows on the '&'. The trick is holding the full chord shape so the bass note is still ringing when the melody lands.",
-     tab:
-`      C            Am           Fmaj7        G
-e|--0-------3-|--0-------3-|--0-------1-|--3-------0-|
-B|--1---------|--1---------|--1---------|--0---------|
-G|--0---------|--2---------|--2---------|--0---------|
-D|--2---------|--2---------|--3---------|--0---------|
-A|--3---------|--0---------|------------|--2---------|
-E|------------|------------|------------|--3---------|
-    bass   mel   bass   mel   bass   mel   bass   mel`},
-    {kind:"DRILL", name:"Ring test",
-     note:"Play the loop, then stop dead after the last chord and count how long it sustains. Any note that dies early is a finger lifting too soon. Fix the finger, not the volume knob.",
-     tab:
-`Play the four bars, then hold the last chord and count:
-1 ... 2 ... 3 ... 4 ...  is anything gone before four?`}
-  ],
-  listen:"An acoustic or stripped-back version if one exists — you want to hear fingers.",
-  watch:"How long the last chord of each phrase is allowed to hang before the next one starts."
-},
-{
-  id:"drdarkness", band:"goose", title:"Dr. Darkness", sub:"Minor-mode feature", ear:true,
-  tier:3, key:"?", keyLabel:"Find it by ear", bpm:104, beats:4, meter:"4/4",
-  focus:"Minor-mode colour, dynamics",
-  pitch:"The dark one. Today's work is <em>choosing which minor you're in and staying there</em> — natural, harmonic, or Dorian all sound completely different over the same bass note, and drifting between them by accident is the most common intermediate mistake.",
-  form:[["Ear check","1. Find the minor root.\n2. Hunt the seventh: natural (a whole step below the root) or raised (a half step)? That's natural vs harmonic minor.\n3. Then hunt the sixth for Dorian vs Aeolian. Now you know exactly where you are."]],
-  verify:"",
-  chords:["Am","G","Fmaj7","E"],
-  scales:[{root:"A",type:"aeolian",label:"A natural minor (practice key)"},{root:"A",type:"harmonic",label:"A harmonic minor"}],
-  figs:[
-    {kind:"DRILL", name:"Natural minor against harmonic minor",
-     note:"One note apart, and it changes everything. Play four bars of each over a droning A bass — the raised seventh in harmonic minor pulls hard toward the root and sounds much more dramatic. Choose deliberately.",
-     tab:
-`A natural minor — G natural
-e|-12--13--15--17-|
-    E   F   G   A
+{id:"truckin",t:"Truckin'",a:"Grateful Dead",sub:"American Beauty · 1970",band:"dead",key:"E",
+ sp:"https://open.spotify.com/track/1I6l01BaBgBCVkfQCpIlR6?utm_source=anthropic&utm_medium=claude",
+ ch:["E","A","B7"],
+ s:[{n:"Verse 1",l:["[E]Truckin', got my chips cashed in","Keep truckin', like the do-dah man",
+                    "[A]Together, more or less in [E]line","[B7]Just keep [A]truckin' [E]on"]},
+    {n:"Chorus",l:["[A]Sometimes the light's all shinin' on [E]me","[A]Other times I can barely [E]see",
+                   "[B7]Lately it occurs to me","[A]What a long, strange trip it's [E]been"],v:1},
+    {n:"Feel",b:"Shuffle the eighths — long-short, long-short. Straight for one bar and the tune dies."}]},
 
-A harmonic minor — G sharp
-e|-12--13--16--17-|
-    E   F   G#  A`},
-    {kind:"DRILL", name:"Whisper to roar",
-     note:"Eight bars. Bar one at the absolute quietest you can play cleanly; bar eight flat out. Nothing changes but your right hand. Most players jump the whole range in two bars — make it take eight.",
-     tab:
-`Bar   1    2    3    4    5    6    7    8
-Vol   .    .    :    :    |    |    #    #
-      pp   p    mp   mp   mf   f    ff   ff`}
-  ],
-  listen:"A version with a genuine dynamic build rather than a constant loud.",
-  watch:"The quietest bar in the song. It's quieter than you'd risk playing."
-},
-{
-  id:"turnedclouds", band:"goose", title:"Turned Clouds", sub:"Interlocking parts", ear:true,
-  tier:3, key:"?", keyLabel:"Find it by ear", bpm:108, beats:4, meter:"4/4",
-  focus:"Counterpoint, playing the other part",
-  pitch:"Today, <em>don't learn the guitar part</em>. Learn the keyboard line, or the bass line, and play that on guitar instead. It is the fastest way to stop sounding like a guitarist soloing over a band.",
-  form:[["Ear check","1. Find the root.\n2. Now ignore the guitar entirely. Pick out what the keys are playing.\n3. Play that line on the guitar against the record."]],
-  verify:"",
-  chords:["Am7","D","G","Em7"],
-  scales:[{root:"A",type:"dorian",label:"A Dorian (practice key)"},{root:"A",type:"aeolian",label:"A natural minor"}],
-  figs:[
-    {kind:"DRILL", name:"Pedal tone with a moving line",
-     note:"The open B rings through everything while the third string walks up A Dorian. Two independent voices from one hand — this is the texture that makes interlocking parts work.",
-     tab:
-`e|--------------------------------|
-B|--0---0---0---0---0---0---0---0-|
-G|--2---4---5---7---9--11--12--14-|
-    A   B   C   D   E   F#  G   A
-    (open B pedal above the whole line)`},
-    {kind:"DRILL", name:"Contrary motion",
-     note:"Two voices moving in opposite directions. Harder than it looks and it instantly makes a part sound arranged rather than strummed.",
-     tab:
-`e|--5---7---8--10--12-|      going up
-G|--9---7---6---4---2-|      coming down`}
-  ],
-  listen:"Anything with a long composed section — you want the arrangement, not the jam.",
-  watch:"Try to hear three separate melodic lines at once. There usually are."
-},
-{
-  id:"creatures", band:"goose", title:"Creatures", sub:"Groove riff", ear:true,
-  tier:1, key:"?", keyLabel:"Find it by ear", bpm:100, beats:4, meter:"4/4",
-  focus:"Rests as rhythm",
-  pitch:"A groove tune, which means <em>the silences are the part</em>. This is the easiest card here to play and the hardest to play well, because you have to be comfortable doing nothing for a beat and a half.",
-  form:[["Ear check","1. Find the root of the riff.\n2. Clap the rhythm — including the rests — before you touch the fretboard.\n3. Then play the drill."]],
-  verify:"",
-  chords:["Em","A","D"],
-  scales:[{root:"E",type:"minpent",label:"E minor pentatonic (practice key)"},{root:"E",type:"dorian",label:"E Dorian"}],
-  figs:[
-    {kind:"DRILL", name:"The riff, then the riff with holes in it",
-     note:"Play it as written for four bars. Then remove beat 3 entirely — don't replace it with anything. Then remove beat 1 as well. Each version should still feel like the same riff.",
-     tab:
-`e|--------------------------------|
-B|--------------------------------|
-G|--------------------------------|
-D|--9---9-------------9---9-------|
-A|--9---9-------------9---9-------|
-E|--7---7-------------7---7-------|
-    1   +   2   +   3   +   4   +`},
-    {kind:"DRILL", name:"Play half as many notes",
-     note:"Take any lick you already know and play it using exactly half the notes, over the same number of bars. Choose which half. That decision is the whole skill.",
-     tab:
-`Original   e|--5---7---8---7---5---7---8--10-|
-Halved     e|--5-------8-------5-------10----|`}
-  ],
-  listen:"A version with a tight, dry mix so you can hear the gaps.",
-  watch:"The bass fills most of the space the guitar leaves. That's the arrangement working."
-},
-{
-  id:"slowready", band:"goose", title:"Slow Ready", sub:"Patient build", ear:true,
-  tier:2, key:"?", keyLabel:"Find it by ear", bpm:82, beats:4, meter:"4/4",
-  focus:"Volume swells, sustain",
-  pitch:"Everything on this card is about <em>the attack you don't play</em>. Volume swells remove the pick attack entirely and turn the guitar into something closer to a bowed instrument. Slow, and worth the hour.",
-  form:[["Ear check","1. Slow tune — find the root, take your time.\n2. Identify the two or three chords the intro cycles through.\n3. Swell through them using the drill."]],
-  verify:"",
-  chords:["Cmaj7","Fmaj7","Am7","G"],
-  scales:[{root:"C",type:"major",label:"C major (practice key)"},{root:"C",type:"lydian",label:"C Lydian"}],
-  figs:[
-    {kind:"DRILL", name:"Volume swell through held chords",
-     note:"Roll the guitar volume to zero, strike the chord, then swell in over two full beats with your pinky on the knob. Roll back off before the next chord. Written in C — transpose freely.",
-     tab:
-`      Cmaj7                    Fmaj7
-e|--0-----------------|--0-----------------|
-B|--0-----------------|--1-----------------|
-G|--0-----------------|--2-----------------|
-D|--2-----------------|--3-----------------|
-A|--3-----------------|--------------------|
-    0 ---> full          0 ---> full
-    beat 1     beat 3    beat 1     beat 3`},
-    {kind:"DRILL", name:"Sustain audit",
-     note:"Strike one note and time how long it stays audible. Then find the fretting-hand pressure and pick attack that make it last longest. Most players press far too hard, which kills sustain rather than helping it.",
-     tab:
-`Single note, count the seconds:
-G|--9-------------------------------|
-   strike ... 1 ... 2 ... 3 ... 4 ...`}
-  ],
-  listen:"Any version with a long ambient intro.",
-  watch:"There's no pick attack at all on the first thirty seconds. Notes just appear."
-},
-{
-  id:"hungersite", band:"goose", title:"Hungersite", sub:"Moving changes", ear:true,
-  tier:3, key:"?", keyLabel:"Find it by ear", bpm:94, beats:4, meter:"4/4",
-  focus:"Guide tones through changes",
-  pitch:"When the chords move, pentatonic noodling stops working. The fix is <em>guide tones</em> — thirds and sevenths, the two notes that actually define each chord. Learn this and your solos start sounding like they know what the band is doing.",
-  form:[["Ear check","1. Find the key centre.\n2. Count how many bars each chord lasts — the changes move faster than most of this book.\n3. Then run the guide-tone drill in that key."]],
-  verify:"",
-  chords:["Am7","D7","Gmaj7","Cmaj7"],
-  scales:[{root:"G",type:"major",label:"G major (practice key)"},{root:"A",type:"dorian",label:"A Dorian"}],
-  figs:[
-    {kind:"DRILL", name:"Guide tones through ii – V – I",
-     note:"Two notes per chord: the third and the seventh. Look at how little they move — C stays put and becomes a different chord tone, G steps down to F#, then C steps down to B. That's voice leading, and it's the skeleton of every good solo over changes.",
-     tab:
-`      Am7       D7      Gmaj7
-B|--8-------7-------7-------|
-G|--5-------5-------4-------|
-    7th=G     3rd=F#    7th=F#
-    3rd=C     7th=C     3rd=B`},
-    {kind:"DRILL", name:"Land on the change",
-     note:"Solo freely for three beats, but on beat 4 you must be sitting on the third or seventh of the chord that's about to arrive. Nothing improves your playing over changes faster than this one rule.",
-     tab:
-`Bar 1  |  free  free  free  TARGET  |
-Bar 2  |  free  free  free  TARGET  |
+{id:"estimated",t:"Estimated Prophet",a:"Grateful Dead",sub:"Terrapin Station · 1977",band:"dead",key:"F♯ · 7/4",
+ sp:"https://open.spotify.com/track/3DI8C3OSwuXd8E947MWiSi?utm_source=anthropic&utm_medium=claude",
+ ch:["F#","B","E"],
+ s:[{n:"Intro — in 7/4",b:"|  F♯  |  F♯  |  F♯  |  F♯  |   count 1 2 3 4 5 6 7",
+     note:"Upstroke skank, nothing on the beat. Muted straight after each hit."},
+    {n:"Verse 1",l:["[F#]My time comin', any day, don't worry about me, no"]},
+    {n:"Chorus",l:["[B]California, [E]preachin' on the burning shore"],v:1},
+    {n:"Jam",b:"|  F♯  |   repeat, still in 7"}]},
 
-Target = 3rd or 7th of the NEXT chord`}
-  ],
-  listen:"A version where the composed section is played tight before it opens up.",
-  watch:"The guitar changes note the instant the chord does, not a beat later."
-}
+{id:"playing",t:"Playing in the Band",a:"Grateful Dead",sub:"Ace / Europe '72",band:"dead",key:"D · 10/4",
+ sp:"https://open.spotify.com/track/2cmjjIyZVgaPSU0rHLEQRI?utm_source=anthropic&utm_medium=claude",
+ ch:["D","C","G"],
+ s:[{n:"Riff — in 10/4",b:"|  D  …  …  …  …   C  ·  B  |   count in fives: 1 2 3 4 5 | 1 2 3 4 5",v:1},
+    {n:"Verse 1",l:["[D]Some folks trust to reason, [C]others trust to [G]might"],v:1},
+    {n:"Chorus",l:["[D]Playin', [C]playin' in the [G]band"],v:1},
+    {n:"Jam",b:"|  D  |   D Mixolydian — the meter goes out the window almost immediately"}]},
+
+{id:"bertha",t:"Bertha",a:"Grateful Dead",sub:"Skull & Roses · 1971",band:"dead",key:"G",
+ sp:"https://open.spotify.com/track/3ZYSrBWQXYgTe4tyKKIZ0D?utm_source=anthropic&utm_medium=claude",
+ ch:["G","C","D"],
+ s:[{n:"Verse 1",l:["[G]I had a hard run, runnin' from your [C]window","[G]I was all night runnin', runnin', Lord I wonder [D]why"],v:1},
+    {n:"Chorus",l:["[C]Bertha, don't you [G]come around here anymore","[C]Bertha, don't you [D]come around here any[G]more"],v:1},
+    {n:"Solo",b:"|  G  |  G  |  C  |  G  |   ×4",note:"Fast and loud. Bar sixty has to sound like bar one."}]},
+
+{id:"darkstar",t:"Dark Star",a:"Grateful Dead",sub:"Live/Dead · 1969",band:"dead",key:"A",
+ sp:"https://open.spotify.com/track/07CwWCJetytT1cSnQOgRMU?utm_source=anthropic&utm_medium=claude",
+ ch:["A","G"],
+ s:[{n:"Theme",b:"|  A  |  A  |  G  |  A  |   ×2"},
+    {n:"Verse 1",l:["[A]Dark star crashes, pouring its light into [G]ashes"]},
+    {n:"Jam",b:"|  A  |   repeat — usually twenty minutes plus",
+     note:"One idea, developed until it turns into a different idea. Nobody counts anything."},
+    {n:"Verse 2",l:["[A]Mirror shatters in formless reflections of [G]matter"]}]},
+
+/* ── from the charts you sent — transcribers credited on each card ─────── */
+{id:"dreadful",t:"Dreadful Wind and Rain",a:"Jerry Garcia & David Grisman",sub:"Traditional",band:"folk",key:"E",
+ src:"From the chord chart you sent",
+ ch:["E","A","D","B","C#m"],
+ s:[{n:"Verse 1",l:["[E]There were two sisters came walking down the [A]stream",
+                    "[D]Oh, the [A]wind and the [E]rain",
+                    "[E]One behind pushed the other one [A]in",
+                    "Cryin' [B]oh, the [C#m]dreadful wind [D]and [E]rain"]},
+    {n:"Verse 2",l:["Johnny gave the youngest a gay gold ring",
+                    "Oh, the wind and the rain",
+                    "Didn't give the oldest one anything",
+                    "Cryin' oh, the dreadful wind and rain"],
+     note:"Same changes as verse 1, and so is every verse after it."},
+    {n:"Verse 3",l:["Pushed her into the river to drown",
+                    "Oh, the wind and the rain",
+                    "And watched her as she floated down",
+                    "Cryin' oh, the dreadful wind and rain"]},
+    {n:"Melody riff",b:"Between verses — sits in E, straight off the fiddle line."}]},
+
+{id:"xmascard",t:"Christmas Card from a Hooker in Minneapolis",a:"Orebolo",sub:"Tom Waits · the Orebolo arrangement",band:"goose",key:"F♯",
+ src:"From the Orebolo chord chart you sent — different chords and intro to the Waits original",
+ sp:"https://open.spotify.com/track/2ejjD17iYBt8dt7sXSoDgT?utm_source=anthropic&utm_medium=claude",
+ ch:["F#","A#7","B7","D#m7","G#m7","C#7","F#7","A#","D#m","A#m7","B"],
+ s:[{n:"Intro",b:"F♯  A♯7  B7   ×2\nF♯  A♯7  D♯m7  B7\nG♯m7  C♯7  B7  F♯7  B7"},
+    {n:"Verse 1",l:["[F#]Charley I'm pregnant [A#7]and","[B7]living on 9th street",
+                    "[F#]right above a dirty [A#7]bookstore","[B7]off Euclid avenue",
+                    "[F#]I stopped taking [A#7]dope","[B7]and I quit drinking whiskey",
+                    "and my old man [G#m7]plays the trom[C#7]bone",
+                    "and [B7]works out at the [F#7]track [B7]"]},
+    {n:"Verse 2",l:["[F#]He says that he loves [A#7]me","[B7]even though it's not his baby",
+                    "[F#]and he says that he'll raise him [A#7]up","[B7]like he would his own son",
+                    "[F#]and he gave me a [A#7]ring","that was worn by his [D#m7]mother [B7]",
+                    "and he takes me out [G#m7]dancin' [C#7]","every [B7]saturday [F#]night [B7]"]}]},
+
+{id:"antichrist",t:"I Am the Antichrist to You",a:"Kishi Bashi",sub:"169 bpm",band:"goose",key:"Cm",
+ src:"From the chord chart you sent",
+ ch:["Cm","Bb","Eb","Ab","Fm"],
+ s:[{n:"The count",b:"Cm (4)  B♭ (2)  E♭ (4)  A♭ (6)\nFm (4)  Cm (2)  E♭ (4)  A♭ (10)\nE♭ (4)  B♭ (2)  Cm (4)  A♭ (6)\nFm (4)  Cm (2)  E♭ (4)  A♭ (10)",
+     note:"A 36-beat pattern that repeats the whole way through. Numbers are beats per chord — count them before you try to sing it."},
+    {n:"Chorus",l:["[Cm]Who are you? [Bb]Who am [Eb]I","[Ab]to you?",
+                   "[Fm]I am the [Cm]antichrist [Eb]to [Ab]you",
+                   "[Cm]fallen from the [Bb]sky [Eb]with [Ab]grace",
+                   "[Fm]into [Cm]your [Eb]arms [Ab]race"]},
+    {n:"Verse 1",l:["[Eb]Lucid lovers [Bb]me [Cm]and [Ab]you",
+                    "[Fm]a deal of [Cm]matchless [Eb]va-[Ab]lue",
+                    "[Cm]I was always [Bb]quick to [Eb]admit de[Ab]feat",
+                    "[Fm]empty state[Cm]ments of [Eb]bones and [Ab]meat"]},
+    {n:"Verse 2",l:["[Cm]And my heart it [Bb]shook with [Eb]fear [Ab]",
+                    "[Fm]I'm a coward be[Cm]hind a [Eb]shield and [Ab]spear",
+                    "[Cm]Take this sword and [Bb]throw it [Eb]far [Ab]",
+                    "[Fm]Let it shine un[Cm]der the [Eb]morning [Ab]star"]}]},
+
+{id:"merrygoround",t:"Merry Go 'Round",a:"Kacey Musgraves",sub:"Capo 4",band:"folk",key:"D",capo:4,
+ src:"From the handwritten tab you sent",
+ ch:["D","G","Em7","A","Em"],
+ s:[{n:"Picking pattern",b:"4 (32)  231  231  232",note:"Capo 4. Shapes below are what you finger; the tune sounds four frets higher."},
+    {n:"Intro",b:"|  D  |  D  |  D  |  D  |"},
+    {n:"Verse 1",l:["[D]If you ain't got 2 kids by 21","[D]You're probably gonna die alone",
+                    "[G]Least that's what tradition told you",
+                    "[D]And it don't matter if you don't believe","[D]Come Sunday morning you best be there",
+                    "[G]in the front row like you're supposed to"]},
+    {n:"Bridge",l:["[Em7]Same hurt in every [D]heart","[G]Same trailer different [A]park"]},
+    {n:"Chorus",l:["[G]Mama's hooked on Mary Kay","[G]Brother's hooked on Mary Jane",
+                   "[D]Daddy's hooked on Mary two doors [D]down",
+                   "[G]Mary Mary quite contrary","[G]We get bored so we get married",
+                   "[D]Just like dust we settle in this [D]town",
+                   "[G]On this broken [A]Merry Go","[D]'round and 'round and 'round we go",
+                   "[Em]Where it stops [G]nobody [D]knows","[A]and it ain't slowin' down",
+                   "[D]This merry go round"]},
+    {n:"Verse 2",l:["[D]We think the first time's good enough","[D]So we hold on to high school love",
+                    "[G]Sayin' we won't end up like our parents",
+                    "[D]Tiny little boxes in a row","[D]Ain't what you want, it's what you know",
+                    "[G]Just happy in the shoes you're wearin'"]}]},
+
+{id:"royal",t:"Royal",a:"Goose",sub:"Chain Yer Dragon · 6/4",band:"goose",key:"D · 6/4",
+ src:"From the tab you sent, transcribed by Gabriel Isaac · ♩=79",
+ ch:["D","G/B","C","G","F#m","Em","A","Bm","D/F#","D7","G#dim7","A#dim7"],
+ s:[{n:"Intro — 6/4",b:"|  D   G/B  C  |   ×4"},
+    {n:"Main riff",b:"Single-note line over the intro changes, then:\n|  G/B   C  |  G  |",
+     note:"The riff sits around the 8th-10th frets and slides into each landing note."},
+    {n:"Verse",b:"|  D  |  G    D  |  G    F♯m  |  Em   A   A  |\n|  D  |  G    G♯dim7   A   A♯dim7  |  Bm   A   G   D/F♯  |  Em   A   D   D7  |",
+     note:"The two diminished chords are passing chords — they last half a bar each and pull straight into the next shape."},
+    {n:"Chorus",b:"|  G  |  D  |  A  |  D    D7  |"}]},
+
+{id:"thatch",t:"Thatch",a:"Goose",sub:"Riff tune",band:"goose",key:"A7",
+ src:"From the tab you sent, transcribed by Jeremy Bousselot",
+ ch:["A7","Bbdim7","Em7","F#m7","G7","C7","C#dim7"],
+ s:[{n:"Intro riff",b:"e|------------------------------------|\nB|------------------------------------|\nG|------------------------------------|\nD|------------------------------------|\nA|--2---4---4---5---5---4---2---4-----|\nE|------------------------------------|   ×3",
+     note:"Low and walking. Let each note ring its full length — it's a bass line, not a strum."},
+    {n:"Chord section",b:"|  A7  |  A7  |  A7  |  A7  |\n|  B♭dim7  |  B♭dim7  |  B♭dim7  |  B♭dim7  |"},
+    {n:"Verse",b:"|  Em7   F♯m7   Em7   Em7  |   ×8"},
+    {n:"Break",b:"Bouncy G pentatonic riffs, then:\n|  G7  |   ×8   (with vocals)\n|  A7  |   ×8"}]}
 ];
 
-/* ── Full arrangements: sections in order, with bar counts, chords and a
-      lyric cue so you always know where you are. Dead cards only for now —
-      the Goose charts are pending a source I can actually reach.        */
-const ARRANGEMENTS = {
-franklins:[
- {n:"Intro",b:"8 bars",c:"|  A  |  G  |  D  |  A  |   ×2",note:"Straight into the vamp. Everything below sits on these same four bars — the sections are marked by the vocal, not by a chord change."},
- {n:"Verse 1",b:"8 bars",c:"|  A  |  G  |  D  |  A  |   ×2",q:"In another time's forgotten space / Your eyes looked from your mother's face"},
- {n:"Chorus",b:"8 bars",c:"|  A  |  G  |  D  |  A  |   ×2",q:"Roll away… the dew",note:"The band leans on the downbeat of each \"roll away\" and leaves the second half of the bar open. Answer it — this is where the guitar talks back to the vocal."},
- {n:"Verse 2",b:"8 bars",c:"|  A  |  G  |  D  |  A  |   ×2",q:"Wildflower seed on the sand and stone / May the four winds blow you safely home"},
- {n:"Jam",b:"open",c:"|  A  |  G  |  D  |  A  |   repeat",note:"Where the tune actually lives. Ten minutes is normal. Use the Mixolydian run below and keep the phrases long."},
- {n:"Out",b:"open",c:"|  A  |  G  |  D  |  A  |   repeat",q:"Roll away… the dew",note:"Chorus repeats and fades, or crashes straight into whatever's next."}],
+/* ══ engine ══ */
+const $ = id => document.getElementById(id);
+const BAND = {dead:"Grateful Dead", goose:"Goose", folk:"In the book"};
 
-fire:[
- {n:"Intro",b:"16 bars",c:"|  B  |  A  |   ×8",note:"Long, unhurried. Let the groove establish before anyone plays anything clever."},
- {n:"Verse 1",b:"16 bars",c:"|  B  |  A  |   ×8",q:"Long distance runner, what you standin' there for?"},
- {n:"Chorus",b:"8 bars",c:"|  B  |  A  |   ×4",q:"Fire! Fire on the mountain"},
- {n:"Verse 2",b:"16 bars",c:"|  B  |  A  |   ×8",q:"Almost ablaze still you don't feel the heat"},
- {n:"Jam",b:"open",c:"|  B  |  A  |   repeat",note:"Two chords, no destination. The whole art is the D♯/D half-step in the lick below."},
- {n:"Out",b:"open",c:"|  B  |  A  |   repeat",q:"Fire! Fire on the mountain"}],
+let S = {start:null, theme:null, seen:{}};
+try { const r = localStorage.getItem("woodshed.v2"); if (r) S = Object.assign(S, JSON.parse(r)); } catch(e){}
+const save = () => { try { localStorage.setItem("woodshed.v2", JSON.stringify(S)); } catch(e){} };
+const dayKey = (d=new Date()) => d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+if (!S.start){ S.start = dayKey(); save(); }
 
-eyes:[
- {n:"Intro",b:"8 bars",c:"|  Emaj7  |  Emaj7  |  Bm7  |  Bm7  |   ×2",note:"The riff enters over Emaj7. Play the 6ths figure below rather than strumming — this tune is never strummed."},
- {n:"Verse 1",b:"16 bars",c:"|  Emaj7  |  Emaj7  |  Bm7  |  Bm7  |   ×4",q:"Right outside this lazy summer home / You ain't got time to call your soul a critic"},
- {n:"Chorus",b:"8 bars",c:"|  A  |  B  |  E  |  E  |   ×2",q:"Wake up to find out that you are the eyes of the world",v:1},
- {n:"Verse 2",b:"16 bars",c:"|  Emaj7  |  Emaj7  |  Bm7  |  Bm7  |   ×4",q:"Wake up to find out that you are the eyes of the world"},
- {n:"Bridge",b:"8 bars",c:"|  A  |  Amaj7  |  E  |  E  |   ×2",q:"Sometimes we live no particular way but our own",v:1},
- {n:"Jam",b:"open",c:"|  Emaj7  |  Bm7  |   repeat",note:"Chord tones, not scales. The D♯ is what makes it Eyes — lean on it."},
- {n:"Coda",b:"open",c:"|  Emaj7  |  Bm7  |   repeat",note:"The tune winds down through the same two chords rather than resolving. Let it drift."}],
-
-shakedown:[
- {n:"Intro",b:"8 bars",c:"|  E9  |  E9  |  E9  |  E9  |   ×2",note:"Scratch groove only, no melody. Get the right hand moving before anything else happens."},
- {n:"Verse 1",b:"16 bars",c:"|  E9  |  E9  |  E9  |  E9  |   ×4",q:"You tell me this town ain't got no heart"},
- {n:"Chorus",b:"8 bars",c:"|  A  |  A  |  E9  |  E9  |   ×2",q:"Nothin' shakin' on Shakedown Street",v:1},
- {n:"Verse 2",b:"16 bars",c:"|  E9  |  E9  |  E9  |  E9  |   ×4",q:"Maybe you had too much of that Shakedown"},
- {n:"Jam",b:"open",c:"|  E9  |   repeat",note:"One chord. Keep scratching — the moment the right hand stops, the tune stops."},
- {n:"Out",b:"open",c:"|  A  |  A  |  E9  |  E9  |   repeat",q:"Nothin' shakin' on Shakedown Street"}],
-
-althea:[
- {n:"Intro",b:"4 bars",c:"|  Am  |  G  |  Fmaj7  |  G  |"},
- {n:"Verse 1",b:"8 bars",c:"|  Am  |  G  |  Fmaj7  |  G  |   ×2",q:"I told Althea I was feeling lost / Lacking in some direction",v:1},
- {n:"Refrain",b:"8 bars",c:"|  Am  |  G  |  Fmaj7  |  G  |   ×2",q:"Althea, told me upon investigation…",v:1},
- {n:"Verse 2",b:"8 bars",c:"|  Am  |  G  |  Fmaj7  |  G  |   ×2",q:"I told Althea I'm a roving sign"},
- {n:"Bridge",b:"8 bars",c:"|  Fmaj7  |  G  |  Am  |  Am  |   ×2",q:"There are things you can replace / And others you cannot",v:1},
- {n:"Solo",b:"open",c:"|  Am  |  G  |  Fmaj7  |  G  |   repeat",note:"Slow. Leave whole bars empty. The temptation to fill them is the thing to resist."}],
-
-ujb:[
- {n:"Intro",b:"8 bars",c:"|  G  |  C  |  G  |  C  |   ×2",note:"Picked, not strummed. Hold each shape down for the whole bar."},
- {n:"Verse 1",b:"16 bars",c:"|  G  |  C  |  G  |  C  |  G  |  D  |  G  |  G  |   ×2",q:"Well the first days are the hardest days, don't you worry any more"},
- {n:"Chorus",b:"8 bars",c:"|  G  |  C  |  G  |  D  |   ×2",q:"Come hear Uncle John's Band, playing to the tide",v:1},
- {n:"Verse 2",b:"16 bars",c:"|  G  |  C  |  G  |  C  |  G  |  D  |  G  |  G  |   ×2",q:"It's the same story the crow told me"},
- {n:"Bridge — in 7",b:"8 bars of 7/4",c:"|  G  |  C  |  G  |  C  |   ×2   (count 1 2 3 4 5 6 7)",q:"Whoa-oh, what I want to know: how does the song go?",v:1,note:"This is the whole reason the tune is hard. Set the click to 7 before you try it, accent 1 and 5, and count out loud."},
- {n:"Instrumental",b:"16 bars",c:"|  G  |  C  |  G  |  C  |   ×4",note:"Back in 4. The picked figure carries it."},
- {n:"Out",b:"8 bars",c:"|  G  |  C  |  G  |  D  |   ×2",q:"Come hear Uncle John's Band"}],
-
-ripple:[
- {n:"Intro",b:"4 bars",c:"|  G  |  G  |  C  |  G  |",note:"Travis pattern from the first note. Thumb steady, fingers on the off-beats."},
- {n:"Verse 1",b:"8 bars",c:"|  G  |  G  |  C  |  G  |  G  |  G  |  D  |  G  |",q:"If my words did glow with the gold of sunshine",v:1},
- {n:"Verse 2",b:"8 bars",c:"|  G  |  G  |  C  |  G  |  G  |  G  |  D  |  G  |",q:"It's a hand-me-down, the thoughts are broken"},
- {n:"Chorus",b:"8 bars",c:"|  C  |  G  |  C  |  G  |  Am  |  D  |  G  |  G  |",q:"Ripple in still water / When there is no pebble tossed",v:1},
- {n:"Break",b:"8 bars",c:"|  G  |  G  |  C  |  G  |  G  |  G  |  D  |  G  |",note:"The mandolin melody. Play it on the top two strings and keep the alternating bass going underneath — that's the hard part."},
- {n:"Verse 3",b:"8 bars",c:"|  G  |  G  |  C  |  G  |  G  |  G  |  D  |  G  |",q:"You who choose to lead must follow"},
- {n:"Out",b:"8 bars",c:"|  C  |  G  |  C  |  G  |  Am  |  D  |  G  |  G  |",q:"La da da da…"}],
-
-truckin:[
- {n:"Intro",b:"4 bars",c:"|  E  |  E  |  E  |  E  |",note:"Boogie figure straight in. Shuffle the eighths from the first bar or it never recovers."},
- {n:"Verse 1",b:"12 bars",c:"|  E  |  E  |  E  |  E  |  A  |  A  |  E  |  E  |  B7  |  A  |  E  |  E  |",q:"Truckin', got my chips cashed in"},
- {n:"Verse 2",b:"12 bars",c:"|  E  |  E  |  E  |  E  |  A  |  A  |  E  |  E  |  B7  |  A  |  E  |  E  |",q:"Most of the cats that you meet on the street speak of true love"},
- {n:"Chorus",b:"8 bars",c:"|  A  |  A  |  E  |  E  |  A  |  A  |  E  |  E  |",q:"Sometimes the light's all shinin' on me",v:1},
- {n:"Tag",b:"4 bars",c:"|  B7  |  A  |  E  |  E  |",q:"What a long, strange trip it's been"},
- {n:"Solo",b:"12 bars",c:"|  E  |  E  |  E  |  E  |  A  |  A  |  E  |  E  |  B7  |  A  |  E  |  E  |",note:"Over the verse. Turnaround below lands on the last two bars."}],
-
-estimated:[
- {n:"Intro",b:"4 bars of 7/4",c:"|  F♯  |  F♯  |  F♯  |  F♯  |   (count 1 2 3 4 5 6 7)",note:"Upstroke skank, nothing on the beat. Set the click to 7 and leave it there for the whole session."},
- {n:"Verse 1",b:"8 bars of 7/4",c:"|  F♯  |  F♯  |  F♯  |  F♯  |   ×2",q:"My time coming, any day, don't worry about me, no"},
- {n:"Chorus",b:"8 bars",c:"|  B  |  B  |  E  |  E  |   ×2",q:"California! Preaching on the burning shore",v:1,note:"The feel opens up here — the seven relaxes into something squarer. Listen hard to where the band puts the accent."},
- {n:"Verse 2",b:"8 bars of 7/4",c:"|  F♯  |  F♯  |  F♯  |  F♯  |   ×2",q:"My time coming, voices saying they tell me where to go"},
- {n:"Jam",b:"open",c:"|  F♯  |   repeat in 7",note:"Stays in seven. This is the payoff for all the counting."}],
-
-playing:[
- {n:"Riff",b:"in 10",c:"|  D … … … …  C  ·  B  |   (count in fives: 1 2 3 4 5 | 1 2 3 4 5)",v:1,note:"Ten beats to the bar, counted as two fives. The D–C–B descent at the end is what turns it around."},
- {n:"Verse 1",b:"8 bars",c:"|  D  |  D  |  C  |  C  |  G  |  G  |  D  |  D  |",q:"Some folks trust to reason, others trust to might",v:1},
- {n:"Chorus",b:"8 bars",c:"|  D  |  C  |  G  |  D  |   ×2",q:"Playin', playin' in the band",v:1},
- {n:"Jam",b:"open",c:"|  D  |   D Mixolydian, meter optional",note:"The band leaves the ten behind almost immediately and goes wherever it goes. Follow."},
- {n:"Return",b:"in 10",c:"|  D … … … …  C  ·  B  |   repeat",note:"The riff comes back to signal the end. Everyone lands on it together, from wherever they were."}],
-
-bertha:[
- {n:"Intro",b:"4 bars",c:"|  G  |  G  |  G  |  G  |"},
- {n:"Verse 1",b:"8 bars",c:"|  G  |  G  |  C  |  G  |   ×2",q:"I had a hard run, runnin' from your window",v:1},
- {n:"Chorus",b:"8 bars",c:"|  C  |  G  |  D  |  G  |   ×2",q:"Bertha, don't you come around here anymore",v:1},
- {n:"Verse 2",b:"8 bars",c:"|  G  |  G  |  C  |  G  |   ×2",q:"I ran into a rainstorm, ducked back in a bar door"},
- {n:"Solo",b:"16 bars",c:"|  G  |  G  |  C  |  G  |   ×4",note:"Open position, big and loud. Bar sixty has to sound like bar one — that's the whole test."},
- {n:"Out",b:"8 bars",c:"|  C  |  G  |  D  |  G  |   ×2",q:"Bertha, don't you come around here anymore"}],
-
-darkstar:[
- {n:"Theme",b:"8 bars",c:"|  A  |  A  |  G  |  A  |   ×2",note:"The descending Mixolydian theme below. Play it once cleanly, then start taking it apart."},
- {n:"Verse 1",b:"8 bars",c:"|  A  |  A  |  G  |  A  |   ×2",q:"Dark star crashes, pouring its light into ashes"},
- {n:"Jam",b:"open — usually 20 minutes plus",c:"|  A  |   A Mixolydian, or wherever it goes",note:"Ninety percent of the tune. One idea, developed until it becomes a different idea. Nobody counts anything."},
- {n:"Verse 2",b:"8 bars",c:"|  A  |  A  |  G  |  A  |   ×2",q:"Mirror shatters in formless reflections of matter",note:"Arrives whenever the band decides it does, often after a very long time away."},
- {n:"Out",b:"open",c:"|  A  |   repeat or leave",note:"Rarely ends. Usually turns into the next tune."}]
-};
-BOOK.forEach(s => { s.arr = ARRANGEMENTS[s.id] || null; if (s.arr) s.form = null; });
-
-/* ── Spotify: real tracks, pulled from the catalogue and pinned per tune ──
-   a = the reference take, b = the long one to play along with.           */
-const SPOTIFY = {
- franklins:{a:{u:"https://open.spotify.com/track/3PgIhd4XmwtmV2XGU5qhzZ?utm_source=anthropic&utm_medium=claude",ms:274942,l:"Blues for Allah"},
-            b:{u:"https://open.spotify.com/track/7ylOP2XUFwDxJMI1olIchg?utm_source=anthropic&utm_medium=claude",ms:440233,l:"6/5/75 rehearsal — instrumental"}},
- fire:{a:{u:"https://open.spotify.com/track/4DpBfWl3q8e0gGB76lAaox?utm_source=anthropic&utm_medium=claude",ms:229009,l:"Shakedown Street"},
-       b:{u:"https://open.spotify.com/track/0r9ZSCNXKinpOBUl943m3l?utm_source=anthropic&utm_medium=claude",ms:940426,l:"Barton Hall, 5/8/77"}},
- eyes:{a:{u:"https://open.spotify.com/track/5pHVAQ5LD3RgDG5m11r2Jt?utm_source=anthropic&utm_medium=claude",ms:320502,l:"Wake of the Flood"},
-       b:{u:"https://open.spotify.com/track/52MqDE277uUvpgLmTv5O6t?utm_source=anthropic&utm_medium=claude",ms:378747,l:"Take 16, 8/10/73"}},
- shakedown:{a:{u:"https://open.spotify.com/track/1lNRVjK8MukRZpeurYssIx?utm_source=anthropic&utm_medium=claude",ms:300209,l:"Shakedown Street"},
-            b:{u:"https://open.spotify.com/track/5G34d3lA8ZiQYDYFio49di?utm_source=anthropic&utm_medium=claude",ms:832000,l:"Oakland, 12/26/79"}},
- althea:{a:{u:"https://open.spotify.com/track/5sz1xQRiw9Tu3mkLzhcHTj?utm_source=anthropic&utm_medium=claude",ms:412333,l:"Go to Heaven"},
-         b:{u:"https://open.spotify.com/track/6tLJfms92i27IibnbaMbsz?utm_source=anthropic&utm_medium=claude",ms:502533,l:"Nassau Coliseum, 5/80"}},
- ujb:{a:{u:"https://open.spotify.com/track/0kp728Knw5PYvU3QzMZ0yJ?utm_source=anthropic&utm_medium=claude",ms:284909,l:"Workingman's Dead"},
-      b:{u:"https://open.spotify.com/track/4LgIygjK2c1aBHKrNCdDQy?utm_source=anthropic&utm_medium=claude",ms:443754,l:"Oakland, 7/24/87"}},
- ripple:{a:{u:"https://open.spotify.com/track/1OE5l6sedVcIFELMuxQOPI?utm_source=anthropic&utm_medium=claude",ms:249733,l:"American Beauty"}},
- truckin:{a:{u:"https://open.spotify.com/track/1I6l01BaBgBCVkfQCpIlR6?utm_source=anthropic&utm_medium=claude",ms:306973,l:"American Beauty"}},
- estimated:{a:{u:"https://open.spotify.com/track/3DI8C3OSwuXd8E947MWiSi?utm_source=anthropic&utm_medium=claude",ms:336578,l:"Terrapin Station"},
-            b:{u:"https://open.spotify.com/track/7LyhNlqeMeuFCWsCyQmlut?utm_source=anthropic&utm_medium=claude",ms:1397560,l:"Estimated > Terrapin, Hershey 6/28/85"}},
- playing:{a:{u:"https://open.spotify.com/track/2cmjjIyZVgaPSU0rHLEQRI?utm_source=anthropic&utm_medium=claude",ms:735706,l:"Lyceum, London 5/24/72"},
-          b:{u:"https://open.spotify.com/track/2AdeCWEkjE4bzsJ9sDcNkU?utm_source=anthropic&utm_medium=claude",ms:1081800,l:"Lyceum, London 5/26/72"}},
- bertha:{a:{u:"https://open.spotify.com/track/3IWEh4iRJVXqjwecoUG1hH?utm_source=anthropic&utm_medium=claude",ms:206360,l:"Studio"},
-         b:{u:"https://open.spotify.com/track/3ZYSrBWQXYgTe4tyKKIZ0D?utm_source=anthropic&utm_medium=claude",ms:340306,l:"Fillmore East, 4/27/71"}},
- darkstar:{a:{u:"https://open.spotify.com/track/07CwWCJetytT1cSnQOgRMU?utm_source=anthropic&utm_medium=claude",ms:1398706,l:"Live/Dead, Fillmore West 1969"},
-           b:{u:"https://open.spotify.com/track/2vlf8Kfh8OqPO1u8avPuEN?utm_source=anthropic&utm_medium=claude",ms:1887533,l:"Veneta, Oregon 8/27/72"}},
- arcadia:{a:{u:"https://open.spotify.com/track/0oGnHTdtPTgTqTJVeWw0EU?utm_source=anthropic&utm_medium=claude",ms:395013,l:"Studio"},
-          b:{u:"https://open.spotify.com/track/6NfciAMS6T3QWvRIxtViJM?utm_source=anthropic&utm_medium=claude",ms:1092477,l:"Live, with Trey Anastasio"}},
- madhuvan:{a:{u:"https://open.spotify.com/track/0eP1h0dYEYZd8NVZ8lLcJC?utm_source=anthropic&utm_medium=claude",ms:615750,l:"Studio"},
-           b:{u:"https://open.spotify.com/track/0yxufZyt74bTM5omaD26gR?utm_source=anthropic&utm_medium=claude",ms:1244606,l:"Live"}},
- yeti:{a:{u:"https://open.spotify.com/track/1usJfJH0qtWv2yoTT0a1jz?utm_source=anthropic&utm_medium=claude",ms:317826,l:"Studio"},
-       b:{u:"https://open.spotify.com/track/10iafsibschWkQpVYVmQRV?utm_source=anthropic&utm_medium=claude",ms:532624,l:"Live, 12.21.19"}},
- hottea:{a:{u:"https://open.spotify.com/track/1zsZmJz6s6azGJQiWBt3eL?utm_source=anthropic&utm_medium=claude",ms:434394,l:"Studio"},
-         b:{u:"https://open.spotify.com/track/3vM6d0LGwzhjmpry8GlW6w?utm_source=anthropic&utm_medium=claude",ms:1019624,l:"Live, 8.10.19"}},
- arrow:{a:{u:"https://open.spotify.com/track/1K4A2plberZZomPeQlJS6u?utm_source=anthropic&utm_medium=claude",ms:351637,l:"Studio"},
-        b:{u:"https://open.spotify.com/track/6eTjb2mDYgQ0s955XRytHI?utm_source=anthropic&utm_medium=claude",ms:1666827,l:"Live"}},
- tumble:{a:{u:"https://open.spotify.com/track/5QcDEzitMKdiWSOswPFRrc?utm_source=anthropic&utm_medium=claude",ms:364778,l:"Studio"},
-         b:{u:"https://open.spotify.com/track/2VUfnnfIvIrhKebmlARrfH?utm_source=anthropic&utm_medium=claude",ms:1265600,l:"Part I, live"}},
- elizabeth:{a:{u:"https://open.spotify.com/track/5m9lJbFwrTj9FdSEOtTPS6?utm_source=anthropic&utm_medium=claude",ms:238037,l:"Studio"},
-            b:{u:"https://open.spotify.com/track/6qM2L9IGHukpGFiGoT3NAj?utm_source=anthropic&utm_medium=claude",ms:350760,l:"Live"}},
- drdarkness:{a:{u:"https://open.spotify.com/track/1LkjfVfNFLMsagyTCoklJG?utm_source=anthropic&utm_medium=claude",ms:356928,l:"Studio"},
-             b:{u:"https://open.spotify.com/track/28XVFutCpAmiT1iisswng8?utm_source=anthropic&utm_medium=claude",ms:418687,l:"Live"}},
- turnedclouds:{a:{u:"https://open.spotify.com/track/1hg62xKv8YPbkQ01nak3yH?utm_source=anthropic&utm_medium=claude",ms:390506,l:"Studio"},
-               b:{u:"https://open.spotify.com/track/1W5NrzPqrw3gVn0HsUANob?utm_source=anthropic&utm_medium=claude",ms:756435,l:"Live"}},
- creatures:{a:{u:"https://open.spotify.com/track/6zW6MbzW17w6wnDsPu4zX1?utm_source=anthropic&utm_medium=claude",ms:932013,l:"Studio"},
-            b:{u:"https://open.spotify.com/track/3pfTgcjlw4cpDz6wkQARAM?utm_source=anthropic&utm_medium=claude",ms:1277525,l:"Extended"}},
- slowready:{a:{u:"https://open.spotify.com/track/19AXHJvTBkh8n9aRrlRqv6?utm_source=anthropic&utm_medium=claude",ms:306562,l:"Studio"},
-            b:{u:"https://open.spotify.com/track/2ejjD17iYBt8dt7sXSoDgT?utm_source=anthropic&utm_medium=claude",ms:242752,l:"Orebolo, acoustic — OurVinyl"}},
- hungersite:{a:{u:"https://open.spotify.com/track/5FKKjiUjOXu9Kinlkc1VzA?utm_source=anthropic&utm_medium=claude",ms:426602,l:"Studio"},
-             b:{u:"https://open.spotify.com/track/1sDaTKoUr1C6kSc6Y8g8Qp?utm_source=anthropic&utm_medium=claude",ms:1079711,l:"Live"}}
-};
-BOOK.forEach(s => { s.sp = SPOTIFY[s.id] || null; });
-function mmss(ms){ const t=Math.round(ms/1000); return Math.floor(t/60)+":"+String(t%60).padStart(2,"0"); }
-
-/* ══════════════════════════════════════════════════════════════════════════
-   ENGINE
-   ══════════════════════════════════════════════════════════════════════════ */
-
-const LENSES = [
-  {id:"changes", name:"Lens · Changes",
-   blurb:"Today you are not soloing. Get through the whole form — right chords, right bar count, no stopping to fix things. A tune you can't play the changes to is a tune you can't jam on."},
-  {id:"riff", name:"Lens · Riff",
-   blurb:"One figure, clean, from slow to full tempo. No moving on until it survives at speed three times in a row. Slow practice is the only kind that sticks."},
-  {id:"solo", name:"Lens · Solo",
-   blurb:"Improvise over the changes using the scale on the fretboard below. Target chord tones on the downbeats and let everything else be passing. Phrase in four-bar sentences with breaths between them."},
-  {id:"jam", name:"Lens · Jam",
-   blurb:"Put the record on and play the whole thing start to finish without stopping — mistakes included. Recovery is the skill being trained today, not accuracy."}
-];
-
-const NOTES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
-const PC = {C:0,"C#":1,Db:1,D:2,"D#":3,Eb:3,E:4,F:5,"F#":6,Gb:6,G:7,"G#":8,Ab:8,A:9,"A#":10,Bb:10,B:11};
-const SCALES = {
-  major:     {ivals:[0,2,4,5,7,9,11], degs:["1","2","3","4","5","6","7"]},
-  mixolydian:{ivals:[0,2,4,5,7,9,10], degs:["1","2","3","4","5","6","b7"]},
-  dorian:    {ivals:[0,2,3,5,7,9,10], degs:["1","2","b3","4","5","6","b7"]},
-  aeolian:   {ivals:[0,2,3,5,7,8,10], degs:["1","2","b3","4","5","b6","b7"]},
-  lydian:    {ivals:[0,2,4,6,7,9,11], degs:["1","2","3","#4","5","6","7"]},
-  harmonic:  {ivals:[0,2,3,5,7,8,11], degs:["1","2","b3","4","5","b6","7"]},
-  majpent:   {ivals:[0,2,4,7,9],      degs:["1","2","3","5","6"]},
-  minpent:   {ivals:[0,3,5,7,10],     degs:["1","b3","4","5","b7"]},
-  blues:     {ivals:[0,3,5,6,7,10],   degs:["1","b3","4","b5","5","b7"]}
-};
-const CHORD_TONE = new Set(["3","b3","5","7","b7"]);
-const OPEN = [4,9,2,7,11,4];          // low E → high e, as pitch classes
-const STRING_LABELS = ["E","A","D","G","B","e"];
-
-/* ── storage ─────────────────────────────────────────────────────────────── */
-const KEY = "woodshed.v1";
-let S = {log:{}, status:{}, notes:{}, swaps:{}, theme:null, start:null};
-try { const raw = localStorage.getItem(KEY); if (raw) S = Object.assign(S, JSON.parse(raw)); } catch(e){}
-function save(){ try { localStorage.setItem(KEY, JSON.stringify(S)); } catch(e){} }
-
-/* ── the day ─────────────────────────────────────────────────────────────── */
-function todayKey(d){ d = d || new Date();
-  return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
-if (!S.start){ S.start = todayKey(); save(); }         // day one is the day you first open it
 function dayNumber(){
-  const p = S.start.split("-").map(Number);
-  const start = new Date(p[0], p[1]-1, p[2]);
-  const now = new Date(), a = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  return Math.max(0, Math.round((a - start)/86400000));
+  const p = S.start.split("-").map(Number), st = new Date(p[0],p[1]-1,p[2]);
+  const n = new Date(), a = new Date(n.getFullYear(),n.getMonth(),n.getDate());
+  return Math.max(0, Math.round((a-st)/86400000));
 }
-function mulberry32(a){ return function(){ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
-function cycleOrder(cycle){
-  const idx = BOOK.map((_,i)=>i), rnd = mulberry32(cycle*2654435761 + 12345);
+function mulberry32(a){ return () => { a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a);
+  t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+function pickToday(){
+  const N = BOOK.length, n = dayNumber(), cycle = Math.floor(n/N), pos = n % N;
+  const idx = BOOK.map((_,i)=>i), rnd = mulberry32(cycle*2654435761+7);
   for (let i=idx.length-1;i>0;i--){ const j=Math.floor(rnd()*(i+1)); [idx[i],idx[j]]=[idx[j],idx[i]]; }
-  return idx;
+  return BOOK[idx[pos]];
 }
-function pickForDay(){
-  const n = dayNumber(), N = BOOK.length;
-  const cycle = Math.floor(n/N), pos = n % N;
-  const order = cycleOrder(cycle);
-  const bump = S.swaps[todayKey()] || 0;
-  const song = BOOK[ order[(pos + bump) % N] ];
-  const lens = LENSES[(pos + cycle + bump) % LENSES.length];
-  return {song, lens, n, cycle, pos};
-}
+let viewing = null;
+const current = () => viewing ? (BOOK.find(s=>s.id===viewing) || pickToday()) : pickToday();
 
-let preview = null;                    // a song id being previewed from the book
-function current(){
-  const d = pickForDay();
-  if (preview){ const s = BOOK.find(x=>x.id===preview); if (s) return {song:s, lens:d.lens, n:d.n, cycle:d.cycle, preview:true}; }
-  return d;
-}
-
-/* ── practice plan, generated from the tune + the lens ───────────────────── */
-function buildPlan(song, lens){
-  const bpm = song.bpm, slow = Math.round(bpm*0.6), mid = Math.round(bpm*0.8);
-  const figRiff = song.figs[0].name, figTwo = song.figs[1] ? song.figs[1].name : song.figs[0].name;
-  const scale = song.scales[0].label;
-  const earStep = song.ear
-    ? [["3 min","Ear check first","Root, then third, then sixth. Do not skip this — every other step depends on it."]]
-    : [];
-  const plans = {
-    changes:(()=>{
-      const secs = song.arr ? song.arr.filter(x=>!/^(Jam|Solo|Out|Return|Coda|Break)/.test(x.n)) : null;
-      const names = secs && secs.length ? secs.map(x=>x.n).join(" → ") : null;
-      return [
-      ...earStep,
-      ["3 min","Chord shapes, no rhythm","Finger each voicing in the panel below, one at a time. Check every string sounds before you move."],
-      ["5 min","Sections at "+slow+" bpm", names
-        ? "One section at a time, in order: "+names+". Get each one clean on its own before you join any two together."
-        : "Click on. One chord per bar, change cleanly. If a change is late, stay here longer."],
-      ["7 min","Top to bottom at "+mid+" bpm", song.arr
-        ? "Now the whole arrangement, start to finish, four times. No stopping to fix things — note where it breaks and keep going."
-        : "Play the whole chart through, four times, without stopping to fix anything."],
-      ["5 min","Up to "+bpm+" bpm","Tempo. Accept that it gets scrappy — that is information about which change is weakest."]
-      ];
-    })(),
-    riff:[
-      ...earStep,
-      ["4 min",'"'+figRiff+'" at '+slow+" bpm","Slow enough that it is boring. Every note clean, correct fingering, no exceptions."],
-      ["8 min","Ladder to tempo","Up eight bpm at a time. Three clean passes before each increase; drop back two steps on any buzz."],
-      ["5 min",'"'+figTwo+'"',"Second figure, same treatment, less time. Get it under the fingers, not up to speed."],
-      ["3 min","In context", song.arr
-        ? "Drop the figure into the arrangement above — play the section it belongs to, then the one after it. A riff you can only play in isolation isn't learned."
-        : "Play the figure into the changes and back out. A riff you can only play in isolation isn't learned."]
-    ],
-    solo:[
-      ...earStep,
-      ["4 min",scale+", one position","Up and down the shape on the fretboard below until you stop thinking about it."],
-      ["5 min","Chord tones only","Improvise using nothing but the amber notes. It will feel restrictive. That's the exercise."],
-      ["8 min","Free over the vamp at "+bpm+" bpm","Four-bar phrases with a full bar of silence between each. The silence is not optional."],
-      ["3 min","One idea, developed","Take your best phrase from the last eight minutes and spend three minutes doing only that."]
-    ],
-    jam:(()=>{
-      const t = song.sp && (song.sp.b || song.sp.a);
-      const len = t ? mmss(t.ms) : "16 min";
-      return [
-        ...earStep,
-        ["2 min","Warm up on the changes","Loosely. You're not rehearsing, you're getting the shape back."],
-        [len, t ? "Play "+(/^(Live|Studio|Extended)$/.test(t.l) ? "the "+t.l.toLowerCase()+" version" : t.l)+" through"
-                : "Play the record through",
-         "Start to finish, no stopping, no rewinding. When you fall off, find your way back in without pausing."+
-         (t ? " The link is under Reference recording above." : "")],
-        ["2 min","Write down where it broke","One line in the notebook below. Which section, which bar, what happened."]
-      ];
-    })()
-  };
-  return plans[lens.id];
-}
-
-/* ── fretboard ───────────────────────────────────────────────────────────── */
-const FRETS = 15, FW = 42, SH = 25, PADL = 32, PADT = 26;
-let fbShowNames = false, fbScale = 0;
-function drawFretboard(song){
-  const svg = document.getElementById("fb");
-  const sc = song.scales[fbScale] || song.scales[0];
-  const root = PC[sc.root], def = SCALES[sc.type];
-  const W = PADL + FRETS*FW + 22, H = PADT + 5*SH + 34;
-  const ns = "http://www.w3.org/2000/svg";
-  svg.setAttribute("viewBox","0 0 "+W+" "+H);
-  svg.setAttribute("width", W); svg.setAttribute("height", H);
-  while (svg.firstChild) svg.removeChild(svg.firstChild);
-  const el = (t,a)=>{ const n=document.createElementNS(ns,t); for(const k in a) n.setAttribute(k,a[k]); return n; };
-
-  for (const f of [3,5,7,9,12,15]){
-    if (f>FRETS) continue;
-    svg.appendChild(el("rect",{x:PADL+(f-1)*FW+2,y:PADT-6,width:FW-4,height:5*SH+12,
-      fill:"var(--tape)",rx:2}));
-  }
-  for (let f=0; f<=FRETS; f++){
-    svg.appendChild(el("line",{x1:PADL+f*FW,y1:PADT,x2:PADL+f*FW,y2:PADT+5*SH,
-      stroke:f===0?"var(--ink)":"var(--rule-2)","stroke-width":f===0?4:1}));
-  }
-  for (let s=0; s<6; s++){
-    svg.appendChild(el("line",{x1:PADL,y1:PADT+s*SH,x2:PADL+FRETS*FW,y2:PADT+s*SH,
-      stroke:"var(--rule-2)","stroke-width":0.8+ (5-s)*0.22}));
-    const lb = el("text",{x:PADL-12,y:PADT+s*SH+4,"text-anchor":"end",
-      fill:"var(--ink-3)","font-size":10,"font-family":"IBM Plex Mono, monospace"});
-    lb.textContent = STRING_LABELS[5-s]; svg.appendChild(lb);
-  }
-  for (const f of [3,5,7,9,12,15]){
-    if (f>FRETS) continue;
-    const t = el("text",{x:PADL+(f-0.5)*FW,y:PADT+5*SH+20,"text-anchor":"middle",
-      fill:"var(--ink-3)","font-size":10,"font-family":"IBM Plex Mono, monospace"});
-    t.textContent = f; svg.appendChild(t);
-  }
-  for (let s=0; s<6; s++){
-    const open = OPEN[5-s];
-    for (let f=0; f<=FRETS; f++){
-      const pc = (open+f)%12, iv = (pc-root+12)%12, k = def.ivals.indexOf(iv);
-      if (k<0) continue;
-      const deg = def.degs[k], isRoot = iv===0, isCT = CHORD_TONE.has(deg);
-      const cx = f===0 ? PADL-1 : PADL+(f-0.5)*FW, cy = PADT+s*SH;
-      const fill = isRoot ? "var(--hot)" : isCT ? "var(--amber)" : "var(--deck)";
-      svg.appendChild(el("circle",{cx:cx,cy:cy,r:9.5,fill:fill,
-        stroke:isRoot||isCT ? "none" : "var(--ink-3)","stroke-width":1.2}));
-      const t = el("text",{x:cx,y:cy+3.4,"text-anchor":"middle","font-size":9,
-        "font-family":"IBM Plex Mono, monospace","font-weight":600,
-        fill:(isRoot||isCT)?"var(--amber-ink)":"var(--ink-2)"});
-      t.textContent = fbShowNames ? NOTES[pc] : deg;
-      svg.appendChild(t);
-    }
-  }
-}
-
-/* ── chord diagrams ──────────────────────────────────────────────────────── */
-function chordSVG(name){
-  const v = VOICINGS[name]; if (!v) return null;
-  const played = v.filter(f=>f>0);
+/* ── chord diagram with finger numbers ── */
+function diagram(name){
+  const v = V[name]; if (!v) return null;
+  const [frets, fing, barre] = v;
+  const played = frets.filter(f=>f>0);
   const min = played.length ? Math.min(...played) : 1;
   const max = played.length ? Math.max(...played) : 1;
   const base = (max>4 && min>1) ? min : 1;
-  const W=62, H=76, X=8, Y=18, sw=9, fh=12;
+  const W=86, H=96, X=11, Y=26, sw=10.4, fh=14;
   const ns="http://www.w3.org/2000/svg";
   const svg=document.createElementNS(ns,"svg");
-  svg.setAttribute("viewBox","0 0 "+W+" "+H); svg.setAttribute("width",W); svg.setAttribute("height",H);
+  svg.setAttribute("viewBox",`0 0 ${W} ${H}`); svg.setAttribute("width",W); svg.setAttribute("height",H);
+  svg.setAttribute("aria-label", name+" chord shape");
   const el=(t,a)=>{const n=document.createElementNS(ns,t); for(const k in a) n.setAttribute(k,a[k]); return n;};
   svg.appendChild(el("rect",{x:X,y:Y,width:sw*5,height:fh*4,fill:"none",stroke:"var(--rule-2)","stroke-width":1}));
-  if (base===1) svg.appendChild(el("rect",{x:X,y:Y-2.5,width:sw*5,height:2.5,fill:"var(--ink-2)"}));
-  else { const t=el("text",{x:X-4,y:Y+9,"text-anchor":"end","font-size":8,fill:"var(--ink-3)","font-family":"IBM Plex Mono, monospace"}); t.textContent=base; svg.appendChild(t); }
+  if (base===1) svg.appendChild(el("rect",{x:X-.5,y:Y-3,width:sw*5+1,height:3,fill:"var(--ink-2)"}));
+  else { const t=el("text",{x:X+sw*5+7,y:Y+10,"font-size":8.5,fill:"var(--ink-3)","font-family":"IBM Plex Mono, monospace"});
+         t.textContent=base+"fr"; svg.appendChild(t); }
   for(let i=1;i<4;i++) svg.appendChild(el("line",{x1:X,y1:Y+i*fh,x2:X+sw*5,y2:Y+i*fh,stroke:"var(--rule-2)","stroke-width":.7}));
   for(let i=0;i<6;i++) svg.appendChild(el("line",{x1:X+i*sw,y1:Y,x2:X+i*sw,y2:Y+fh*4,stroke:"var(--rule-2)","stroke-width":.7}));
-  v.forEach((f,i)=>{
+  if (barre){
+    const row = barre - base;
+    const on = frets.map((f,i)=>f===barre?i:-1).filter(i=>i>=0);
+    if (on.length>1 && row>=0 && row<4)
+      svg.appendChild(el("rect",{x:X+on[0]*sw-4.2,y:Y+row*fh+fh/2-4.2,width:(on[on.length-1]-on[0])*sw+8.4,
+        height:8.4,rx:4.2,fill:"var(--amber)"}));
+  }
+  frets.forEach((f,i)=>{
     const x = X + i*sw;
-    if (f===-1 || f===0){
-      const t=el("text",{x:x,y:Y-5,"text-anchor":"middle","font-size":8,
+    if (f<=0){
+      const t=el("text",{x:x,y:Y-7,"text-anchor":"middle","font-size":9,
         fill:f===-1?"var(--ink-3)":"var(--ink-2)","font-family":"IBM Plex Mono, monospace"});
-      t.textContent = f===-1 ? "x" : "o"; svg.appendChild(t);
-    } else {
-      const row = f - base;
-      if (row<0 || row>3) return;
-      svg.appendChild(el("circle",{cx:x, cy:Y+row*fh+fh/2, r:3.6, fill:"var(--amber)"}));
+      t.textContent = f===-1?"×":"○"; svg.appendChild(t); return;
     }
+    const row = f - base; if (row<0||row>3) return;
+    const cy = Y+row*fh+fh/2;
+    svg.appendChild(el("circle",{cx:x,cy:cy,r:4.6,fill:"var(--amber)"}));
+    const n = fing && fing[i];
+    if (n){ const t=el("text",{x:x,y:cy+3,"text-anchor":"middle","font-size":7.5,"font-weight":700,
+      fill:"var(--amber-ink)","font-family":"IBM Plex Mono, monospace"}); t.textContent=n; svg.appendChild(t); }
   });
   return svg;
 }
 
-/* ── metronome ───────────────────────────────────────────────────────────── */
-let ac=null, mRunning=false, mBpm=100, mBeats=4, mBeat=0, mNext=0, mTimer=null, mSub=false;
-let ladder=false, ladderStage=0, ladderBars=0, mTarget=100;
-const LADDER=[0.6,0.75,0.9,1.0];
-function tick(time, accent, sub){
-  const o=ac.createOscillator(), g=ac.createGain();
-  o.frequency.value = accent?1760:(sub?880:1245);
-  g.gain.setValueAtTime(sub?0.055:0.22, time);
-  g.gain.exponentialRampToValueAtTime(0.0008, time+0.05);
-  o.connect(g); g.connect(ac.destination); o.start(time); o.stop(time+0.06);
-}
-function scheduler(){
-  while (mNext < ac.currentTime + 0.12){
-    const b = mBeat % mBeats;
-    tick(mNext, b===0, false);
-    if (mSub) tick(mNext + 30/mBpm, false, true);
-    const at = mNext;
-    setTimeout(()=>flashBeat(b), Math.max(0,(at-ac.currentTime)*1000));
-    mNext += 60/mBpm; mBeat++;
-    if (mBeat % mBeats === 0 && ladder){
-      ladderBars++;
-      if (ladderBars>=4){ ladderBars=0; ladderStage=(ladderStage+1)%LADDER.length; setBpm(Math.round(mTarget*LADDER[ladderStage])); }
-    }
-  }
-}
-function flashBeat(b){
-  const dots = document.querySelectorAll("#beats .beat");
-  dots.forEach((d,i)=>d.classList.toggle("on", i===b));
-  if (!mRunning) dots.forEach(d=>d.classList.remove("on"));
-}
-function startMetro(){
-  if (!ac) ac = new (window.AudioContext||window.webkitAudioContext)();
-  if (ac.state==="suspended") ac.resume();
-  mRunning=true; mBeat=0; mNext=ac.currentTime+0.08;
-  mTimer=setInterval(scheduler,25);
-  document.getElementById("metroBtn").textContent="Stop";
-  document.getElementById("metroBtn").classList.remove("pri");
-}
-function stopMetro(){
-  mRunning=false; clearInterval(mTimer); mTimer=null;
-  document.querySelectorAll("#beats .beat").forEach(d=>d.classList.remove("on"));
-  document.getElementById("metroBtn").textContent="Start";
-  document.getElementById("metroBtn").classList.add("pri");
-}
-function setBpm(v){
-  mBpm = Math.min(220, Math.max(40, Math.round(v)));
-  document.getElementById("bpmNum").textContent = mBpm;
-  document.getElementById("bpmRange").value = mBpm;
-  document.getElementById("bpmPct").textContent = mTarget ? Math.round(mBpm/mTarget*100)+"% of tempo" : "";
-}
-function setBeats(n){
-  mBeats = n;
-  const box = document.getElementById("beats"); box.innerHTML="";
-  for (let i=0;i<n;i++){ const d=document.createElement("div"); d.className="beat"+(i===0?" one":""); box.appendChild(d); }
+/* ── [C]hord-over-lyric → wrapping units ── */
+function parseLine(src){
+  const out=[]; let chord="";
+  src.split(/(\[[^\]]+\])/).filter(x=>x!=="").forEach(p=>{
+    if (p[0]==="[" && p[p.length-1]==="]"){ chord = p.slice(1,-1); return; }
+    const words = p.match(/\S+\s*/g);
+    if (!words){ if (chord){ out.push({c:chord,w:""}); chord=""; } return; }
+    words.forEach((w,i)=>out.push({c: i===0?chord:"", w}));
+    chord="";
+  });
+  if (chord) out.push({c:chord,w:""});
+  return out;
 }
 
-/* ── render ──────────────────────────────────────────────────────────────── */
-const $ = id => document.getElementById(id);
-const TIERS = ["", "Intermediate · I", "Intermediate · II", "Intermediate · III"];
-const BAND = {dead:"Grateful Dead", goose:"Goose"};
-
+/* ── render ── */
 function render(){
-  const {song, lens, n, preview:isPrev} = current();
+  const s = current(), today = pickToday();
+  $("todayLbl").textContent = (s.id===today.id && !viewing) ? "Today's tune" : "From the book";
+  $("wm").textContent = s.t;
+  $("title").textContent = s.t;
+  document.title = s.t + " — The Daily Woodshed";
 
-  const d = new Date();
-  $("dateStamp").textContent = isPrev
-    ? "From the book · not today's draw"
-    : d.toLocaleDateString(undefined,{weekday:"long",month:"long",day:"numeric",year:"numeric"});
-  $("lensName").textContent = lens.name;
-  $("lensBlurb").textContent = lens.blurb;
+  const meta = $("meta"); meta.innerHTML = "";
+  const tag = (cls, txt) => { const e=document.createElement("span"); e.className="tag "+cls; e.textContent=txt; meta.appendChild(e); };
+  tag(s.band, s.a);
+  tag("key", "Key of " + s.key);
+  if (s.capo) tag("plain", "Capo " + s.capo);
+  if (s.sub) { const e=document.createElement("span"); e.style.cssText="font-size:14px;color:var(--ink-3)"; e.textContent=s.sub; meta.appendChild(e); }
 
-  $("songNum").textContent = "№ " + String(BOOK.indexOf(song)+1).padStart(2,"0");
-  $("songTitle").textContent = song.title;
+  const play = $("play");
+  if (s.sp){ play.hidden=false; play.href=s.sp; $("playLbl").textContent="Play it"; } else play.hidden=true;
 
-  const by = $("byline"); by.innerHTML = "";
-  const chip = (cls,txt)=>{ const s=document.createElement("span"); s.className="chip "+cls; s.textContent=txt; return s; };
-  by.appendChild(chip(song.band, BAND[song.band]));
-  by.appendChild(chip("tier", TIERS[song.tier]));
-  if (song.ear) by.appendChild(chip("ear","Ear-first"));
-  const sub=document.createElement("span"); sub.textContent=song.sub; by.appendChild(sub);
+  const shelf=$("shelf"), row=$("shelfrow"); row.innerHTML="";
+  const shapes = (s.ch||[]).map(n=>[n,diagram(n)]).filter(x=>x[1]);
+  shelf.hidden = !shapes.length;
+  shapes.forEach(([n,svg])=>{
+    const c=document.createElement("div"); c.className="card";
+    const t=document.createElement("div"); t.className="nm"; t.textContent=n;
+    c.appendChild(t); c.appendChild(svg); row.appendChild(c);
+  });
 
-  $("pitch").innerHTML = song.pitch;
-
-  $("spec").innerHTML =
-    [["Key", song.keyLabel],["Tempo", song.bpm+" bpm"],["Meter", song.meter],["Focus", song.focus]]
-    .map(([l,v])=>'<div><span class="l">'+l+'</span><span class="v" style="'+
-      (l==="Focus" ? 'font-family:\'IBM Plex Sans\',sans-serif;font-size:13.5px;line-height:1.45;display:block' : '')+
-      '">'+v+"</span></div>").join("");
-
-  const ref=$("ref"); ref.innerHTML="";
-  [["Reference recording", song.listen],["Listen for", song.watch]].forEach(([l,v])=>{
-    const w=document.createElement("div");
-    const lb=document.createElement("span"); lb.className="l"; lb.textContent=l;
-    const pp=document.createElement("p"); pp.textContent=v;
-    w.appendChild(lb); w.appendChild(pp);
-    if (l==="Reference recording" && song.sp){
-      const row=document.createElement("div"); row.className="splinks";
-      ["a","b"].forEach(k=>{
-        const t=song.sp[k]; if(!t) return;
-        const a=document.createElement("a");
-        a.className="splink"; a.href=t.u; a.target="_blank"; a.rel="noopener noreferrer";
-        a.innerHTML='<svg width="13" height="13" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor">'+
-          '<path d="M12 2a10 10 0 100 20 10 10 0 000-20zm4.6 14.4a.75.75 0 01-1 .25c-2.8-1.7-6.3-2.1-10.4-1.15a.75.75 0 11-.33-1.46c4.5-1.02 8.4-.56 11.5 1.34.35.22.46.68.24 1.02zm1.2-2.9a.94.94 0 01-1.3.3c-3.2-1.96-8-2.53-11.8-1.4a.94.94 0 11-.54-1.8c4.3-1.3 9.6-.66 13.3 1.6.44.27.58.85.31 1.3zm.1-3a1.12 1.12 0 01-1.54.37c-3.6-2.14-9.6-2.34-13.1-1.29a1.12 1.12 0 11-.65-2.15c4-1.2 10.6-.97 14.8 1.5.53.32.7 1.01.38 1.55z"/></svg>'+
-          '<span></span><span class="dur"></span>';
-        a.querySelectorAll("span")[0].textContent=t.l;
-        a.querySelectorAll("span")[1].textContent=mmss(t.ms);
-        row.appendChild(a);
+  const chart=$("chart"); chart.innerHTML="";
+  s.s.forEach(sec=>{
+    const w=document.createElement("div"); w.className="sect";
+    const h=document.createElement("div"); h.className="sname";
+    const b=document.createElement("b"); b.textContent=sec.n;
+    const i=document.createElement("i");
+    h.appendChild(b); h.appendChild(i); w.appendChild(h);
+    if (sec.b){ const pre=document.createElement("div"); pre.className="bars"; pre.textContent=sec.b; w.appendChild(pre); }
+    if (sec.l) sec.l.forEach(src=>{
+      const ln=document.createElement("div"); ln.className="line";
+      parseLine(src).forEach(u=>{
+        const el=document.createElement("span"); el.className="u";
+        const c=document.createElement("span"); c.className="c"; c.textContent=u.c||"";
+        const t=document.createElement("span"); t.className="w"; t.textContent=u.w||"\u00a0";
+        el.appendChild(c); el.appendChild(t); ln.appendChild(el);
       });
-      w.appendChild(row);
-    }
-    ref.appendChild(w);
-  });
-
-  // plan
-  const plan = $("plan"); plan.innerHTML="";
-  buildPlan(song, lens).forEach(([t,head,body])=>{
-    const li=document.createElement("li");
-    li.innerHTML='<span class="t mono">'+t+'</span><span class="body"><strong></strong><span></span></span>';
-    li.querySelector("strong").textContent=head;
-    li.querySelector(".body span").textContent=body;
-    plan.appendChild(li);
-  });
-
-  // the arrangement
-  const arr=$("arr"), pend=$("pending");
-  arr.innerHTML="";
-  if (song.arr){
-    pend.hidden=true;
-    song.arr.forEach(sec=>{
-      const li=document.createElement("li");
-      const h=document.createElement("div"); h.className="arrhead";
-      const nm=document.createElement("span"); nm.className="arrname"; nm.textContent=sec.n;
-      const bb=document.createElement("span"); bb.className="arrbars"; bb.textContent=sec.b;
-      h.appendChild(nm); h.appendChild(bb);
-      const bd=document.createElement("div"); bd.className="arrbody";
-      const ch=document.createElement("div"); ch.className="arrchords"; ch.textContent=sec.c;
-      bd.appendChild(ch);
-      if (sec.q){ const q=document.createElement("div"); q.className="arrcue"; q.textContent=sec.q; bd.appendChild(q); }
-      if (sec.v){ const v=document.createElement("span"); v.className="soft"; v.textContent="verify this section"; bd.appendChild(v); }
-      if (sec.note){ const nt=document.createElement("p"); nt.className="arrnote"; nt.textContent=sec.note; bd.appendChild(nt); }
-      li.appendChild(h); li.appendChild(bd); arr.appendChild(li);
+      w.appendChild(ln);
     });
-  } else {
-    pend.hidden=false;
-    pend.innerHTML='<strong>No chart yet — and I would rather leave it blank than guess.</strong>'+
-      '<p>I can\'t reconstruct this one\'s chords reliably, and inventing a progression would just fight the record when you play along. '+
-      'The tab sites are blocked from where this was built, so the fix is to hand me the chart directly — paste the tab into the chat, or drop it in Google Drive and say where. '+
-      'It becomes a full arrangement like the others the same day.</p>'+
-      '<p style="margin-top:10px">Until then this card is ear-first: find the key, work the technique below, play along with the record.</p>';
-  }
-
-  // chart note — the ear check on pending cards, the caveat on charted ones
-  $("chartNoteTitle").textContent = song.arr ? "Before you trust this chart" : "Ear check";
-  $("chartNote").hidden = !(song.form || song.verify);
-  const bars=$("bars"); bars.innerHTML="";
-  const noteTitle = $("chartNoteTitle").textContent.toLowerCase();
-  (song.form || []).forEach(([label, body])=>{
-    const w=document.createElement("div"); w.className="barrow";
-    if (!label.toLowerCase().startsWith(noteTitle)){          // don't echo the panel heading
-      const l=document.createElement("div"); l.className="l"; l.textContent=label;
-      w.appendChild(l);
-    }
-    const b=document.createElement("div"); b.className="b"; b.textContent=body;
-    if (song.ear) b.style.fontSize="13px";
-    w.appendChild(b); bars.appendChild(w);
-  });
-  const vn=$("verifyNote");
-  if (song.verify){ vn.hidden=false;
-    vn.innerHTML='<svg width="13" height="13" viewBox="0 0 13 13" aria-hidden="true"><path d="M6.5 1 12 11.5H1z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M6.5 5v3.2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="6.5" cy="9.8" r=".7" fill="currentColor"/></svg><span></span>';
-    vn.querySelector("span").textContent = song.verify;
-  } else vn.hidden=true;
-
-  // chords
-  const cw=$("chords"); cw.innerHTML="";
-  song.chords.forEach(name=>{
-    const svg=chordSVG(name); if(!svg) return;
-    const box=document.createElement("div"); box.className="chordbox";
-    const cn=document.createElement("div"); cn.className="cn"; cn.textContent=name;
-    box.appendChild(cn); box.appendChild(svg); cw.appendChild(box);
+    if (sec.v){ const v=document.createElement("span"); v.className="soft"; v.textContent="check this"; w.appendChild(v); }
+    if (sec.note){ const p=document.createElement("p"); p.className="snote"; p.textContent=sec.note; w.appendChild(p); }
+    chart.appendChild(w);
   });
 
-  // figures
-  const fw=$("figs"); fw.innerHTML="";
-  song.figs.forEach(f=>{
-    const d2=document.createElement("div"); d2.className="fig";
-    const h=document.createElement("div"); h.className="fighead";
-    const k=document.createElement("span"); k.className="kind "+f.kind; k.textContent=f.kind;
-    const nm=document.createElement("span"); nm.className="nm"; nm.textContent=f.name;
-    h.appendChild(k); h.appendChild(nm);
-    const note=document.createElement("p"); note.className="fignote"; note.textContent=f.note;
-    const pre=document.createElement("pre"); pre.className="tab"; pre.textContent=f.tab;
-    d2.appendChild(h); d2.appendChild(note); d2.appendChild(pre); fw.appendChild(d2);
-  });
+  const after=$("after");
+  if (s.src){ after.hidden=false; after.innerHTML="<strong>Source.</strong> "; after.append(s.src+"."); }
+  else { after.hidden=false; after.innerHTML="<strong>Later verses</strong> run on the same changes as verse one."; }
 
-  // tools
-  mTarget = song.bpm; setBeats(song.beats); setBpm(song.bpm);
-  fbScale = 0; drawFretboard(song);
-  const sp=$("scalePicker"); sp.innerHTML="";
-  song.scales.forEach((s,i)=>{
-    const b=document.createElement("button"); b.type="button";
-    b.className="btn sm"+(i===0?" on":""); b.textContent=s.label;
-    b.onclick=()=>{ fbScale=i; drawFretboard(song);
-      sp.querySelectorAll(".btn").forEach((x,j)=>x.classList.toggle("on", j===i)); };
-    sp.appendChild(b);
-  });
-
-  // notebook
-  $("noteBox").value = S.notes[song.id] || "";
-  document.querySelectorAll("[data-status]").forEach(b=>
-    b.classList.toggle("on", (S.status[song.id]||"new")===b.dataset.status));
-
-  // day controls
-  const logged = !!S.log[todayKey()];
-  $("doneBtn").textContent = logged ? "Logged ✓ — good day" : "Log today's session";
-  $("doneBtn").classList.toggle("pri", !logged);
-  $("swapBtn").textContent = isPrev ? "Back to today's draw" : "Not feeling it — swap";
-  const sw = S.swaps[todayKey()] || 0;
-  $("swapNote").textContent = isPrev ? "" : (sw ? "swapped "+sw+"×" : "");
-
-  $("cDay").textContent = n+1;
-  $("cGot").textContent = Object.values(S.status).filter(v=>v==="got").length;
-  $("cStreak").textContent = streak();
-  renderLib();
+  window.scrollTo({top:0,behavior:"auto"});
 }
 
-function streak(){
-  let c=0, d=new Date();
-  if (!S.log[todayKey(d)]) d.setDate(d.getDate()-1);
-  while (S.log[todayKey(d)]){ c++; d.setDate(d.getDate()-1); }
-  return c;
-}
-
-/* ── the book ────────────────────────────────────────────────────────────── */
-let filter="all";
-function renderLib(){
-  const f=$("filters");
-  if (!f.dataset.built){
-    [["all","Everything"],["dead","Grateful Dead"],["goose","Goose"],["work","Working it"],["got","Under fingers"]]
-      .forEach(([id,label])=>{
-        const b=document.createElement("button"); b.type="button"; b.className="btn sm"; b.dataset.f=id; b.textContent=label;
-        b.onclick=()=>{ filter=id; renderLib(); }; f.appendChild(b);
-      });
-    f.dataset.built="1";
-  }
-  f.querySelectorAll("[data-f]").forEach(b=>b.classList.toggle("on", b.dataset.f===filter));
-
-  const rows = BOOK.filter(s=>{
-    if (filter==="all") return true;
-    if (filter==="dead"||filter==="goose") return s.band===filter;
-    return (S.status[s.id]||"new")===filter;
-  });
-  const body=$("libBody"); body.innerHTML="";
-  const cur = current().song.id;
-  rows.forEach(s=>{
-    const st=S.status[s.id]||"new";
-    const tr=document.createElement("tr"); tr.className="r";
-    tr.innerHTML =
-      '<td class="tt"><span class="dot '+s.band+'"></span><span></span></td>'+
-      '<td class="mk"></td><td class="mk"></td><td></td>'+
-      '<td class="mk '+(st==="got"?"got":st==="work"?"work":"")+'"></td>';
-    const tds=tr.querySelectorAll("td");
-    tds[0].querySelector("span:last-child").textContent = s.title + (s.id===cur ? "  ←" : "");
-    tds[1].textContent = s.ear ? "by ear" : s.key;
-    tds[2].textContent = s.bpm;
-    tds[3].textContent = s.focus;
-    tds[4].textContent = st==="got" ? "under fingers" : st==="work" ? "working it" : "—";
-    tr.onclick=()=>{ preview = (preview===s.id) ? null : s.id; render(); window.scrollTo({top:0,behavior:"smooth"}); };
-    body.appendChild(tr);
+/* ── song list ── */
+function buildList(){
+  const body=$("listBody"); body.innerHTML="";
+  const today = pickToday();
+  const groups = [["Grateful Dead","dead"],["Goose & the covers","goose"],["Also in the book","folk"]];
+  groups.forEach(([label,band])=>{
+    const items = BOOK.filter(s=>s.band===band); if (!items.length) return;
+    const g=document.createElement("div"); g.className="grp"; g.textContent=label; body.appendChild(g);
+    items.forEach(s=>{
+      const b=document.createElement("button"); b.type="button";
+      b.className="row"+(s.id===today.id?" on":"");
+      b.innerHTML='<span class="rn"><span class="rt"></span><span class="rs"></span></span><span class="rk"></span>';
+      b.querySelector(".rt").textContent = s.t + (s.id===today.id ? "  ·  today" : "");
+      b.querySelector(".rs").textContent = s.a + (s.capo ? "  ·  capo "+s.capo : "");
+      b.querySelector(".rk").textContent = s.key;
+      b.onclick = () => { viewing = s.id; closeSheet(); render(); };
+      body.appendChild(b);
+    });
   });
 }
+const openSheet  = () => { buildList(); $("sheet").hidden=false; document.body.style.overflow="hidden"; };
+const closeSheet = () => { $("sheet").hidden=true; document.body.style.overflow=""; };
 
-/* ── wiring ──────────────────────────────────────────────────────────────── */
-$("doneBtn").onclick = ()=>{ S.log[todayKey()]=true; save(); render(); };
-$("swapBtn").onclick = ()=>{
-  if (preview){ preview=null; render(); return; }
-  const k=todayKey(); S.swaps[k]=(S.swaps[k]||0)+1; save(); render();
-};
-document.querySelectorAll("[data-status]").forEach(b=>{
-  b.onclick=()=>{ S.status[current().song.id]=b.dataset.status; save(); render(); };
-});
-let noteT=null;
-$("noteBox").oninput = ()=>{
-  clearTimeout(noteT);
-  noteT=setTimeout(()=>{ S.notes[current().song.id]=$("noteBox").value; save();
-    $("noteSaved").textContent="saved"; setTimeout(()=>$("noteSaved").innerHTML="&nbsp;",1400); },500);
-};
-$("metroBtn").onclick = ()=> mRunning ? stopMetro() : startMetro();
-$("bpmRange").oninput = e => setBpm(+e.target.value);
-document.querySelectorAll("[data-pct]").forEach(b=>{
-  b.onclick=()=>{ ladder=false; $("ladderBtn").textContent="Ladder: off"; $("ladderBtn").classList.remove("on");
-    $("ladderNote").textContent=""; setBpm(mTarget * (+b.dataset.pct)/100); };
-});
-$("subBtn").onclick = ()=>{ mSub=!mSub; $("subBtn").textContent="8ths: "+(mSub?"on":"off"); $("subBtn").classList.toggle("on",mSub); };
-$("ladderBtn").onclick = ()=>{
-  ladder=!ladder; ladderStage=0; ladderBars=0;
-  $("ladderBtn").textContent="Ladder: "+(ladder?"on":"off");
-  $("ladderBtn").classList.toggle("on",ladder);
-  $("ladderNote").textContent = ladder ? "60 → 75 → 90 → 100%, 4 bars each" : "";
-  if (ladder) setBpm(Math.round(mTarget*LADDER[0]));
-};
-let taps=[];
-$("tapBtn").onclick = ()=>{
-  const now=performance.now();
-  taps = taps.filter(t=>now-t<2200); taps.push(now);
-  if (taps.length>1){
-    const gaps=[]; for(let i=1;i<taps.length;i++) gaps.push(taps[i]-taps[i-1]);
-    setBpm(60000/(gaps.reduce((a,b)=>a+b,0)/gaps.length));
-  }
-};
-$("fbToggle").onclick = ()=>{
-  fbShowNames=!fbShowNames;
-  $("fbToggle").textContent = "Show: "+(fbShowNames?"notes":"degrees");
-  drawFretboard(current().song);
-};
-$("themeBtn").onclick = ()=>{
+$("listBtn").onclick = openSheet;
+$("closeSheet").onclick = closeSheet;
+$("themeBtn").onclick = () => {
   const now = document.documentElement.getAttribute("data-theme");
   const next = now==="dark" ? "light" : now==="light" ? null : "dark";
   if (next) document.documentElement.setAttribute("data-theme", next);
   else document.documentElement.removeAttribute("data-theme");
   S.theme = next; save();
-  const cur = current().song; drawFretboard(cur);
 };
 if (S.theme) document.documentElement.setAttribute("data-theme", S.theme);
-document.addEventListener("keydown", e=>{
-  if (e.target.tagName==="TEXTAREA" || e.target.tagName==="INPUT") return;
-  if (e.code==="Space"){ e.preventDefault(); mRunning?stopMetro():startMetro(); }
-});
-
 render();
 </script>
