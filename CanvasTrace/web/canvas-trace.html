@@ -441,7 +441,7 @@
     <div class="err" id="camErr"></div>
     <div class="tip" id="framedTip" hidden>
       <svg viewBox="0 0 24 24"><path d="M14 4h6v6"></path><path d="M20 4l-9 9"></path><path d="M18 13v6H5V6h6"></path></svg>
-      <div>For the camera to work, this page needs its own tab. <span>Tap Open in Safari, then add it to your Home Screen for a full-screen app.</span></div>
+      <div>For the camera to work, this page needs its own Safari tab. <span>Copy this link into Safari, then add it to your Home Screen for a full-screen app:</span><br><a id="standaloneLink" href="https://cdn.jsdelivr.net/gh/dughogan/dughogan@claude/iphone-ar-painting-overlay-qt9dps/CanvasTrace/web/index.html" target="_blank" rel="noopener" style="color:var(--accent);word-break:break-all;font-size:13px">https://cdn.jsdelivr.net/gh/dughogan/dughogan@claude/iphone-ar-painting-overlay-qt9dps/CanvasTrace/web/index.html</a></div>
     </div>
     <div class="start-actions">
       <button class="primary" id="startBtn">
@@ -450,7 +450,7 @@
       </button>
       <button class="ghost" id="openBtn" hidden>
         <svg viewBox="0 0 24 24"><path d="M14 4h6v6"></path><path d="M20 4l-9 9"></path><path d="M18 13v6H5V6h6"></path></svg>
-        Open in Safari
+        Copy link for Safari
       </button>
       <label class="ghost" id="startPick">
         <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"></rect><circle cx="8.5" cy="10" r="1.5"></circle><path d="M21 16l-5-5-8 8"></path></svg>
@@ -1390,7 +1390,13 @@ $('startBtn').addEventListener('click', startCamera);
 if (window.self !== window.top) {
   $('framedTip').hidden = false;
   $('openBtn').hidden = false;
-  $('openBtn').addEventListener('click', () => { window.open(location.href, '_blank', 'noopener'); });
+  $('openBtn').addEventListener('click', async () => {
+    const url = $('standaloneLink').href;
+    let copied = false;
+    try { await navigator.clipboard.writeText(url); copied = true; } catch (e) {}
+    const w = window.open(url, '_blank', 'noopener');
+    if (!w) toast(copied ? 'Link copied. Paste it into Safari.' : 'Copy the link above and paste it into Safari.', 4000);
+  });
 }
 
 /* ---------- tracking loop ---------- */
