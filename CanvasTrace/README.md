@@ -55,3 +55,9 @@ CanvasTrace/
 ## How the AR placement works
 
 A tap raycasts against detected planes. A world anchor is created at the hit with its Y axis along the surface normal. The textured quad is a child of a gesture container: the quad carries only an "upright" correction (image top toward the ceiling on walls, away from the viewer on tables), and the container carries the user's drag, scale and rotation. Re-placing the image moves the container to a new anchor and keeps the user's adjustments.
+
+## Web version
+
+`web/canvas-trace.html` is a single-file browser version of the same idea that runs in Safari on iPhone with no install. It has no ARKit, so it tracks the canvas itself: drag the image's four corners onto the canvas, tap Pin, and a Lucas–Kanade optical-flow tracker with a RANSAC homography keeps the overlay glued to the canvas plane while you move handheld. Points are re-anchored to the frame you pinned in through the current homography, so the overlay does not drift over time, and a coarse search re-acquires the canvas after it leaves view.
+
+Open it over https (the camera requires it), or publish it as a Claude artifact and open the link directly in Safari.

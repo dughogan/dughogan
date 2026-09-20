@@ -1,0 +1,1638 @@
+<title>CanvasTrace</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=Young+Serif&display=swap">
+<style>
+  :root {
+    color-scheme: dark;
+    --ground: #141311;
+    --surface: #22201d;
+    --surface-2: #2d2a26;
+    --line: #3a3631;
+    --text: #f1ebe2;
+    --muted: #9c948a;
+    --accent: #72b8dc;
+    --accent-ink: #0d1a22;
+    --good: #7cc08a;
+    --warn: #e1a85b;
+    --bad: #e07a6a;
+    --grid: #e0443a;
+    --font-ui: "Instrument Sans", "Helvetica Neue", Arial, sans-serif;
+    --font-display: "Young Serif", Georgia, "Times New Roman", serif;
+    --radius: 14px;
+    padding: 0 !important;
+  }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--text);
+    font-family: var(--font-ui);
+    font-size: 15px;
+    line-height: 1.4;
+    overflow: hidden;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior: none;
+  }
+  button { font: inherit; color: inherit; }
+  button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* ---------- stage ---------- */
+  #stage {
+    position: fixed; inset: 0;
+    background: var(--ground);
+    touch-action: none;
+    overflow: hidden;
+  }
+  #video {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    object-fit: cover;
+    background: #000;
+  }
+  #overlay {
+    position: absolute; top: 0; left: 0;
+    transform-origin: 0 0;
+    pointer-events: none;
+    will-change: transform, opacity;
+    image-rendering: auto;
+  }
+  #debug {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+  }
+  #frame {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+  }
+  #frame polygon {
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 1.5;
+    stroke-dasharray: 6 5;
+    opacity: .9;
+  }
+  #frame.pinned polygon { stroke: var(--good); stroke-dasharray: none; opacity: .8; }
+  #frame.lost polygon { stroke: var(--warn); }
+  #stage.locked #frame { opacity: 0; }
+  .handle {
+    position: absolute; top: 0; left: 0;
+    width: 44px; height: 44px;
+    margin: -22px 0 0 -22px;
+    border-radius: 50%;
+    display: grid; place-items: center;
+    touch-action: none;
+    cursor: grab;
+  }
+  .handle::after {
+    content: "";
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: var(--text);
+    border: 3px solid var(--accent);
+    box-shadow: 0 1px 6px rgba(0,0,0,.6);
+  }
+  #frame.pinned ~ .handle::after { border-color: var(--good); }
+  #frame.lost ~ .handle::after { border-color: var(--warn); }
+  #stage.locked .handle, #stage.nohandles .handle { display: none; }
+
+  /* ---------- chrome ---------- */
+  #top {
+    position: fixed; top: 0; left: 0; right: 0;
+    padding: calc(env(safe-area-inset-top, 0px) + 10px) 14px 10px;
+    display: flex; align-items: center; gap: 10px;
+    pointer-events: none;
+    background: linear-gradient(to bottom, rgba(20,19,17,.72), rgba(20,19,17,0));
+  }
+  #top > * { pointer-events: auto; }
+  .brand {
+    font-family: var(--font-display);
+    font-size: 19px;
+    letter-spacing: .01em;
+    text-shadow: 0 1px 4px rgba(0,0,0,.7);
+  }
+  .chip {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 6px 11px;
+    border-radius: 999px;
+    background: rgba(34,32,29,.82);
+    -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+    border: 1px solid var(--line);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+    max-width: 60vw;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    font-variant-numeric: tabular-nums;
+  }
+  .chip .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex: none; }
+  .chip.pinned .dot { background: var(--good); }
+  .chip.lost .dot { background: var(--warn); }
+  .chip.error .dot { background: var(--bad); }
+  .spacer { flex: 1; }
+  .icon-btn {
+    width: 42px; height: 42px;
+    border-radius: 50%;
+    border: 1px solid var(--line);
+    background: rgba(34,32,29,.82);
+    -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+    display: grid; place-items: center;
+    cursor: pointer;
+    flex: none;
+  }
+  .icon-btn svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .icon-btn.on { color: var(--warn); border-color: var(--warn); }
+  .icon-btn[disabled] { opacity: .4; cursor: default; }
+
+  #dock {
+    position: fixed; left: 0; right: 0; bottom: 0;
+    padding: 10px 12px calc(env(safe-area-inset-bottom, 0px) + 10px);
+    display: flex; flex-direction: column; gap: 10px;
+    background: linear-gradient(to top, rgba(20,19,17,.9), rgba(20,19,17,.55) 70%, rgba(20,19,17,0));
+  }
+  .dock-row { display: flex; align-items: center; gap: 10px; }
+  .primary {
+    flex: 1;
+    height: 50px;
+    border-radius: var(--radius);
+    border: 0;
+    background: var(--accent);
+    color: var(--accent-ink);
+    font-weight: 600;
+    font-size: 16px;
+    letter-spacing: .01em;
+    cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .primary.unpin { background: var(--surface-2); color: var(--text); border: 1px solid var(--line); }
+  .primary[disabled] { opacity: .45; cursor: default; }
+  .primary svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+  .slider {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 12px;
+    border-radius: var(--radius);
+    background: rgba(34,32,29,.85);
+    border: 1px solid var(--line);
+    -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  }
+  .slider label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+  .slider input[type=range] { flex: 1; accent-color: var(--accent); min-width: 0; }
+  .slider output { width: 42px; text-align: right; font-variant-numeric: tabular-nums; font-size: 13px; color: var(--muted); }
+
+  .tools {
+    display: flex; gap: 6px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding: 2px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .tools::-webkit-scrollbar { display: none; }
+  .tool {
+    flex: none;
+    width: 66px; height: 56px;
+    border-radius: 12px;
+    border: 1px solid var(--line);
+    background: rgba(34,32,29,.85);
+    -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+    font-size: 11px;
+    color: var(--text);
+    cursor: pointer;
+  }
+  .tool svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+  .tool.on { color: var(--accent); border-color: var(--accent); background: rgba(114,184,220,.14); }
+  .tool[disabled] { opacity: .4; cursor: default; }
+  .tool input { display: none; }
+
+  /* ---------- start card ---------- */
+  #start {
+    position: fixed; inset: 0;
+    display: grid; place-items: center;
+    padding: 24px 16px;
+    background: var(--ground);
+    overflow-y: auto;
+  }
+  .card {
+    width: 100%; max-width: 420px;
+    display: flex; flex-direction: column; gap: 18px;
+    padding-block: 28px 22px;
+  }
+  .card h1 {
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: 34px;
+    line-height: 1.1;
+    margin: 0;
+    text-wrap: balance;
+  }
+  .card p { margin: 0; color: var(--muted); max-width: 42ch; }
+  .steps { display: grid; gap: 12px; margin: 4px 0; }
+  .step {
+    display: grid; grid-template-columns: 34px 1fr; gap: 12px; align-items: start;
+  }
+  .step b {
+    display: grid; place-items: center;
+    width: 34px; height: 34px;
+    border-radius: 50%;
+    background: var(--surface-2);
+    color: var(--accent);
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: 15px;
+  }
+  .step div { padding-top: 6px; }
+  .step span { color: var(--muted); }
+  .tip {
+    display: flex; gap: 10px; align-items: flex-start;
+    padding: 12px 14px;
+    border-radius: var(--radius);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    font-size: 14px;
+  }
+  .tip svg { width: 20px; height: 20px; flex: none; fill: none; stroke: var(--warn); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; margin-top: 1px; }
+  .tip span { color: var(--muted); }
+  .start-actions { display: flex; flex-direction: column; gap: 10px; }
+  .ghost {
+    height: 46px;
+    border-radius: var(--radius);
+    background: transparent;
+    border: 1px solid var(--line);
+    color: var(--text);
+    cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .ghost svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .ghost input { display: none; }
+  .thumb {
+    display: none;
+    align-items: center; gap: 12px;
+    padding: 10px 12px;
+    border-radius: var(--radius);
+    background: var(--surface);
+    border: 1px solid var(--line);
+  }
+  .thumb.show { display: flex; }
+  .thumb img { width: 56px; height: 56px; object-fit: cover; border-radius: 8px; background: var(--surface-2); }
+  .thumb small { color: var(--muted); display: block; }
+  .err {
+    display: none;
+    padding: 12px 14px;
+    border-radius: var(--radius);
+    background: rgba(224,122,106,.12);
+    border: 1px solid rgba(224,122,106,.5);
+    font-size: 14px;
+  }
+  .err.show { display: block; }
+
+  /* ---------- sheet ---------- */
+  #sheet {
+    position: fixed; inset: 0;
+    display: none;
+    align-items: flex-end;
+    background: rgba(0,0,0,.45);
+    z-index: 5;
+  }
+  #sheet.show { display: flex; }
+  .sheet-body {
+    width: 100%;
+    max-height: 80%;
+    overflow-y: auto;
+    background: var(--surface);
+    border-radius: 20px 20px 0 0;
+    padding: 14px 18px calc(env(safe-area-inset-bottom, 0px) + 18px);
+    display: flex; flex-direction: column; gap: 14px;
+  }
+  .sheet-body h2 { font-family: var(--font-display); font-weight: 400; font-size: 20px; margin: 0; }
+  .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+  .row:last-of-type { border-bottom: 0; }
+  .row small { display: block; color: var(--muted); }
+  .stepper { display: inline-flex; align-items: center; gap: 4px; }
+  .stepper button { width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface-2); cursor: pointer; }
+  .stepper output { width: 48px; text-align: center; font-variant-numeric: tabular-nums; }
+  .switch { position: relative; width: 48px; height: 28px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--line); cursor: pointer; flex: none; }
+  .switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: var(--muted); transition: transform .15s, background .15s; }
+  .switch.on { background: rgba(114,184,220,.3); border-color: var(--accent); }
+  .switch.on::after { transform: translateX(20px); background: var(--accent); }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; }
+  .seg button { padding: 7px 12px; border: 0; background: var(--surface-2); cursor: pointer; font-size: 13px; }
+  .seg button.on { background: var(--accent); color: var(--accent-ink); }
+  .howto { color: var(--muted); font-size: 14px; display: grid; gap: 8px; }
+  .howto b { color: var(--text); font-weight: 500; }
+
+  #toast {
+    position: fixed; left: 50%; bottom: 190px;
+    transform: translateX(-50%);
+    padding: 8px 14px;
+    border-radius: 999px;
+    background: rgba(34,32,29,.92);
+    border: 1px solid var(--line);
+    font-size: 13px;
+    opacity: 0; transition: opacity .2s;
+    pointer-events: none;
+    max-width: calc(100% - 32px);
+    text-align: center;
+  }
+  #toast.show { opacity: 1; }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div id="stage" class="nohandles">
+  <video id="video" playsinline muted autoplay></video>
+  <canvas id="overlay" width="4" height="4"></canvas>
+  <svg id="frame" aria-hidden="true"><polygon points="0,0 0,0 0,0 0,0"></polygon></svg>
+  <canvas id="debug" hidden></canvas>
+  <div class="handle" data-i="0" role="button" aria-label="Top-left corner"></div>
+  <div class="handle" data-i="1" role="button" aria-label="Top-right corner"></div>
+  <div class="handle" data-i="2" role="button" aria-label="Bottom-right corner"></div>
+  <div class="handle" data-i="3" role="button" aria-label="Bottom-left corner"></div>
+</div>
+
+<div id="top" hidden>
+  <div class="brand">CanvasTrace</div>
+  <div class="chip" id="status"><span class="dot"></span><span id="statusText">Choose an image</span></div>
+  <div class="spacer"></div>
+  <button class="icon-btn" id="lockBtn" aria-label="Lock overlay" title="Lock">
+    <svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path id="lockShackle" d="M8 11V7a4 4 0 0 1 8 0"></path></svg>
+  </button>
+  <button class="icon-btn" id="gearBtn" aria-label="Settings" title="Settings">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"></path></svg>
+  </button>
+</div>
+
+<div id="dock" hidden>
+  <div class="dock-row">
+    <button class="primary" id="pinBtn" disabled>
+      <svg viewBox="0 0 24 24"><path d="M12 17v5"></path><path d="M9 3h6l-1 7 3 3H7l3-3z"></path></svg>
+      <span id="pinLabel">Pin to canvas</span>
+    </button>
+  </div>
+  <div class="slider">
+    <label for="opacity">Opacity</label>
+    <input type="range" id="opacity" min="5" max="100" value="55">
+    <output id="opacityOut" for="opacity">55%</output>
+  </div>
+  <div class="tools" id="tools">
+    <label class="tool" id="imageTool" title="Choose image">
+      <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"></rect><circle cx="8.5" cy="10" r="1.5"></circle><path d="M21 16l-5-5-8 8"></path></svg>
+      Image
+      <input type="file" id="imageInput" accept="image/*">
+    </label>
+    <button class="tool" data-filter="original" title="Original image">
+      <svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"></rect></svg>
+      Original
+    </button>
+    <button class="tool" data-filter="grayscale" title="Grayscale">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"></circle><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"></path></svg>
+      Gray
+    </button>
+    <button class="tool" data-filter="contrast" title="High contrast">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"></circle><path d="M12 8v8M8 12h8"></path></svg>
+      Contrast
+    </button>
+    <button class="tool" data-filter="values" title="Posterized value shapes">
+      <svg viewBox="0 0 24 24"><path d="M4 8l8-4 8 4-8 4z"></path><path d="M4 12l8 4 8-4"></path><path d="M4 16l8 4 8-4"></path></svg>
+      Values
+    </button>
+    <button class="tool" data-filter="sketch" title="Edge lines on white">
+      <svg viewBox="0 0 24 24"><path d="M4 20l4-1L19 8l-3-3L5 16z"></path><path d="M14 7l3 3"></path></svg>
+      Sketch
+    </button>
+    <button class="tool" id="gridTool" title="Grid">
+      <svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="1"></rect><path d="M9.3 4v16M14.7 4v16M4 9.3h16M4 14.7h16"></path></svg>
+      Grid
+    </button>
+    <button class="tool" id="flipTool" title="Flip horizontally">
+      <svg viewBox="0 0 24 24"><path d="M12 3v18"></path><path d="M9 7l-5 5 5 5z"></path><path d="M15 7l5 5-5 5z"></path></svg>
+      Flip
+    </button>
+    <button class="tool" id="rotateTool" title="Rotate 90°">
+      <svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.7"></path><path d="M20 4v4h-4"></path></svg>
+      Rotate
+    </button>
+    <button class="tool" id="resetTool" title="Reset placement">
+      <svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.3-5.7"></path><path d="M4 4v4h4"></path></svg>
+      Reset
+    </button>
+  </div>
+</div>
+
+<div id="start">
+  <div class="card">
+    <h1>Put the reference on the canvas, not beside it.</h1>
+    <p>Pick the image you want to transfer, aim your iPhone at the canvas, and pin the image to it. It stays glued to the canvas as you move, so you can trace edges and block in values freehand.</p>
+    <div class="steps">
+      <div class="step"><b>1</b><div>Choose an image<br><span>Any photo from your library.</span></div></div>
+      <div class="step"><b>2</b><div>Drag the four corners onto the canvas<br><span>Then tap Pin. From here the image is tracked, not the phone.</span></div></div>
+      <div class="step"><b>3</b><div>Paint<br><span>Lower the opacity, switch to Sketch or Values, lock it so a stray touch can't move it.</span></div></div>
+    </div>
+    <div class="tip">
+      <svg viewBox="0 0 24 24"><path d="M12 3l9 16H3z"></path><path d="M12 10v4M12 17h.01"></path></svg>
+      <div>A blank canvas gives the tracker nothing to hold on to. <span>Stick four small pieces of tape near the corners, or leave the easel and wall in view. Anything with edges on the canvas plane helps.</span></div>
+    </div>
+    <div class="thumb" id="thumb"><img id="thumbImg" alt=""><div><div id="thumbName">Image ready</div><small id="thumbSize"></small></div></div>
+    <div class="err" id="camErr"></div>
+    <div class="tip" id="framedTip" hidden>
+      <svg viewBox="0 0 24 24"><path d="M14 4h6v6"></path><path d="M20 4l-9 9"></path><path d="M18 13v6H5V6h6"></path></svg>
+      <div>For the camera to work, this page needs its own tab. <span>Tap Open in Safari, then add it to your Home Screen for a full-screen app.</span></div>
+    </div>
+    <div class="start-actions">
+      <button class="primary" id="startBtn">
+        <svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"></path><circle cx="12" cy="13" r="3.5"></circle></svg>
+        Start camera
+      </button>
+      <button class="ghost" id="openBtn" hidden>
+        <svg viewBox="0 0 24 24"><path d="M14 4h6v6"></path><path d="M20 4l-9 9"></path><path d="M18 13v6H5V6h6"></path></svg>
+        Open in Safari
+      </button>
+      <label class="ghost" id="startPick">
+        <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"></rect><circle cx="8.5" cy="10" r="1.5"></circle><path d="M21 16l-5-5-8 8"></path></svg>
+        <span id="startPickLabel">Choose image first</span>
+        <input type="file" id="imageInput2" accept="image/*">
+      </label>
+    </div>
+  </div>
+</div>
+
+<div id="sheet" role="dialog" aria-label="Settings">
+  <div class="sheet-body">
+    <h2>Settings</h2>
+    <div class="row">
+      <div>Grid<small>Squares across the image</small></div>
+      <div class="stepper"><button id="gridMinus" aria-label="Fewer squares">−</button><output id="gridOut">4 × 4</output><button id="gridPlus" aria-label="More squares">+</button></div>
+    </div>
+    <div class="row">
+      <div>Tracking detail<small>Higher is steadier but heavier on older phones</small></div>
+      <div class="seg" id="qualitySeg"><button data-q="352">Low</button><button data-q="448" class="on">Normal</button><button data-q="544">High</button></div>
+    </div>
+    <div class="row">
+      <div>Smoothing<small>Damps jitter; adds a touch of lag</small></div>
+      <div class="seg" id="smoothSeg"><button data-s="0.85">Off</button><button data-s="0.5" class="on">Some</button><button data-s="0.3">Lots</button></div>
+    </div>
+    <div class="row">
+      <div>Show tracked points<small>See what the tracker is holding on to</small></div>
+      <button class="switch" id="debugSwitch" role="switch" aria-checked="false" aria-label="Show tracked points"></button>
+    </div>
+    <div class="howto">
+      <div><b>Getting a solid pin.</b> Tap Pin when the whole canvas is in view with some surroundings. The tracker uses corners it finds on and around the canvas.</div>
+      <div><b>If it says Lost.</b> Move back toward where you pinned it. It re-acquires on its own, then you can carry on.</div>
+      <div><b>Adjust after pinning.</b> Drag a corner handle any time it drifts; the correction sticks. One finger moves, two fingers scale and rotate.</div>
+      <div><b>Home screen.</b> Share → Add to Home Screen gives a full-screen app with no browser bars.</div>
+    </div>
+    <button class="primary" id="sheetClose">Done</button>
+  </div>
+</div>
+
+<div id="toast" role="status"></div>
+
+<script>
+(() => {
+'use strict';
+
+/* =====================================================================
+   Small linear algebra: 3x3 homographies stored as Float64Array(9), row-major.
+   ===================================================================== */
+const M = {
+  identity() { return new Float64Array([1,0,0, 0,1,0, 0,0,1]); },
+  mul(a, b) {
+    const o = new Float64Array(9);
+    for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++)
+      o[r*3+c] = a[r*3]*b[c] + a[r*3+1]*b[3+c] + a[r*3+2]*b[6+c];
+    return o;
+  },
+  inv(m) {
+    const [a,b,c,d,e,f,g,h,i] = m;
+    const A = e*i - f*h, B = -(d*i - f*g), C = d*h - e*g;
+    const det = a*A + b*B + c*C;
+    if (!isFinite(det) || Math.abs(det) < 1e-12) return null;
+    const o = new Float64Array(9);
+    o[0] = A/det; o[1] = -(b*i - c*h)/det; o[2] = (b*f - c*e)/det;
+    o[3] = B/det; o[4] = (a*i - c*g)/det;  o[5] = -(a*f - c*d)/det;
+    o[6] = C/det; o[7] = -(a*h - b*g)/det; o[8] = (a*e - b*d)/det;
+    return o;
+  },
+  apply(m, x, y) {
+    const w = m[6]*x + m[7]*y + m[8];
+    return [(m[0]*x + m[1]*y + m[2]) / w, (m[3]*x + m[4]*y + m[5]) / w];
+  },
+  normalize(m) {
+    const s = m[8] !== 0 ? 1 / m[8] : 1;
+    const o = new Float64Array(9);
+    for (let k = 0; k < 9; k++) o[k] = m[k] * s;
+    return o;
+  }
+};
+
+/** Solve the 8x8 system by Gaussian elimination with partial pivoting. */
+function solve8(A, b) {
+  const n = 8;
+  for (let c = 0; c < n; c++) {
+    let p = c, best = Math.abs(A[c*n+c]);
+    for (let r = c+1; r < n; r++) { const v = Math.abs(A[r*n+c]); if (v > best) { best = v; p = r; } }
+    if (best < 1e-10) return null;
+    if (p !== c) {
+      for (let k = 0; k < n; k++) { const t = A[c*n+k]; A[c*n+k] = A[p*n+k]; A[p*n+k] = t; }
+      const t = b[c]; b[c] = b[p]; b[p] = t;
+    }
+    for (let r = c+1; r < n; r++) {
+      const f = A[r*n+c] / A[c*n+c];
+      if (f === 0) continue;
+      for (let k = c; k < n; k++) A[r*n+k] -= f * A[c*n+k];
+      b[r] -= f * b[c];
+    }
+  }
+  const x = new Float64Array(n);
+  for (let r = n-1; r >= 0; r--) {
+    let s = b[r];
+    for (let k = r+1; k < n; k++) s -= A[r*n+k] * x[k];
+    x[r] = s / A[r*n+r];
+  }
+  return x;
+}
+
+/**
+ * Least-squares homography from point correspondences (src -> dst), h33 = 1.
+ * Points are normalised for conditioning. `idx` selects which pairs to use.
+ */
+function homographyFromPairs(sx, sy, dx, dy, idx, count) {
+  if (count < 4) return null;
+  let mx = 0, my = 0, nx = 0, ny = 0;
+  for (let k = 0; k < count; k++) { const i = idx[k]; mx += sx[i]; my += sy[i]; nx += dx[i]; ny += dy[i]; }
+  mx /= count; my /= count; nx /= count; ny /= count;
+  let ds = 0, dd = 0;
+  for (let k = 0; k < count; k++) { const i = idx[k]; ds += Math.hypot(sx[i]-mx, sy[i]-my); dd += Math.hypot(dx[i]-nx, dy[i]-ny); }
+  ds /= count; dd /= count;
+  if (ds < 1e-6 || dd < 1e-6) return null;
+  const ss = Math.SQRT2 / ds, sd = Math.SQRT2 / dd;
+
+  const A = new Float64Array(64), b = new Float64Array(8);
+  const row = new Float64Array(8);
+  const accumulate = (rhs) => {
+    for (let r = 0; r < 8; r++) {
+      const vr = row[r]; if (vr === 0) continue;
+      for (let c = 0; c < 8; c++) A[r*8+c] += vr * row[c];
+      b[r] += vr * rhs;
+    }
+  };
+  for (let k = 0; k < count; k++) {
+    const i = idx[k];
+    const x = (sx[i]-mx)*ss, y = (sy[i]-my)*ss, X = (dx[i]-nx)*sd, Y = (dy[i]-ny)*sd;
+    row.set([x, y, 1, 0, 0, 0, -x*X, -y*X]); accumulate(X);
+    row.set([0, 0, 0, x, y, 1, -x*Y, -y*Y]); accumulate(Y);
+  }
+  const h = solve8(A, b);
+  if (!h) return null;
+  const Hn = new Float64Array([h[0],h[1],h[2], h[3],h[4],h[5], h[6],h[7],1]);
+  // H = Td^-1 * Hn * Ts
+  const Ts = new Float64Array([ss,0,-mx*ss, 0,ss,-my*ss, 0,0,1]);
+  const TdInv = new Float64Array([1/sd,0,nx, 0,1/sd,ny, 0,0,1]);
+  const H = M.mul(TdInv, M.mul(Hn, Ts));
+  for (let k = 0; k < 9; k++) if (!isFinite(H[k])) return null;
+  return M.normalize(H);
+}
+
+/** RANSAC homography. Returns { H, inliers: Uint8Array, count } or null. */
+function ransacHomography(sx, sy, dx, dy, n, threshold, maxIter) {
+  if (n < 4) return null;
+  const thr2 = threshold * threshold;
+  let best = null, bestCount = 0;
+  const sample = new Int32Array(4);
+  const mask = new Uint8Array(n);
+  let iters = maxIter;
+  for (let it = 0; it < iters; it++) {
+    // random distinct sample
+    for (let k = 0; k < 4; k++) {
+      let cand, ok;
+      do { cand = (Math.random() * n) | 0; ok = true; for (let j = 0; j < k; j++) if (sample[j] === cand) ok = false; } while (!ok);
+      sample[k] = cand;
+    }
+    const H = homographyFromPairs(sx, sy, dx, dy, sample, 4);
+    if (!H) continue;
+    let cnt = 0;
+    for (let i = 0; i < n; i++) {
+      const w = H[6]*sx[i] + H[7]*sy[i] + H[8];
+      if (Math.abs(w) < 1e-9) { mask[i] = 0; continue; }
+      const px = (H[0]*sx[i] + H[1]*sy[i] + H[2]) / w - dx[i];
+      const py = (H[3]*sx[i] + H[4]*sy[i] + H[5]) / w - dy[i];
+      const inl = (px*px + py*py) < thr2;
+      mask[i] = inl ? 1 : 0;
+      if (inl) cnt++;
+    }
+    if (cnt > bestCount) {
+      bestCount = cnt; best = mask.slice();
+      const w = cnt / n;
+      const need = Math.log(0.01) / Math.log(1 - Math.min(0.9999, Math.pow(w, 4)));
+      iters = Math.min(maxIter, Math.max(it + 1, Math.ceil(need)));
+    }
+  }
+  if (!best || bestCount < 4) return null;
+  // refit on inliers, then re-classify once
+  const idx = new Int32Array(bestCount); let k = 0;
+  for (let i = 0; i < n; i++) if (best[i]) idx[k++] = i;
+  let H = homographyFromPairs(sx, sy, dx, dy, idx, bestCount);
+  if (!H) return null;
+  let cnt = 0;
+  for (let i = 0; i < n; i++) {
+    const w = H[6]*sx[i] + H[7]*sy[i] + H[8];
+    const px = (H[0]*sx[i] + H[1]*sy[i] + H[2]) / w - dx[i];
+    const py = (H[3]*sx[i] + H[4]*sy[i] + H[5]) / w - dy[i];
+    best[i] = (px*px + py*py) < thr2 * 1.5 ? 1 : 0;
+    if (best[i]) cnt++;
+  }
+  if (cnt >= 4 && cnt !== bestCount) {
+    const idx2 = new Int32Array(cnt); let j = 0;
+    for (let i = 0; i < n; i++) if (best[i]) idx2[j++] = i;
+    H = homographyFromPairs(sx, sy, dx, dy, idx2, cnt) || H;
+  }
+  return { H, inliers: best, count: cnt };
+}
+
+/* =====================================================================
+   Image pyramid with gradients.
+   ===================================================================== */
+class Pyramid {
+  constructor(w, h, levels) {
+    this.levels = [];
+    let lw = w, lh = h;
+    for (let l = 0; l < levels; l++) {
+      this.levels.push({ w: lw, h: lh, img: new Float32Array(lw*lh), gx: new Float32Array(lw*lh), gy: new Float32Array(lw*lh) });
+      lw = lw >> 1; lh = lh >> 1;
+    }
+  }
+  /** Fill from RGBA bytes of a w x h image. */
+  fromRGBA(data) {
+    const L0 = this.levels[0], img = L0.img, n = L0.w * L0.h;
+    for (let i = 0, j = 0; i < n; i++, j += 4) img[i] = (data[j]*77 + data[j+1]*150 + data[j+2]*29) >> 8;
+    for (let l = 1; l < this.levels.length; l++) {
+      const up = this.levels[l-1], lv = this.levels[l];
+      const uw = up.w, ui = up.img, li = lv.img, lw = lv.w, lh = lv.h;
+      for (let y = 0; y < lh; y++) {
+        const r0 = (2*y) * uw, r1 = r0 + uw;
+        for (let x = 0; x < lw; x++) {
+          const c = 2*x;
+          li[y*lw + x] = (ui[r0+c] + ui[r0+c+1] + ui[r1+c] + ui[r1+c+1]) * 0.25;
+        }
+      }
+    }
+    for (const lv of this.levels) Pyramid.gradients(lv);
+  }
+  static gradients(lv) {
+    const { w, h, img, gx, gy } = lv;
+    for (let y = 1; y < h-1; y++) {
+      const r = y*w;
+      for (let x = 1; x < w-1; x++) {
+        const i = r + x;
+        gx[i] = (img[i+1] - img[i-1]) * 0.5;
+        gy[i] = (img[i+w] - img[i-w]) * 0.5;
+      }
+    }
+  }
+  copyFrom(other) {
+    for (let l = 0; l < this.levels.length; l++) {
+      this.levels[l].img.set(other.levels[l].img);
+      this.levels[l].gx.set(other.levels[l].gx);
+      this.levels[l].gy.set(other.levels[l].gy);
+    }
+  }
+}
+
+function bilinear(img, w, x, y) {
+  const x0 = x | 0, y0 = y | 0, fx = x - x0, fy = y - y0;
+  const i = y0*w + x0;
+  const a = img[i], b = img[i+1], c = img[i+w], d = img[i+w+1];
+  return a + (b - a)*fx + (c - a)*fy + (a - b - c + d)*fx*fy;
+}
+
+/* =====================================================================
+   Pyramidal Lucas–Kanade. Tracks points from `ref` into `cur`.
+   curX/curY hold the initial guess on input and the result on output.
+   ===================================================================== */
+const LK = {
+  radius: 6,
+  maxIter: 12,
+  eps: 0.03,
+  minEigen: 40,
+  maxResidual: 28,
+  _tpl: null, _tgx: null, _tgy: null,
+
+  /**
+   * opts.J (Float32Array, 4 per point: j00 j01 j10 j11) maps window offsets in the
+   * current frame to offsets in the reference frame, so a template can be sampled
+   * through the current homography instead of assuming pure translation.
+   */
+  track(ref, cur, refX, refY, curX, curY, n, status, opts = {}) {
+    const rBase = opts.radius ?? this.radius, maxIter = opts.maxIter ?? this.maxIter;
+    const topLevel = opts.topLevel ?? (ref.levels.length - 1);
+    const eps2 = (opts.eps ?? this.eps) ** 2;
+    const minEigen = (opts.minEigen ?? this.minEigen) * 0.02;
+    const maxResidual = opts.maxResidual ?? this.maxResidual;
+    const J = opts.J || null;
+    const winMax = (2*rBase+1) * (2*rBase+1);
+    if (!this._tpl || this._tpl.length < winMax) { this._tpl = new Float32Array(winMax); this._tgx = new Float32Array(winMax); this._tgy = new Float32Array(winMax); }
+    const tpl = this._tpl, tgx = this._tgx, tgy = this._tgy;
+
+    for (let p = 0; p < n; p++) {
+      status[p] = 0;
+      let j00 = 1, j01 = 0, j10 = 0, j11 = 1;
+      if (J) { j00 = J[p*4]; j01 = J[p*4+1]; j10 = J[p*4+2]; j11 = J[p*4+3]; }
+      const spread = Math.max(Math.abs(j00) + Math.abs(j01), Math.abs(j10) + Math.abs(j11));
+      let gx = (curX[p] - refX[p]) / (1 << topLevel), gy = (curY[p] - refY[p]) / (1 << topLevel);
+      let ok = true, residual = 0, win = 1;
+      for (let l = topLevel; l >= 0; l--) {
+        const R = ref.levels[l], C = cur.levels[l];
+        const w = R.w, h = R.h;
+        const r = l >= 2 ? Math.min(rBase, 4) : rBase;
+        const rr = r * spread;
+        const px = refX[p] / (1 << l), py = refY[p] / (1 << l);
+        const inRef = px - rr >= 1 && py - rr >= 1 && px + rr < w - 2 && py + rr < h - 2;
+        const inCur = px + gx - r >= 1 && py + gy - r >= 1 && px + gx + r < w - 2 && py + gy + r < h - 2;
+        if (!inRef || !inCur) {
+          if (l === 0) { ok = false; break; }
+          gx *= 2; gy *= 2; continue;   // too close to the edge at this scale: carry the guess down
+        }
+        win = (2*r+1) * (2*r+1);
+        let a = 0, b = 0, c = 0, k = 0;
+        for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++, k++) {
+          const x = px + j00*dx + j01*dy, y = py + j10*dx + j11*dy;
+          const ix = bilinear(R.gx, w, x, y), iy = bilinear(R.gy, w, x, y);
+          const cx = j00*ix + j10*iy, cy = j01*ix + j11*iy;
+          tpl[k] = bilinear(R.img, w, x, y); tgx[k] = cx; tgy[k] = cy;
+          a += cx*cx; b += cx*cy; c += cy*cy;
+        }
+        const det = a*c - b*b;
+        const minEig = (a + c) * 0.5 - Math.sqrt(((a - c) * 0.5) ** 2 + b*b);
+        if (det < 1e-6 || (l === 0 && minEig / win < minEigen)) { ok = false; break; }
+        const iA = c/det, iB = -b/det, iC = a/det;
+        let converged = false;
+        for (let it = 0; it < maxIter; it++) {
+          const cx = px + gx, cy = py + gy;
+          if (cx - r < 1 || cy - r < 1 || cx + r >= w - 2 || cy + r >= h - 2) { ok = false; break; }
+          let bx = 0, by = 0; k = 0; residual = 0;
+          for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++, k++) {
+            const d = tpl[k] - bilinear(C.img, w, cx + dx, cy + dy);
+            bx += tgx[k]*d; by += tgy[k]*d; residual += Math.abs(d);
+          }
+          const vx = iA*bx + iB*by, vy = iB*bx + iC*by;
+          gx += vx; gy += vy;
+          if (vx*vx + vy*vy < eps2) { converged = true; break; }
+        }
+        if (!ok) break;
+        if (l === 0 && !converged && (gx*gx + gy*gy) > (r*r*4)) { ok = false; break; }
+        if (l > 0) { gx *= 2; gy *= 2; }
+      }
+      if (ok && residual / win <= maxResidual) {
+        curX[p] = refX[p] + gx; curY[p] = refY[p] + gy; status[p] = 1;
+      }
+    }
+  }
+};
+
+/* =====================================================================
+   Shi–Tomasi corners with spatial spreading.
+   ===================================================================== */
+function detectCorners(level, opts) {
+  const { w, h, gx, gy } = level;
+  const step = 2, r = 2, border = 10;
+  const minDist = opts.minDist ?? 9;
+  const cand = [];
+  let maxResp = 0;
+  for (let y = border; y < h - border; y += step) {
+    for (let x = border; x < w - border; x += step) {
+      let a = 0, b = 0, c = 0;
+      for (let dy = -r; dy <= r; dy++) {
+        const row = (y + dy) * w + x;
+        for (let dx = -r; dx <= r; dx++) {
+          const ix = gx[row + dx], iy = gy[row + dx];
+          a += ix*ix; b += ix*iy; c += iy*iy;
+        }
+      }
+      const resp = (a + c) * 0.5 - Math.sqrt(((a - c) * 0.5) ** 2 + b*b);
+      if (resp > 120) { cand.push({ x, y, resp }); if (resp > maxResp) maxResp = resp; }
+    }
+  }
+  const floor = Math.max(120, maxResp * 0.004);
+  cand.sort((p, q) => q.resp - p.resp);
+  // occupancy grid for non-max suppression / min distance
+  const cell = minDist, gw = Math.ceil(w / cell) + 1, gh = Math.ceil(h / cell) + 1;
+  const occ = new Array(gw * gh).fill(null);
+  const farEnough = (x, y) => {
+    const cx = (x / cell) | 0, cy = (y / cell) | 0;
+    for (let j = Math.max(0, cy-1); j <= Math.min(gh-1, cy+1); j++)
+      for (let i = Math.max(0, cx-1); i <= Math.min(gw-1, cx+1); i++) {
+        const lst = occ[j*gw + i]; if (!lst) continue;
+        for (const q of lst) if ((q[0]-x)**2 + (q[1]-y)**2 < minDist*minDist) return false;
+      }
+    return true;
+  };
+  const put = (x, y) => { const k = ((y / cell) | 0) * gw + ((x / cell) | 0); (occ[k] || (occ[k] = [])).push([x, y]); };
+  if (opts.existing) for (const [x, y] of opts.existing) put(x, y);
+
+  const inside = opts.prefer; // function(x,y) -> bool, optional
+  const out = [];
+  const max = opts.max ?? 140;
+  const quota = inside ? Math.round(max * 0.7) : 0;
+  if (inside) {
+    for (const p of cand) {
+      if (out.length >= quota || p.resp < floor) break;
+      if (!inside(p.x, p.y) || !farEnough(p.x, p.y)) continue;
+      put(p.x, p.y); out.push(p);
+    }
+  }
+  for (const p of cand) {
+    if (out.length >= max || p.resp < floor) break;
+    if (!farEnough(p.x, p.y)) continue;
+    put(p.x, p.y); out.push(p);
+  }
+  return out;
+}
+
+/* =====================================================================
+   Planar tracker: holds a set of points with fixed "pin-frame" coordinates,
+   tracks them frame to frame, and estimates the pin->current homography.
+   ===================================================================== */
+class PlanarTracker {
+  constructor(w, h) {
+    this.w = w; this.h = h;
+    this.levels = 4;
+    this.prev = new Pyramid(w, h, this.levels);
+    this.cur = new Pyramid(w, h, this.levels);
+    this.pinPyr = new Pyramid(w, h, this.levels);   // the frame the user pinned in; never changes
+    this.key = new Pyramid(w, h, this.levels);      // rolling recent snapshot, for recovery
+    this.maxPoints = 150;
+    const N = this.maxPoints;
+    this.pinX = new Float32Array(N); this.pinY = new Float32Array(N);   // fixed pin-frame coords
+    this.keyX = new Float32Array(N); this.keyY = new Float32Array(N);   // coords in the rolling key
+    this.prevX = new Float32Array(N); this.prevY = new Float32Array(N);
+    this.curX = new Float32Array(N); this.curY = new Float32Array(N);
+    this.status = new Uint8Array(N);
+    this.n = 0;
+    this.nKey = 0;
+    // original pin points, kept for recovery near the pin pose
+    this.origX = new Float32Array(N); this.origY = new Float32Array(N); this.nOrig = 0;
+    this._wx = new Float32Array(N); this._wy = new Float32Array(N); this._ws = new Uint8Array(N); this._J = new Float32Array(N*4);
+    this.H = M.identity();          // pin -> current
+    this.state = 'idle';            // idle | tracking | lost
+    this.inliers = 0;
+    this.lostFrames = 0;
+    this.goodFrames = 0;
+    this.quad = null;
+    this.frameHasImage = false;
+    this._recoverTick = 0;
+    this.stats = { lk: 0, anchored: 0, outliers: 0 };
+  }
+
+  /** Push the next camera frame (RGBA of w x h). */
+  feed(rgba) {
+    const t = this.prev; this.prev = this.cur; this.cur = t;
+    this.cur.fromRGBA(rgba);
+    this.frameHasImage = true;
+  }
+
+  /** Start tracking from the current frame; the current frame becomes the pin frame. */
+  pin(quad) {
+    if (!this.frameHasImage) return false;
+    this.quad = quad;
+    this.H = M.identity();
+    this.pinPyr.copyFrom(this.cur);
+    this.n = 0;
+    this._seed(true);
+    this.nOrig = this.n;
+    for (let i = 0; i < this.n; i++) { this.origX[i] = this.curX[i]; this.origY[i] = this.curY[i]; }
+    this._snapshotKey();
+    this.prev.copyFrom(this.cur);
+    for (let i = 0; i < this.n; i++) { this.prevX[i] = this.curX[i]; this.prevY[i] = this.curY[i]; }
+    this.state = this.n >= 8 ? 'tracking' : 'lost';
+    this.inliers = this.n;
+    this.lostFrames = 0; this.goodFrames = 0;
+    return this.state === 'tracking';
+  }
+
+  stop() { this.state = 'idle'; this.n = 0; }
+
+  _snapshotKey() {
+    this.key.copyFrom(this.cur);
+    this.nKey = this.n;
+    for (let i = 0; i < this.n; i++) { this.keyX[i] = this.curX[i]; this.keyY[i] = this.curY[i]; }
+    this.keyPinX = this.pinX.slice(0, this.n); this.keyPinY = this.pinY.slice(0, this.n);
+  }
+
+  _preferFn() {
+    if (!this.quad) return null;
+    const q = this.quad;
+    const cx = (q[0][0]+q[1][0]+q[2][0]+q[3][0]) / 4, cy = (q[0][1]+q[1][1]+q[2][1]+q[3][1]) / 4;
+    const pts = q.map(([x, y]) => M.apply(this.H, cx + (x - cx) * 1.5, cy + (y - cy) * 1.5));
+    return (x, y) => {
+      let sign = 0;
+      for (let i = 0; i < 4; i++) {
+        const [ax, ay] = pts[i], [bx, by] = pts[(i+1) % 4];
+        const cr = (bx-ax)*(y-ay) - (by-ay)*(x-ax);
+        if (cr === 0) continue;
+        const s = cr > 0 ? 1 : -1;
+        if (sign === 0) sign = s; else if (s !== sign) return false;
+      }
+      return true;
+    };
+  }
+
+  /** Detect new corners in the current frame and add them with pin coords via H^-1. */
+  _seed(fresh) {
+    const Hinv = fresh ? M.identity() : M.inv(this.H);
+    if (!Hinv) return;
+    const existing = [];
+    for (let i = 0; i < this.n; i++) existing.push([this.curX[i], this.curY[i]]);
+    const found = detectCorners(this.cur.levels[0], { max: this.maxPoints - this.n, existing, prefer: this._preferFn() });
+    for (const p of found) {
+      if (this.n >= this.maxPoints) break;
+      const i = this.n++;
+      this.curX[i] = p.x; this.curY[i] = p.y;
+      const [px, py] = M.apply(Hinv, p.x, p.y);
+      this.pinX[i] = px; this.pinY[i] = py;
+    }
+  }
+
+  _compact() {
+    let j = 0;
+    for (let i = 0; i < this.n; i++) {
+      if (!this.status[i]) continue;
+      if (i !== j) {
+        this.pinX[j] = this.pinX[i]; this.pinY[j] = this.pinY[i];
+        this.curX[j] = this.curX[i]; this.curY[j] = this.curY[i];
+      }
+      j++;
+    }
+    this.n = j;
+  }
+
+  /** Re-anchor points to the pin frame, sampling the template through the current homography. */
+  _anchorToPin() {
+    const Hinv = M.inv(this.H);
+    if (!Hinv) return;
+    const n = this.n, wx = this._wx, wy = this._wy, ws = this._ws, J = this._J;
+    const [a, b, c, d, e, f, g, h, i] = Hinv;
+    for (let p = 0; p < n; p++) {
+      const x = this.curX[p], y = this.curY[p];
+      const w = g*x + h*y + i;
+      const X = (a*x + b*y + c) / w, Y = (d*x + e*y + f) / w;
+      J[p*4]   = (a - X*g) / w; J[p*4+1] = (b - X*h) / w;
+      J[p*4+2] = (d - Y*g) / w; J[p*4+3] = (e - Y*h) / w;
+      wx[p] = x; wy[p] = y;
+    }
+    LK.track(this.pinPyr, this.cur, this.pinX, this.pinY, wx, wy, n, ws, { topLevel: 1, maxIter: 10, J, maxResidual: 32 });
+    let anchored = 0;
+    for (let p = 0; p < n; p++) {
+      if (!ws[p]) continue;
+      const dx = wx[p] - this.curX[p], dy = wy[p] - this.curY[p];
+      if (this.status[p] && dx*dx + dy*dy > 25) continue;   // disagrees with the frame-to-frame result; let RANSAC decide
+      this.curX[p] = wx[p]; this.curY[p] = wy[p]; this.status[p] = 1; anchored++;
+    }
+    this.stats.anchored = anchored;
+  }
+
+  /** Process the frame most recently fed. Returns true when H was updated. */
+  update() {
+    if (this.state === 'idle' || !this.frameHasImage) return false;
+    if (this.state === 'lost') return this._recover();
+
+    for (let i = 0; i < this.n; i++) { this.curX[i] = this.prevX[i]; this.curY[i] = this.prevY[i]; }
+    LK.track(this.prev, this.cur, this.prevX, this.prevY, this.curX, this.curY, this.n, this.status);
+    let lk = 0; for (let i = 0; i < this.n; i++) lk += this.status[i];
+    this.stats.lk = lk;
+    this._anchorToPin();
+    const before = this.n;
+    this._compact();
+
+    const res = this.n >= 6 ? ransacHomography(this.pinX, this.pinY, this.curX, this.curY, this.n, 2.5, 300) : null;
+    // need a real share of the points to agree, and most of last frame's points to have survived
+    const enough = res && res.count >= Math.max(8, Math.round(this.n * 0.4)) && res.count >= before * 0.3;
+    if (!enough || !this._plausible(res.H) || !this._smallStep(res.H)) {
+      this.lostFrames++;
+      if (this.lostFrames > 2 || this.n < 6) { this.state = 'lost'; this._recoverTick = 0; }
+      for (let i = 0; i < this.n; i++) { this.prevX[i] = this.curX[i]; this.prevY[i] = this.curY[i]; }
+      return false;
+    }
+    this.lostFrames = 0;
+    this.goodFrames++;
+    for (let i = 0; i < this.n; i++) this.status[i] = res.inliers[i];
+    this.stats.outliers = this.n - res.count;
+    this._compact();
+    this.H = res.H;
+    this.inliers = this.n;
+
+    if (this.n < this.maxPoints * 0.6) this._seed(false);
+    if (this.goodFrames % 15 === 0 || before - this.n > this.maxPoints * 0.3) this._snapshotKey();
+    for (let i = 0; i < this.n; i++) { this.prevX[i] = this.curX[i]; this.prevY[i] = this.curY[i]; }
+    return true;
+  }
+
+  /** Reject a homography that would move the quad more than a real hand can between frames. */
+  _smallStep(H) {
+    if (!this.quad) return true;
+    const limit = Math.hypot(this.w, this.h) * 0.4;
+    for (const [x, y] of this.quad) {
+      const [ax, ay] = M.apply(this.H, x, y), [bx, by] = M.apply(H, x, y);
+      if (Math.hypot(bx - ax, by - ay) > limit) return false;
+    }
+    return true;
+  }
+
+  _plausible(H) {
+    if (!this.quad) return true;
+    const q = this.quad.map(([x, y]) => M.apply(H, x, y));
+    let sign = 0, area = 0;
+    for (let i = 0; i < 4; i++) {
+      const a = q[i], b = q[(i+1)%4], c = q[(i+2)%4];
+      const cr = (b[0]-a[0])*(c[1]-b[1]) - (b[1]-a[1])*(c[0]-b[0]);
+      const s = cr > 0 ? 1 : -1;
+      if (sign === 0) sign = s; else if (s !== sign) return false;
+      area += a[0]*b[1] - b[0]*a[1];
+    }
+    area = Math.abs(area) / 2;
+    const frame = this.w * this.h;
+    return area > frame * 0.002 && area < frame * 40 && q.every(p => isFinite(p[0]) && isFinite(p[1]));
+  }
+
+  /** Coarse translation search of `ref` inside the current frame at the smallest level. */
+  _coarseOffset(ref) {
+    const K = ref.levels[this.levels-1], C = this.cur.levels[this.levels-1];
+    const w = K.w, h = K.h;
+    let bestSad = Infinity, bestDx = 0, bestDy = 0;
+    const range = Math.floor(Math.min(w, h) * 0.45);
+    for (let dy = -range; dy <= range; dy++) {
+      for (let dx = -range; dx <= range; dx++) {
+        let sad = 0, cnt = 0;
+        for (let y = Math.max(0, -dy); y < Math.min(h, h - dy); y += 2) {
+          const rk = y*w, rc = (y+dy)*w;
+          for (let x = Math.max(0, -dx); x < Math.min(w, w - dx); x += 2) { sad += Math.abs(K.img[rk+x] - C.img[rc+x+dx]); cnt++; }
+        }
+        if (cnt < (w*h) / 16) continue;
+        sad /= cnt;
+        if (sad < bestSad) { bestSad = sad; bestDx = dx; bestDy = dy; }
+      }
+    }
+    const scale = 1 << (this.levels - 1);
+    return [bestDx * scale, bestDy * scale];
+  }
+
+  /** Try to find the plane again: alternately against the recent key and the pin frame. */
+  _recover() {
+    this._recoverTick++;
+    if (this._recoverTick % 2 !== 1) return false;
+    const usePin = ((this._recoverTick >> 1) & 1) === 1 || this.nKey < 10;
+    const ref = usePin ? this.pinPyr : this.key;
+    const rx = usePin ? this.origX : this.keyX, ry = usePin ? this.origY : this.keyY;
+    const px = usePin ? this.origX : this.keyPinX, py = usePin ? this.origY : this.keyPinY;
+    const n = usePin ? this.nOrig : this.nKey;
+    if (n < 10) return false;
+    const [ox, oy] = this._coarseOffset(ref);
+    const cx = new Float32Array(n), cy = new Float32Array(n), st = new Uint8Array(n);
+    for (let i = 0; i < n; i++) { cx[i] = rx[i] + ox; cy[i] = ry[i] + oy; }
+    LK.track(ref, this.cur, rx, ry, cx, cy, n, st, { maxIter: 15 });
+    const sx = [], sy = [], dx = [], dy = [];
+    for (let i = 0; i < n; i++) if (st[i]) { sx.push(px[i]); sy.push(py[i]); dx.push(cx[i]); dy.push(cy[i]); }
+    if (sx.length < 10) return false;
+    const res = ransacHomography(Float32Array.from(sx), Float32Array.from(sy), Float32Array.from(dx), Float32Array.from(dy), sx.length, 3, 400);
+    if (!res || res.count < Math.max(10, sx.length * 0.4) || !this._plausible(res.H)) return false;
+    let j = 0;
+    for (let k = 0; k < sx.length; k++) {
+      if (!res.inliers[k]) continue;
+      this.pinX[j] = sx[k]; this.pinY[j] = sy[k];
+      this.curX[j] = dx[k]; this.curY[j] = dy[k];
+      j++;
+    }
+    this.n = j;
+    this.H = res.H;
+    this.inliers = j;
+    this.state = 'tracking';
+    this.lostFrames = 0; this.goodFrames = 0;
+    if (this.n < this.maxPoints * 0.6) this._seed(false);
+    for (let i = 0; i < this.n; i++) { this.prevX[i] = this.curX[i]; this.prevY[i] = this.curY[i]; }
+    this._snapshotKey();
+    return true;
+  }
+}
+
+/* =====================================================================
+   Image treatments for the overlay.
+   ===================================================================== */
+function processImage(src, opts, out) {
+  const iw = src.width, ih = src.height;
+  const rotated = opts.rotation % 180 !== 0;
+  const w = rotated ? ih : iw, h = rotated ? iw : ih;
+  out.width = w; out.height = h;
+  const ctx = out.getContext('2d', { willReadFrequently: true });
+  ctx.save();
+  ctx.translate(w/2, h/2);
+  ctx.rotate(opts.rotation * Math.PI / 180);
+  if (opts.flip) ctx.scale(-1, 1);
+  ctx.drawImage(src, -iw/2, -ih/2);
+  ctx.restore();
+
+  if (opts.filter !== 'original') {
+    const id = ctx.getImageData(0, 0, w, h), d = id.data, n = w*h;
+    const gray = new Float32Array(n);
+    for (let i = 0, j = 0; i < n; i++, j += 4) gray[i] = d[j]*0.299 + d[j+1]*0.587 + d[j+2]*0.114;
+    let outv = gray;
+    if (opts.filter === 'contrast') {
+      outv = new Float32Array(n);
+      for (let i = 0; i < n; i++) outv[i] = (gray[i] - 128) * 1.7 + 132;
+    } else if (opts.filter === 'values') {
+      outv = new Float32Array(n);
+      const levels = 5;
+      for (let i = 0; i < n; i++) outv[i] = Math.round(gray[i] / 255 * (levels - 1)) / (levels - 1) * 255;
+    } else if (opts.filter === 'sketch') {
+      // 3x3 blur then Sobel magnitude, drawn as dark lines on white
+      const blur = new Float32Array(n);
+      for (let y = 1; y < h-1; y++) for (let x = 1; x < w-1; x++) {
+        const i = y*w + x;
+        blur[i] = (gray[i-w-1] + 2*gray[i-w] + gray[i-w+1] + 2*gray[i-1] + 4*gray[i] + 2*gray[i+1] + gray[i+w-1] + 2*gray[i+w] + gray[i+w+1]) / 16;
+      }
+      outv = new Float32Array(n).fill(255);
+      for (let y = 1; y < h-1; y++) for (let x = 1; x < w-1; x++) {
+        const i = y*w + x;
+        const sx = (blur[i-w+1] + 2*blur[i+1] + blur[i+w+1]) - (blur[i-w-1] + 2*blur[i-1] + blur[i+w-1]);
+        const sy = (blur[i+w-1] + 2*blur[i+w] + blur[i+w+1]) - (blur[i-w-1] + 2*blur[i-w] + blur[i-w+1]);
+        const mag = Math.hypot(sx, sy);
+        outv[i] = 255 - Math.min(255, Math.max(0, mag - 24) * 1.6);
+      }
+    }
+    for (let i = 0, j = 0; i < n; i++, j += 4) {
+      const v = outv[i] < 0 ? 0 : outv[i] > 255 ? 255 : outv[i];
+      d[j] = d[j+1] = d[j+2] = v;
+    }
+    ctx.putImageData(id, 0, 0);
+  }
+
+  if (opts.grid > 1) {
+    ctx.save();
+    ctx.strokeStyle = '#e0443a';
+    ctx.globalAlpha = 0.9;
+    const lw = Math.max(2, Math.min(w, h) / 400);
+    ctx.lineWidth = lw;
+    ctx.beginPath();
+    for (let i = 1; i < opts.grid; i++) {
+      const x = w * i / opts.grid, y = h * i / opts.grid;
+      ctx.moveTo(x, 0); ctx.lineTo(x, h);
+      ctx.moveTo(0, y); ctx.lineTo(w, y);
+    }
+    ctx.stroke();
+    ctx.strokeRect(lw/2, lw/2, w - lw, h - lw);
+    ctx.restore();
+  }
+}
+
+/* =====================================================================
+   App
+   ===================================================================== */
+const $ = (id) => document.getElementById(id);
+const stage = $('stage'), video = $('video'), overlay = $('overlay'), frameSvg = $('frame'), poly = frameSvg.querySelector('polygon');
+const debugCanvas = $('debug');
+const handles = Array.from(document.querySelectorAll('.handle'));
+const statusChip = $('status'), statusText = $('statusText');
+const pinBtn = $('pinBtn'), pinLabel = $('pinLabel');
+const toastEl = $('toast');
+
+const prefs = (() => {
+  try { return JSON.parse(localStorage.getItem('canvastrace.prefs') || '{}') || {}; } catch (e) { return {}; }
+})();
+const savePrefs = () => { try { localStorage.setItem('canvastrace.prefs', JSON.stringify({ opacity: app.opacity, filter: app.filter, grid: app.grid, gridN: app.gridN, quality: app.quality, smooth: app.smooth })); } catch (e) {} };
+
+const app = {
+  source: null,            // HTMLImageElement / ImageBitmap
+  sourceName: '',
+  opacity: prefs.opacity ?? 0.55,
+  filter: prefs.filter ?? 'original',
+  grid: prefs.grid ?? false,
+  gridN: prefs.gridN ?? 4,
+  flip: false,
+  rotation: 0,
+  locked: false,
+  quality: prefs.quality ?? 448,
+  smooth: prefs.smooth ?? 0.5,
+  debug: false,
+  cameraOn: false,
+  mode: 'align',           // align | pinned
+  quadPin: null,           // 4 corners in pin-frame (tracker) coordinates
+  Himg: M.identity(),      // image px -> pin frame
+  tracker: null,
+  procCanvas: document.createElement('canvas'),
+  procScale: 1,            // tracker px per video px
+  Hsmooth: null,
+  frameTimes: [],
+  lastVideoW: 0, lastVideoH: 0
+};
+
+function toast(msg, ms = 2200) {
+  toastEl.textContent = msg; toastEl.classList.add('show');
+  clearTimeout(toast._t); toast._t = setTimeout(() => toastEl.classList.remove('show'), ms);
+}
+
+function setStatus(text, kind = '') {
+  statusText.textContent = text;
+  statusChip.className = 'chip' + (kind ? ' ' + kind : '');
+}
+
+/* ---------- screen mapping ---------- */
+function screenMap() {
+  const W = stage.clientWidth, H = stage.clientHeight;
+  const vw = video.videoWidth || 1280, vh = video.videoHeight || 720;
+  const s = Math.max(W / vw, H / vh);
+  const ox = (W - vw*s) / 2, oy = (H - vh*s) / 2;
+  const k = s / app.procScale;   // tracker px -> screen px
+  return { W, H, vw, vh, S: new Float64Array([k,0,ox, 0,k,oy, 0,0,1]) };
+}
+
+/** Full transform: image px -> screen px. */
+function totalTransform() {
+  const { S } = screenMap();
+  const Hpc = app.mode === 'pinned' && app.tracker ? (app.Hsmooth || app.tracker.H) : M.identity();
+  return M.mul(S, M.mul(Hpc, app.Himg));
+}
+
+function render() {
+  if (!app.source || !app.quadPin) { overlay.hidden = true; stage.classList.add('nohandles'); return; }
+  overlay.hidden = false;
+  stage.classList.toggle('nohandles', false);
+  const T = M.normalize(totalTransform());
+  overlay.style.transform = `matrix3d(${T[0]},${T[3]},0,${T[6]}, ${T[1]},${T[4]},0,${T[7]}, 0,0,1,0, ${T[2]},${T[5]},0,${T[8]})`;
+  overlay.style.opacity = app.opacity;
+  const iw = overlay.width, ih = overlay.height;
+  const corners = [[0,0],[iw,0],[iw,ih],[0,ih]].map(([x, y]) => M.apply(T, x, y));
+  poly.setAttribute('points', corners.map(p => p.map(v => v.toFixed(1)).join(',')).join(' '));
+  handles.forEach((h, i) => { h.style.transform = `translate(${corners[i][0]}px, ${corners[i][1]}px)`; });
+  const kind = app.mode === 'pinned' ? (app.tracker && app.tracker.state === 'tracking' ? 'pinned' : 'lost') : '';
+  frameSvg.className.baseVal = kind;
+}
+
+/** Recompute image->pin homography from the pin-frame quad. */
+function updateHimg() {
+  const iw = overlay.width, ih = overlay.height;
+  const q = app.quadPin;
+  const sx = new Float32Array([0, iw, iw, 0]), sy = new Float32Array([0, 0, ih, ih]);
+  const dx = new Float32Array(q.map(p => p[0])), dy = new Float32Array(q.map(p => p[1]));
+  const H = homographyFromPairs(sx, sy, dx, dy, new Int32Array([0,1,2,3]), 4);
+  if (H) app.Himg = H;
+}
+
+/** Screen px -> pin-frame coords (inverse of S * Hpc). */
+function screenToPin(x, y) {
+  const { S } = screenMap();
+  const Hpc = app.mode === 'pinned' && app.tracker ? (app.Hsmooth || app.tracker.H) : M.identity();
+  const inv = M.inv(M.mul(S, Hpc));
+  return inv ? M.apply(inv, x, y) : [x, y];
+}
+
+function defaultQuad() {
+  const { W, H } = screenMap();
+  const iw = overlay.width || 4, ih = overlay.height || 4;
+  const fit = Math.min((W * 0.7) / iw, (H * 0.45) / ih);
+  const w = iw * fit, h = ih * fit, cx = W / 2, cy = H * 0.44;
+  const cornersScreen = [[cx - w/2, cy - h/2], [cx + w/2, cy - h/2], [cx + w/2, cy + h/2], [cx - w/2, cy + h/2]];
+  return cornersScreen.map(([x, y]) => screenToPin(x, y));
+}
+
+/* ---------- image ---------- */
+function rebuildOverlay() {
+  if (!app.source) return;
+  const prevW = overlay.width, prevH = overlay.height;
+  processImage(app.source, { filter: app.filter, flip: app.flip, rotation: app.rotation, grid: app.grid ? app.gridN : 0 }, overlay);
+  overlay.style.width = overlay.width + 'px';
+  overlay.style.height = overlay.height + 'px';
+  if (!app.quadPin || prevW !== overlay.width || prevH !== overlay.height) {
+    if (app.quadPin && prevW > 4) {
+      // keep the same footprint when dimensions swap (rotate)
+      updateHimg();
+    } else {
+      app.quadPin = defaultQuad();
+    }
+  }
+  updateHimg();
+  render();
+  refreshTools();
+}
+
+async function loadImageFile(file) {
+  if (!file) return;
+  try {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = url; });
+    const maxDim = 1400;
+    const scale = Math.min(1, maxDim / Math.max(img.naturalWidth, img.naturalHeight));
+    const c = document.createElement('canvas');
+    c.width = Math.max(1, Math.round(img.naturalWidth * scale));
+    c.height = Math.max(1, Math.round(img.naturalHeight * scale));
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    URL.revokeObjectURL(url);
+    app.source = c;
+    app.sourceName = file.name || 'Image';
+    app.flip = false; app.rotation = 0;
+    app.quadPin = null;
+    if (app.mode === 'pinned') unpin(false);
+    $('thumbImg').src = c.toDataURL('image/jpeg', 0.6);
+    $('thumbName').textContent = app.sourceName;
+    $('thumbSize').textContent = `${img.naturalWidth} × ${img.naturalHeight}`;
+    $('thumb').classList.add('show');
+    $('startPickLabel').textContent = 'Choose a different image';
+    rebuildOverlay();
+    if (app.cameraOn) setStatus('Drag the corners onto your canvas, then pin');
+  } catch (e) {
+    toast("Couldn't open that image. Try a JPEG or PNG.");
+  }
+}
+$('imageInput').addEventListener('change', (e) => { loadImageFile(e.target.files[0]); e.target.value = ''; });
+$('imageInput2').addEventListener('change', (e) => { loadImageFile(e.target.files[0]); e.target.value = ''; });
+
+/* ---------- camera ---------- */
+async function startCamera() {
+  const err = $('camErr');
+  err.classList.remove('show');
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    err.textContent = 'This browser cannot open the camera here. Open the link directly in Safari on your iPhone (not inside another app), and make sure it is https.';
+    err.classList.add('show');
+    return;
+  }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: false,
+      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } }
+    });
+    video.srcObject = stream;
+    await video.play();
+    app.cameraOn = true;
+    $('start').hidden = true;
+    $('top').hidden = false;
+    $('dock').hidden = false;
+    setStatus(app.source ? 'Drag the corners onto your canvas, then pin' : 'Choose an image');
+    if (app.source && !app.quadPin) { app.quadPin = defaultQuad(); updateHimg(); }
+    refreshTools();
+    render();
+    loop();
+  } catch (e) {
+    const name = e && e.name;
+    const framed = window.self !== window.top;
+    err.textContent = name === 'NotAllowedError'
+      ? (framed
+        ? 'The camera is blocked while this page is embedded. Tap "Open in Safari" below, or use Share → Add to Home Screen.'
+        : 'Camera access was blocked. In Settings → Safari → Camera choose Ask or Allow, then reload this page.')
+      : name === 'NotFoundError' ? 'No camera was found on this device.'
+      : `Could not start the camera (${name || e}). Try opening the link directly in Safari.`;
+    err.classList.add('show');
+  }
+}
+$('startBtn').addEventListener('click', startCamera);
+if (window.self !== window.top) {
+  $('framedTip').hidden = false;
+  $('openBtn').hidden = false;
+  $('openBtn').addEventListener('click', () => { window.open(location.href, '_blank', 'noopener'); });
+}
+
+/* ---------- tracking loop ---------- */
+function ensureTracker() {
+  const vw = video.videoWidth, vh = video.videoHeight;
+  if (!vw || !vh) return null;
+  const longest = Math.max(vw, vh);
+  const scale = app.quality / longest;
+  const pw = Math.round(vw * scale), ph = Math.round(vh * scale);
+  if (!app.tracker || app.tracker.w !== pw || app.tracker.h !== ph) {
+    const changedOrientation = app.tracker && (app.lastVideoW !== vw || app.lastVideoH !== vh);
+    app.tracker = new PlanarTracker(pw, ph);
+    app.procCanvas.width = pw; app.procCanvas.height = ph;
+    app.procScale = scale;
+    app.lastVideoW = vw; app.lastVideoH = vh;
+    if (app.mode === 'pinned') { unpin(false); if (changedOrientation) toast('Orientation changed. Line it up and pin again.'); }
+    else if (app.source) { app.quadPin = defaultQuad(); updateHimg(); }
+  }
+  return app.tracker;
+}
+
+let rafId = 0;
+function loop() {
+  if (!app.cameraOn) return;
+  const schedule = () => {
+    if ('requestVideoFrameCallback' in video) video.requestVideoFrameCallback(() => loop());
+    else rafId = requestAnimationFrame(loop);
+  };
+  const t0 = performance.now();
+  const tracker = ensureTracker();
+  if (tracker && app.mode === 'pinned') {
+    const pc = app.procCanvas, ctx = pc.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(video, 0, 0, pc.width, pc.height);
+    tracker.feed(ctx.getImageData(0, 0, pc.width, pc.height).data);
+    tracker.update();
+    if (tracker.state === 'tracking') {
+      const a = app.smooth;
+      if (!app.Hsmooth) app.Hsmooth = tracker.H.slice();
+      else {
+        const Hn = M.normalize(tracker.H), Hs = app.Hsmooth;
+        for (let k = 0; k < 9; k++) Hs[k] += (Hn[k] - Hs[k]) * (1 - a);
+      }
+      setStatus(`Pinned · ${tracker.inliers} points`, 'pinned');
+    } else {
+      setStatus('Lost the canvas. Move back to where you pinned it.', 'lost');
+    }
+    if (app.debug) drawDebug(tracker);
+  } else if (tracker && app.source) {
+    // keep frames flowing so a pin has a fresh frame
+    const pc = app.procCanvas, ctx = pc.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(video, 0, 0, pc.width, pc.height);
+    tracker.feed(ctx.getImageData(0, 0, pc.width, pc.height).data);
+  }
+  render();
+  const dt = performance.now() - t0;
+  app.frameTimes.push(dt); if (app.frameTimes.length > 60) app.frameTimes.shift();
+  schedule();
+}
+
+function drawDebug(tracker) {
+  const { S } = screenMap();
+  if (debugCanvas.width !== stage.clientWidth || debugCanvas.height !== stage.clientHeight) { debugCanvas.width = stage.clientWidth; debugCanvas.height = stage.clientHeight; }
+  const ctx = debugCanvas.getContext('2d');
+  ctx.clearRect(0, 0, debugCanvas.width, debugCanvas.height);
+  ctx.fillStyle = tracker.state === 'tracking' ? '#7cc08a' : '#e1a85b';
+  for (let i = 0; i < tracker.n; i++) {
+    const [x, y] = M.apply(S, tracker.curX[i], tracker.curY[i]);
+    ctx.fillRect(x - 2, y - 2, 4, 4);
+  }
+  const avg = app.frameTimes.reduce((a, b) => a + b, 0) / Math.max(1, app.frameTimes.length);
+  ctx.fillStyle = '#f1ebe2'; ctx.font = '12px sans-serif';
+  ctx.fillText(`${tracker.w}×${tracker.h} · ${avg.toFixed(1)} ms/frame`, 14, debugCanvas.height * 0.5);
+}
+
+/* ---------- pin / unpin ---------- */
+function pin() {
+  const tracker = ensureTracker();
+  if (!tracker || !app.source || !app.quadPin) return;
+  if (!tracker.frameHasImage) { toast('Camera is still warming up'); return; }
+  const ok = tracker.pin(app.quadPin.map(p => [p[0], p[1]]));
+  app.mode = 'pinned';
+  app.Hsmooth = null;
+  pinLabel.textContent = 'Unpin';
+  pinBtn.classList.add('unpin');
+  if (!ok) toast('Not much to track here. Add tape near the corners or include the easel in view.', 3500);
+  render();
+  refreshTools();
+}
+
+function unpin(announce = true) {
+  if (app.mode === 'pinned' && app.tracker && app.quadPin) {
+    // freeze the quad where it currently appears
+    const Hpc = app.Hsmooth || app.tracker.H;
+    app.quadPin = app.quadPin.map(([x, y]) => M.apply(Hpc, x, y));
+    updateHimg();
+    app.tracker.stop();
+  }
+  app.mode = 'align';
+  app.Hsmooth = null;
+  pinLabel.textContent = 'Pin to canvas';
+  pinBtn.classList.remove('unpin');
+  if (app.cameraOn) setStatus(app.source ? 'Drag the corners onto your canvas, then pin' : 'Choose an image');
+  if (announce) toast('Unpinned. Adjust, then pin again.');
+  debugCanvas.getContext('2d').clearRect(0, 0, debugCanvas.width, debugCanvas.height);
+  render();
+  refreshTools();
+}
+pinBtn.addEventListener('click', () => { if (app.mode === 'pinned') unpin(); else pin(); });
+
+/* ---------- gestures ---------- */
+const pointers = new Map();
+let dragCorner = -1;
+
+handles.forEach((h) => {
+  h.addEventListener('pointerdown', (e) => {
+    if (app.locked) return;
+    e.stopPropagation();
+    dragCorner = +h.dataset.i;
+    h.setPointerCapture(e.pointerId);
+  });
+  h.addEventListener('pointermove', (e) => {
+    if (dragCorner !== +h.dataset.i || app.locked) return;
+    const r = stage.getBoundingClientRect();
+    app.quadPin[dragCorner] = screenToPin(e.clientX - r.left, e.clientY - r.top);
+    updateHimg(); render();
+  });
+  const end = (e) => { if (dragCorner === +h.dataset.i) dragCorner = -1; };
+  h.addEventListener('pointerup', end);
+  h.addEventListener('pointercancel', end);
+});
+
+stage.addEventListener('pointerdown', (e) => {
+  if (app.locked || !app.quadPin) return;
+  const r = stage.getBoundingClientRect();
+  pointers.set(e.pointerId, { x: e.clientX - r.left, y: e.clientY - r.top });
+  stage.setPointerCapture(e.pointerId);
+});
+stage.addEventListener('pointermove', (e) => {
+  if (!pointers.has(e.pointerId) || app.locked || !app.quadPin) return;
+  const r = stage.getBoundingClientRect();
+  const now = { x: e.clientX - r.left, y: e.clientY - r.top };
+  const ids = Array.from(pointers.keys());
+  let A;
+  if (ids.length === 1) {
+    const p = pointers.get(e.pointerId);
+    A = [1,0,now.x - p.x, 0,1,now.y - p.y, 0,0,1];
+  } else {
+    const other = ids.find(id => id !== e.pointerId);
+    if (other === undefined) return;
+    const p1 = pointers.get(e.pointerId), p2 = pointers.get(other);
+    const d0 = Math.hypot(p2.x - p1.x, p2.y - p1.y), d1 = Math.hypot(p2.x - now.x, p2.y - now.y);
+    if (d0 < 4 || d1 < 4) { pointers.set(e.pointerId, now); return; }
+    const s = d1 / d0;
+    const a0 = Math.atan2(p2.y - p1.y, p2.x - p1.x), a1 = Math.atan2(p2.y - now.y, p2.x - now.x);
+    const th = a1 - a0;
+    const c = Math.cos(th) * s, sn = Math.sin(th) * s;
+    // rotate/scale about the fixed other finger
+    A = [c,-sn, p2.x - (c*p2.x - sn*p2.y), sn,c, p2.y - (sn*p2.x + c*p2.y), 0,0,1];
+  }
+  const T = M.mul(screenMap().S, app.mode === 'pinned' && app.tracker ? (app.Hsmooth || app.tracker.H) : M.identity());
+  const Tinv = M.inv(T);
+  if (Tinv) {
+    const Af = Float64Array.from(A);
+    app.quadPin = app.quadPin.map(([x, y]) => { const [sx, sy] = M.apply(T, x, y); const [nx, ny] = M.apply(Af, sx, sy); return M.apply(Tinv, nx, ny); });
+    updateHimg(); render();
+  }
+  pointers.set(e.pointerId, now);
+});
+const endPointer = (e) => { pointers.delete(e.pointerId); };
+stage.addEventListener('pointerup', endPointer);
+stage.addEventListener('pointercancel', endPointer);
+
+/* ---------- tools ---------- */
+function refreshTools() {
+  const has = !!app.source;
+  document.querySelectorAll('[data-filter]').forEach(b => { b.classList.toggle('on', b.dataset.filter === app.filter); b.disabled = !has; });
+  $('gridTool').classList.toggle('on', app.grid); $('gridTool').disabled = !has;
+  $('flipTool').classList.toggle('on', app.flip); $('flipTool').disabled = !has;
+  $('rotateTool').disabled = !has || app.locked;
+  $('resetTool').disabled = !has || app.locked;
+  pinBtn.disabled = !has || !app.cameraOn || app.locked;
+  $('lockBtn').classList.toggle('on', app.locked);
+  $('lockBtn').disabled = !has;
+  $('lockShackle').setAttribute('d', app.locked ? 'M8 11V7a4 4 0 0 1 8 0v4' : 'M8 11V7a4 4 0 0 1 8 0');
+  stage.classList.toggle('locked', app.locked);
+  $('gridOut').textContent = `${app.gridN} × ${app.gridN}`;
+}
+document.querySelectorAll('[data-filter]').forEach(b => b.addEventListener('click', () => { app.filter = b.dataset.filter; savePrefs(); rebuildOverlay(); }));
+$('gridTool').addEventListener('click', () => { app.grid = !app.grid; savePrefs(); rebuildOverlay(); });
+$('flipTool').addEventListener('click', () => { app.flip = !app.flip; rebuildOverlay(); });
+$('rotateTool').addEventListener('click', () => {
+  if (!app.quadPin) return;
+  // rotate the quad itself so the placement is kept: q -> [q3,q0,q1,q2] rotates the image 90° clockwise inside the same footprint
+  app.rotation = (app.rotation + 90) % 360;
+  app.quadPin = [app.quadPin[3], app.quadPin[0], app.quadPin[1], app.quadPin[2]];
+  rebuildOverlay();
+});
+$('resetTool').addEventListener('click', () => {
+  if (app.mode === 'pinned') unpin(false);
+  app.quadPin = defaultQuad(); updateHimg(); render();
+  toast('Placement reset');
+});
+$('lockBtn').addEventListener('click', () => {
+  app.locked = !app.locked;
+  refreshTools();
+  toast(app.locked ? 'Locked. Touches will not move the image.' : 'Unlocked');
+});
+
+const opacityInput = $('opacity'), opacityOut = $('opacityOut');
+opacityInput.value = Math.round(app.opacity * 100);
+opacityOut.textContent = `${opacityInput.value}%`;
+opacityInput.addEventListener('input', () => { app.opacity = opacityInput.value / 100; opacityOut.textContent = `${opacityInput.value}%`; overlay.style.opacity = app.opacity; savePrefs(); });
+
+/* ---------- settings sheet ---------- */
+const sheet = $('sheet');
+$('gearBtn').addEventListener('click', () => { sheet.classList.add('show'); refreshTools(); });
+$('sheetClose').addEventListener('click', () => sheet.classList.remove('show'));
+sheet.addEventListener('click', (e) => { if (e.target === sheet) sheet.classList.remove('show'); });
+$('gridMinus').addEventListener('click', () => { app.gridN = Math.max(2, app.gridN - 1); savePrefs(); refreshTools(); if (app.grid) rebuildOverlay(); });
+$('gridPlus').addEventListener('click', () => { app.gridN = Math.min(12, app.gridN + 1); savePrefs(); refreshTools(); if (app.grid) rebuildOverlay(); });
+const segInit = (segId, attr, key, cast) => {
+  const seg = $(segId);
+  seg.querySelectorAll('button').forEach(b => {
+    b.classList.toggle('on', cast(b.dataset[attr]) === app[key]);
+    b.addEventListener('click', () => { app[key] = cast(b.dataset[attr]); seg.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); savePrefs(); if (key === 'quality') app.tracker = null; });
+  });
+};
+segInit('qualitySeg', 'q', 'quality', Number);
+segInit('smoothSeg', 's', 'smooth', Number);
+$('debugSwitch').addEventListener('click', () => {
+  app.debug = !app.debug;
+  $('debugSwitch').classList.toggle('on', app.debug);
+  $('debugSwitch').setAttribute('aria-checked', String(app.debug));
+  debugCanvas.hidden = !app.debug;
+});
+
+window.addEventListener('resize', () => render());
+document.addEventListener('visibilitychange', () => { if (!document.hidden && app.cameraOn) video.play().catch(() => {}); });
+
+refreshTools();
+
+// exposed for testing
+window.CanvasTrace = { PlanarTracker, Pyramid, LK, M, homographyFromPairs, ransacHomography, detectCorners, processImage, app };
+})();
+</script>
