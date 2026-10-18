@@ -16,7 +16,7 @@ provenance gates (phase 1) once they exist.
 - [ ] Review `dughogan/comfy_workflow_audit`: data model, signing/chaining, C2PA, delivery format
 - [ ] `cgdata/provenance.py`: gate events (asset approved, look locked, shot curated, comp finished) in Comfy Audit's format, hash-chained, referenced from meta.json
 - [ ] Review CLI: approve/reject with notes from a contact sheet, logged as a human event
-- [ ] **[Doug]** Confirm the gate list and what counts as a creative decision
+- [x] **[Doug]** Confirm the gate list and what counts as a creative decision (confirmed by Doug 2026-10-18: asset approved, look locked, shot curated, comp finished)
 
 ## Phase 2: asset library (minimum for 500 clips, 50–100 distinct scenes)
 - [ ] Geometry-nodes modular city kit (facades, windows, roofs, street dressing)
