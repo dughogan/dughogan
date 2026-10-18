@@ -38,7 +38,7 @@ provenance gates (phase 1) once they exist.
 - [ ] **[Doug]** Run `build_comp.py` in real Nuke on one shot; send back `comp/*_comp.json` warnings
 
 ## Phase 4: benchmark and generate
-- [ ] **[Doug]** Render machine details: OS, GPU model, storage path, Nuke render licenses (time zone: Central; renders run on Doug's local GPU via a local Claude session or a scheduled run_batch)
+- [ ] **[Doug]** Render machine details: OS, GPU model, storage path (Nuke: 1 license, so comps run one at a time; time zone: Central; renders run on Doug's local GPU via a local Claude session or a scheduled run_batch)
 - [ ] Machine-specific nightly scheduler (cron / Task Scheduler / Flamenco) using `run_batch --stop-at 07:00`
 - [ ] 20-clip benchmark: real s/frame, GB/frame, look review
 - [ ] **[Doug]** Approve the benchmark look → start the 500-clip pilot run (nightly until done)
