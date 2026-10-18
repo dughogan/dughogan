@@ -1,5 +1,7 @@
 # cgdata: procedural CG paired-data pipeline
 
+> New here? Start with [HANDOFF.md](HANDOFF.md), then [ROADMAP.md](ROADMAP.md).
+
 Generates fully owned, procedurally built CG shots in Blender/Cycles with every
 render pass, light groups and material AOVs. Each shot gets a finishing comp in
 Nuke, automated QA and a catalog record, so the output is ready for
