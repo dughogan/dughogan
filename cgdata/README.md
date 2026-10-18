@@ -26,7 +26,7 @@ python -m cgdata.run_batch --count 500 --seed 1 --quality pilot \
 ```
 
 Quality presets (`cgdata/spec.py`): `draft` 480×270/16spp/3f, `preview`
-960×540/64spp/24f, `pilot` 1920×1080/512spp/96f, `pilot_4k`.
+960×540/64spp/25f, `pilot` 1920×1080/512spp/97f, `pilot_4k`.
 
 ## Per-shot output
 

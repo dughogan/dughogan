@@ -23,11 +23,12 @@ TIMES_OF_DAY = ["morning", "noon", "golden_hour", "dusk"]
 HERO_TYPES = ["glass_sculpture", "chrome_sculpture", "sss_blob", "neon_totem", "stone_monolith"]
 
 # Render presets. "pilot" is for buyer samples; "draft" is for pipeline testing.
+# Frame counts are 8n+1 (97 = 8*12+1), which LTX-Video training expects.
 QUALITY = {
     "draft": {"resolution": [480, 270], "samples": 16, "frames": 3},
-    "preview": {"resolution": [960, 540], "samples": 64, "frames": 24},
-    "pilot": {"resolution": [1920, 1080], "samples": 512, "frames": 96},
-    "pilot_4k": {"resolution": [3840, 2160], "samples": 512, "frames": 96},
+    "preview": {"resolution": [960, 540], "samples": 64, "frames": 25},
+    "pilot": {"resolution": [1920, 1080], "samples": 512, "frames": 97},
+    "pilot_4k": {"resolution": [3840, 2160], "samples": 512, "frames": 97},
 }
 
 
