@@ -5,12 +5,21 @@
 
 Each stage is idempotent per shot (skipped when its outputs exist), so a
 batch can be stopped and resumed, or split across machines by seed range.
+
+Overnight window: `--stop-at 07:00` stops starting new shots once that local
+time is reached (the shot in progress finishes). Start it from cron at 22:00:
+
+    0 22 * * * cd /path/to/repo && python -m cgdata.run_batch --count 500 --seed 1 \
+        --library /mnt/LIBRARY --blender /opt/blender/blender --stop-at 07:00 >> /mnt/LIBRARY/batch.log 2>&1
+
+Re-running the same command each night picks up where the last night ended.
 """
 
 import argparse
 import json
 import subprocess
 import sys
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from cgdata import catalog, qa
@@ -24,6 +33,14 @@ def run(cmd):
     return subprocess.run([str(c) for c in cmd]).returncode
 
 
+def stop_time(hhmm):
+    """Next occurrence of local time HH:MM (tomorrow if already past today)."""
+    h, m = map(int, hhmm.split(":"))
+    now = datetime.now()
+    stop = now.replace(hour=h, minute=m, second=0, microsecond=0)
+    return stop if stop > now else stop + timedelta(days=1)
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--count", type=int, required=True)
@@ -34,7 +51,10 @@ def main():
                     help="Blender executable; default runs build_shot.py with this Python (needs the bpy module)")
     ap.add_argument("--device", choices=["CPU", "GPU"], default="GPU")
     ap.add_argument("--nuke", default=None, help="Nuke executable; omit to skip the comp stage")
+    ap.add_argument("--stop-at", default=None, metavar="HH:MM",
+                    help="local time after which no new shot is started (e.g. 07:00)")
     args = ap.parse_args()
+    deadline = stop_time(args.stop_at) if args.stop_at else None
 
     shots_dir = args.library / "cg"
     spec_dir = args.library / "specs"
@@ -42,7 +62,12 @@ def main():
     build = ROOT / "blender" / "build_shot.py"
     failed = []
 
+    stopped_early = False
     for seed in range(args.seed, args.seed + args.count):
+        if deadline and datetime.now() >= deadline:
+            stopped_early = True
+            print(f"run_batch: reached --stop-at {args.stop_at}; resuming next run at seed {seed}")
+            break
         spec = make_spec(seed, args.quality)
         spec_path = spec_dir / f"{spec['shot_id']}.json"
         spec_path.write_text(json.dumps(spec, indent=2))
@@ -66,7 +91,9 @@ def main():
             failed.append((spec["shot_id"], "qa: " + "; ".join(meta["qa"]["issues"])))
 
     catalog.build(shots_dir, args.library / "catalog")
-    print(f"run_batch: {args.count - len(failed)}/{args.count} shots clean")
+    done = sum(1 for p in shots_dir.glob("*/meta.json"))
+    print(f"run_batch: {done} shots in library; {len(failed)} problems this run"
+          + (" (stopped for the night)" if stopped_early else ""))
     for shot_id, why in failed:
         print(f"  {shot_id}: {why}")
 
