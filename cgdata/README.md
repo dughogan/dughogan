@@ -112,4 +112,4 @@ each render node; Nuke Non-commercial can't be used.
   roughly 150–250 MB per 1080p frame. Clean high-sample frames compress
   better. Light layers are stored RGBA; dropping the unused alpha saves
   about 25%.
-- `rights.owner` in `meta.json` is a placeholder until ownership is set.
+- `rights.owner` in `meta.json` is Dugco (cleared with ComfyUI for outside work).

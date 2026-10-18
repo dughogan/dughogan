@@ -230,7 +230,7 @@ def run(shot_dir, checksums=True):
             "frames": frames,
         },
         "rights": {
-            "owner": "TBD",
+            "owner": "Dugco",
             "origin": "procedurally generated; no third-party assets, textures or scans",
             "people_present": False,
             "third_party_assets": [],
