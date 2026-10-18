@@ -1,0 +1,151 @@
+"""Procedural material library, photoreal and toon variants.
+
+Every material writes three shader AOVs (base_color, roughness, metallic) so
+the dataset carries material ground truth alongside Cycles' lighting passes.
+All materials are fully procedural: no image textures, so no third-party
+licensing questions and nothing to pack.
+"""
+
+import colorsys
+
+import bpy
+
+# Shader AOVs registered on the view layer by passes.py; names must match.
+SHADER_AOVS = [("base_color", "COLOR"), ("roughness", "VALUE"), ("metallic", "VALUE")]
+
+KINDS = ["painted", "concrete", "rock", "metal", "glass", "sss", "emissive", "ground"]
+
+
+def hsv(h, s, v):
+    r, g, b = colorsys.hsv_to_rgb(h % 1.0, s, v)
+    return (r, g, b, 1.0)
+
+
+def _new_material(name):
+    mat = bpy.data.materials.new(name)
+    if hasattr(mat, "use_nodes"):
+        mat.use_nodes = True
+    nt = mat.node_tree
+    nt.nodes.clear()
+    out = nt.nodes.new("ShaderNodeOutputMaterial")
+    out.location = (600, 0)
+    return mat, nt, out
+
+
+def _aov_outputs(nt, color_socket, roughness, metallic):
+    """Write material ground truth to the shader AOVs."""
+    for name, value in (("base_color", color_socket), ("roughness", roughness), ("metallic", metallic)):
+        node = nt.nodes.new("ShaderNodeOutputAOV")
+        node.aov_name = name
+        node.location = (600, -200 - 120 * len(nt.nodes))
+        sock = node.inputs["Color"] if name == "base_color" else node.inputs["Value"]
+        if isinstance(value, bpy.types.NodeSocket):
+            nt.links.new(value, sock)
+        elif name == "base_color":
+            sock.default_value = value
+        else:
+            sock.default_value = value
+
+
+def _noise_color(nt, color, variation, scale):
+    """Base color with low-frequency procedural variation (dirt, wear)."""
+    tex = nt.nodes.new("ShaderNodeTexNoise")
+    tex.inputs["Scale"].default_value = scale
+    tex.inputs["Detail"].default_value = 6.0
+    mix = nt.nodes.new("ShaderNodeMix")
+    mix.data_type = "RGBA"
+    mix.blend_type = "MULTIPLY"
+    mix.inputs["Factor"].default_value = variation
+    mix.inputs["A"].default_value = color
+    nt.links.new(tex.outputs["Color"], mix.inputs["B"])
+    return mix.outputs["Result"]
+
+
+def _photoreal(name, kind, color):
+    mat, nt, out = _new_material(name)
+    bsdf = nt.nodes.new("ShaderNodeBsdfPrincipled")
+    bsdf.location = (300, 0)
+    params = {
+        "painted": dict(rough=0.45, metal=0.0, var=0.25, scale=4.0),
+        "concrete": dict(rough=0.85, metal=0.0, var=0.5, scale=8.0),
+        "rock": dict(rough=0.9, metal=0.0, var=0.6, scale=3.0),
+        "metal": dict(rough=0.2, metal=1.0, var=0.15, scale=12.0),
+        "ground": dict(rough=0.95, metal=0.0, var=0.5, scale=1.5),
+        "glass": dict(rough=0.02, metal=0.0, var=0.0, scale=1.0),
+        "sss": dict(rough=0.35, metal=0.0, var=0.1, scale=2.0),
+        "emissive": dict(rough=0.5, metal=0.0, var=0.0, scale=1.0),
+    }[kind]
+
+    base = _noise_color(nt, color, params["var"], params["scale"]) if params["var"] else color
+    if isinstance(base, bpy.types.NodeSocket):
+        nt.links.new(base, bsdf.inputs["Base Color"])
+    else:
+        bsdf.inputs["Base Color"].default_value = base
+    bsdf.inputs["Roughness"].default_value = params["rough"]
+    bsdf.inputs["Metallic"].default_value = params["metal"]
+
+    if kind == "glass":
+        bsdf.inputs["Transmission Weight"].default_value = 1.0
+        bsdf.inputs["IOR"].default_value = 1.45
+    elif kind == "sss":
+        bsdf.inputs["Subsurface Weight"].default_value = 1.0
+        bsdf.inputs["Subsurface Radius"].default_value = (1.0, 0.4, 0.25)
+        bsdf.inputs["Subsurface Scale"].default_value = 0.3
+    elif kind == "emissive":
+        bsdf.inputs["Emission Color"].default_value = color
+        bsdf.inputs["Emission Strength"].default_value = 12.0
+
+    nt.links.new(bsdf.outputs["BSDF"], out.inputs["Surface"])
+    _aov_outputs(nt, base, params["rough"], params["metal"])
+    return mat
+
+
+def _toon(name, kind, color):
+    """Cel-shaded look built from Cycles-native nodes.
+
+    Shader-to-RGB is EEVEE-only, so the toon look uses Toon BSDFs. This keeps
+    every Cycles lighting pass valid for the toon half of the dataset.
+    """
+    mat, nt, out = _new_material(name)
+    if kind == "emissive":
+        em = nt.nodes.new("ShaderNodeEmission")
+        em.inputs["Color"].default_value = color
+        em.inputs["Strength"].default_value = 8.0
+        nt.links.new(em.outputs["Emission"], out.inputs["Surface"])
+        _aov_outputs(nt, color, 1.0, 0.0)
+        return mat
+
+    if kind == "glass":
+        glass = nt.nodes.new("ShaderNodeBsdfGlass")
+        glass.inputs["Color"].default_value = color
+        glass.inputs["Roughness"].default_value = 0.0
+        nt.links.new(glass.outputs["BSDF"], out.inputs["Surface"])
+        _aov_outputs(nt, color, 0.0, 0.0)
+        return mat
+
+    diffuse = nt.nodes.new("ShaderNodeBsdfToon")
+    diffuse.component = "DIFFUSE"
+    diffuse.inputs["Color"].default_value = color
+    diffuse.inputs["Size"].default_value = 0.5
+    diffuse.inputs["Smooth"].default_value = 0.02
+
+    gloss = nt.nodes.new("ShaderNodeBsdfToon")
+    gloss.component = "GLOSSY"
+    gloss.inputs["Color"].default_value = (1.0, 1.0, 1.0, 1.0)
+    gloss.inputs["Size"].default_value = 0.15 if kind == "metal" else 0.05
+    gloss.inputs["Smooth"].default_value = 0.0
+
+    mix = nt.nodes.new("ShaderNodeMixShader")
+    mix.inputs["Fac"].default_value = 0.35 if kind == "metal" else 0.08
+    nt.links.new(diffuse.outputs["BSDF"], mix.inputs[1])
+    nt.links.new(gloss.outputs["BSDF"], mix.inputs[2])
+    nt.links.new(mix.outputs["Shader"], out.inputs["Surface"])
+    _aov_outputs(nt, color, 0.5, 1.0 if kind == "metal" else 0.0)
+    return mat
+
+
+def make_material(name, style, kind, color):
+    if kind not in KINDS:
+        raise ValueError(f"unknown material kind {kind!r}")
+    builder = _toon if style == "toon" else _photoreal
+    return builder(name, kind, color)

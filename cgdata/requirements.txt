@@ -1,0 +1,8 @@
+# Pipeline (QA, catalog, batch runner)
+numpy
+OpenEXR>=3.3
+pillow
+pandas
+pyarrow
+# Optional: run the Blender stage without a Blender install (Python 3.13)
+# bpy==5.2.2
