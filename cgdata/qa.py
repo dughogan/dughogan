@@ -26,6 +26,7 @@ import numpy as np
 import OpenEXR
 from PIL import Image, ImageDraw
 
+from cgdata import captions
 from cgdata.comp_params import make_comp_params
 
 META_VERSION = 1
@@ -244,6 +245,7 @@ def run(shot_dir, checksums=True):
              **({"sha256": sha256(p)} if checksums else {})}
             for p in files
         ],
+        "captions": captions.for_shot(shot_dir),
         "spec": spec,
         "created_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
     }

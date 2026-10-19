@@ -130,3 +130,23 @@ def test_record_html(tmp_path):
     out = provenance.record_html(provenance.shot_history_path(shot), tmp_path / "r.html")
     html = out.read_text()
     assert "Doug Hogan" in html and "CG_000001" in html
+
+
+def test_caption_edit_is_logged_and_overrides(tmp_path):
+    shot, meta = make_shot(tmp_path)
+    spec = {"seed": 5, "shot_id": "CG_000001", "style": "photoreal",
+            "environment": {"type": "meadow"}, "hero": {"type": "stone_monolith", "hue": 0.1},
+            "lighting": {"time_of_day": "noon"}, "camera": {"move": "orbit"},
+            "atmosphere": {"fog": False}}
+    (shot / "spec.json").write_text(json.dumps(spec))
+    (shot / "scene.json").write_text(json.dumps({"camera": {"focal_mm": 35, "fstop": 4.0}}))
+    provenance.record_render(shot, meta)
+    entry = provenance.edit_caption(shot, key="long", text="A monolith at noon.", person="Doug Hogan")
+    assert entry["event"] == "note" and entry["data"]["text"] == "A monolith at noon."
+    assert "note" in entry["breakpoints"]
+    meta_now = json.loads((shot / "meta.json").read_text())
+    assert meta_now["captions"]["long"] == "A monolith at noon."
+    assert meta_now["captions"]["edited"]["long"]["by"] == "Doug Hogan"
+    assert meta_now["provenance"]["caption_edits"] == 1
+    with pytest.raises(ValueError, match="empty"):
+        provenance.edit_caption(shot, key="long", text="  ", person="Doug Hogan")

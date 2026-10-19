@@ -34,7 +34,7 @@ provenance gates (phase 1) once they exist.
 
 ## Phase 3: LTX-ready outputs
 - [ ] Same scene rendered in both styles (photoreal and toon pairs)
-- [ ] Captions from the spec (scene, camera move, lens, lighting, style) + review queue for human edits
+- [x] Captions from the spec (scene, camera move, lens, lighting, style) + review queue for human edits (`captions.py`, `review captions`; edits logged as provenance notes)
 - [ ] Export step: per-pass MP4/ProRes videos, /32 resolution, 8n+1 frames, IC-LoRA pair manifests
 - [ ] Pair sets: depth/normal/segmentation → final, beauty → finished comp, light group → relit, toon ↔ photoreal
 - [x] Storage trims: native /32 resolutions (1920×1088); RGB-only light layers not possible in Blender 5.2 (documented)

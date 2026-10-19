@@ -11,6 +11,11 @@ One decision, scripted:
         --note "Facade variety is enough for wide shots" --evidence turntable.png --as "Doug Hogan"
     python -m cgdata.review look LIBRARY toon_v2 --reject --note "Ramp too soft" --as "Doug Hogan"
 
+Caption review (Enter keeps the generated caption; typing replaces it and is
+logged as your note on the clip):
+    python -m cgdata.review captions LIBRARY --as "Doug Hogan"
+    python -m cgdata.review caption LIBRARY/cg/CG_000001 --key long --text "..." --as "Doug Hogan"
+
 Status of every clip's gates and history:
     python -m cgdata.review status LIBRARY
 
@@ -86,6 +91,24 @@ def cmd_subject(args, kind):
     print(f"{args.name}: {entry['event']} seq {entry['seq']}")
 
 
+def cmd_captions(args):
+    from cgdata import captions
+    shots = sorted(p.parent for p in (args.library / "cg").glob("*/meta.json"))
+    todo = [s for s in shots if not (s / "captions_edited.json").exists()]
+    print(f"{len(todo)} of {len(shots)} clips have no caption edits. "
+          "Enter = keep, type a replacement, s = skip, q = quit")
+    for shot in todo:
+        caps = captions.for_shot(shot)
+        print(f"\n{shot.name} ({caps['short']})\n  {caps[args.key]}")
+        text = input(f"  {args.key} caption: ").strip()
+        if text == "q":
+            break
+        if text in ("", "s"):
+            continue
+        provenance.edit_caption(shot, key=args.key, text=text, person=args.person, role=args.role)
+        print("  recorded")
+
+
 def cmd_status(args):
     rows = []
     for meta in sorted((args.library / "cg").glob("*/meta.json")):
@@ -138,6 +161,17 @@ def main():
         person(p)
         verdict(p)
 
+    p = sub.add_parser("captions", help="interactive caption review")
+    p.add_argument("library", type=Path)
+    p.add_argument("--key", choices=["short", "long"], default="long")
+    person(p)
+
+    p = sub.add_parser("caption", help="replace one clip's caption")
+    p.add_argument("shot", type=Path)
+    p.add_argument("--key", choices=["short", "long"], default="long")
+    p.add_argument("--text", required=True)
+    person(p)
+
     p = sub.add_parser("status", help="gates and history assurance for every clip")
     p.add_argument("library", type=Path)
 
@@ -152,6 +186,11 @@ def main():
         cmd_shot(args)
     elif args.cmd in ("asset", "look"):
         cmd_subject(args, args.cmd + "s")
+    elif args.cmd == "captions":
+        cmd_captions(args)
+    elif args.cmd == "caption":
+        e = provenance.edit_caption(args.shot, key=args.key, text=args.text, person=args.person, role=args.role)
+        print(f"{args.shot.name}: {args.key} caption replaced (history seq {e['seq']})")
     elif args.cmd == "record":
         print(provenance.record_html(provenance.shot_history_path(args.shot), args.out))
     else:

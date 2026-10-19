@@ -184,6 +184,29 @@ def decide_shot(shot_dir, *, gate, decision, person, note, role=""):
     return entry
 
 
+def edit_caption(shot_dir, *, key, text, person, role=""):
+    """Store a person's caption rewrite and log it as their note on the clip.
+
+    Human-written text that ships with the data is authorship material in
+    its own right, so the edit goes in the chain with the text itself.
+    """
+    if key not in ("short", "long"):
+        raise ValueError("caption key must be 'short' or 'long'")
+    if not text.strip():
+        raise ValueError("an edited caption can't be empty")
+    shot_dir = Path(shot_dir)
+    entry = _stamp(shot_history_path(shot_dir), event="note", actor=_person(person, role),
+                   name=shot_dir.name, external_ids={"cgdata": shot_dir.name},
+                   note=f"Rewrote the {key} caption",
+                   payload={"caption": key, "text": text.strip()})
+    path = shot_dir / "captions_edited.json"
+    edits = json.loads(path.read_text()) if path.exists() else {}
+    edits[key] = {"text": text.strip(), "by": person, "at": entry["at"], "history_seq": entry["seq"]}
+    path.write_text(json.dumps(edits, indent=2))
+    refresh_meta(shot_dir)
+    return entry
+
+
 def decide_subject(library, kind, subject, *, decision, person, note, role="", evidence=()):
     gate = "asset_approved" if kind == "assets" else "look_locked"
     return decide(subject_history_path(library, kind, subject), gate=gate, decision=decision,
@@ -226,6 +249,7 @@ def summary(path):
         "entries": len(entries),
         "head": entries[-1]["hash"] if entries else "",
         "human_decisions": sum(1 for e in entries if e["event"] in DECISIONS.values()),
+        "caption_edits": sum(1 for e in entries if (e.get("data") or {}).get("caption")),
         "gates": gate_status(history),
     }
 
@@ -251,4 +275,7 @@ def refresh_meta(shot_dir):
     meta = json.loads(meta_path.read_text())
     meta["provenance"] = {"history": "provenance/history.json",
                           **summary(shot_history_path(shot_dir))}
+    if (shot_dir / "spec.json").exists() and (shot_dir / "scene.json").exists():
+        from cgdata import captions
+        meta["captions"] = captions.for_shot(shot_dir)
     meta_path.write_text(json.dumps(meta, indent=2))

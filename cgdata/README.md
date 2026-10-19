@@ -85,6 +85,7 @@ steps automatically and refuses to start if ComfyAudit isn't importable (set
 ```bash
 python -m cgdata.review shots LIBRARY --gate shot_curated --as "Doug Hogan"   # interactive curation
 python -m cgdata.review asset LIBRARY city_kit_v1 --approve --note "..." --as "Doug Hogan"
+python -m cgdata.review captions LIBRARY --as "Doug Hogan"                    # caption edits (logged)
 python -m cgdata.review status LIBRARY
 python -m cgdata.review record LIBRARY/cg/CG_000001 --out CG_000001_provenance.html
 ```
