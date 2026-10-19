@@ -13,7 +13,8 @@ import bpy
 # Shader AOVs registered on the view layer by passes.py; names must match.
 SHADER_AOVS = [("base_color", "COLOR"), ("roughness", "VALUE"), ("metallic", "VALUE")]
 
-KINDS = ["painted", "concrete", "rock", "metal", "glass", "sss", "emissive", "ground"]
+KINDS = ["painted", "concrete", "rock", "metal", "glass", "sss", "emissive", "ground",
+         "brick", "window", "window_lit", "asphalt"]
 
 
 def hsv(h, s, v):
@@ -61,6 +62,22 @@ def _noise_color(nt, color, variation, scale):
     return mix.outputs["Result"]
 
 
+def _brick_color(nt, color):
+    """Running-bond brick in meters, driven by the facade UVs the kits write."""
+    uv = nt.nodes.new("ShaderNodeTexCoord")
+    tex = nt.nodes.new("ShaderNodeTexBrick")
+    tex.offset = 0.5
+    tex.inputs["Color1"].default_value = color
+    tex.inputs["Color2"].default_value = tuple(c * 0.78 for c in color[:3]) + (1.0,)
+    tex.inputs["Mortar"].default_value = (0.55, 0.53, 0.5, 1.0)
+    tex.inputs["Scale"].default_value = 1.0
+    tex.inputs["Mortar Size"].default_value = 0.008
+    tex.inputs["Brick Width"].default_value = 0.24
+    tex.inputs["Row Height"].default_value = 0.075
+    nt.links.new(uv.outputs["UV"], tex.inputs["Vector"])
+    return tex.outputs["Color"]
+
+
 def _photoreal(name, kind, color):
     mat, nt, out = _new_material(name)
     bsdf = nt.nodes.new("ShaderNodeBsdfPrincipled")
@@ -74,9 +91,20 @@ def _photoreal(name, kind, color):
         "glass": dict(rough=0.02, metal=0.0, var=0.0, scale=1.0),
         "sss": dict(rough=0.35, metal=0.0, var=0.1, scale=2.0),
         "emissive": dict(rough=0.5, metal=0.0, var=0.0, scale=1.0),
+        "brick": dict(rough=0.85, metal=0.0, var=0.0, scale=1.0),
+        "window": dict(rough=0.04, metal=0.0, var=0.0, scale=1.0),
+        "window_lit": dict(rough=0.04, metal=0.0, var=0.0, scale=1.0),
+        "asphalt": dict(rough=0.9, metal=0.0, var=0.45, scale=25.0),
     }[kind]
 
-    base = _noise_color(nt, color, params["var"], params["scale"]) if params["var"] else color
+    if kind == "brick":
+        base = _brick_color(nt, color)
+    elif kind in ("window", "window_lit"):
+        base = (0.02, 0.025, 0.03, 1.0)  # dark glazing; reflections do the work
+    elif params["var"]:
+        base = _noise_color(nt, color, params["var"], params["scale"])
+    else:
+        base = color
     if isinstance(base, bpy.types.NodeSocket):
         nt.links.new(base, bsdf.inputs["Base Color"])
     else:
@@ -94,6 +122,10 @@ def _photoreal(name, kind, color):
     elif kind == "emissive":
         bsdf.inputs["Emission Color"].default_value = color
         bsdf.inputs["Emission Strength"].default_value = 12.0
+    elif kind == "window_lit":
+        # An interior light seen through glazing.
+        bsdf.inputs["Emission Color"].default_value = color
+        bsdf.inputs["Emission Strength"].default_value = 1.2
 
     nt.links.new(bsdf.outputs["BSDF"], out.inputs["Surface"])
     _aov_outputs(nt, base, params["rough"], params["metal"])
@@ -107,10 +139,10 @@ def _toon(name, kind, color):
     every Cycles lighting pass valid for the toon half of the dataset.
     """
     mat, nt, out = _new_material(name)
-    if kind == "emissive":
+    if kind in ("emissive", "window_lit"):
         em = nt.nodes.new("ShaderNodeEmission")
         em.inputs["Color"].default_value = color
-        em.inputs["Strength"].default_value = 8.0
+        em.inputs["Strength"].default_value = 8.0 if kind == "emissive" else 1.0
         nt.links.new(em.outputs["Emission"], out.inputs["Surface"])
         _aov_outputs(nt, color, 1.0, 0.0)
         return mat
@@ -123,6 +155,8 @@ def _toon(name, kind, color):
         _aov_outputs(nt, color, 0.0, 0.0)
         return mat
 
+    if kind == "window":
+        color = (0.08, 0.12, 0.2, 1.0)  # graphic dark-blue glazing
     diffuse = nt.nodes.new("ShaderNodeBsdfToon")
     diffuse.component = "DIFFUSE"
     diffuse.inputs["Color"].default_value = color
@@ -136,7 +170,7 @@ def _toon(name, kind, color):
     gloss.inputs["Smooth"].default_value = 0.0
 
     mix = nt.nodes.new("ShaderNodeMixShader")
-    mix.inputs["Fac"].default_value = 0.35 if kind == "metal" else 0.08
+    mix.inputs["Fac"].default_value = {"metal": 0.35, "window": 0.5}.get(kind, 0.08)
     nt.links.new(diffuse.outputs["BSDF"], mix.inputs[1])
     nt.links.new(gloss.outputs["BSDF"], mix.inputs[2])
     nt.links.new(mix.outputs["Shader"], out.inputs["Surface"])

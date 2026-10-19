@@ -12,20 +12,33 @@ import random
 import bpy
 from mathutils import Vector
 
+from kits import city as city_kit
 from materials import hsv, make_material
 from passes import assign_lightgroup
 
 # Radius around the hero kept free of environment geometry for the camera.
 CLEAR_RADIUS = 18.0
 
+# Blender 5.2's multiple-scattering sky is far brighter per unit strength
+# than a sun lamp in W/m^2 (strength 0.3 outshone a 2.2 sun in a sun-only vs
+# sky-only test), so the photoreal sky is scaled down to sit under the key.
+PHYSICAL_SKY_SCALE = 0.2
+
 PASS_INDEX = {"hero": 1, "prop": 2, "environment": 3, "ground": 4, "practical": 5}
 
+# Fraction of windows / street lamps lit, per time of day.
+LIT_FRACTION = {"morning": 0.1, "noon": 0.05, "golden_hour": 0.25, "dusk": 0.5}
+
 # Sun elevation (deg), sun color, sun strength, sky strength per time of day.
+# Calibrated 2026-10-19 from light-group means in city renders: the physical
+# sky was supplying ~85% of the light and flattening everything, so it is
+# kept well below the sun; at dusk the practicals carry the frame. Sky
+# strengths are scaled by PHYSICAL_SKY_SCALE for the physical (photoreal) sky.
 TIME_OF_DAY = {
-    "morning": (18.0, (1.0, 0.85, 0.7), 3.0, 0.6),
-    "noon": (65.0, (1.0, 0.97, 0.92), 4.5, 0.8),
-    "golden_hour": (7.0, (1.0, 0.65, 0.4), 2.5, 0.45),
-    "dusk": (2.0, (0.9, 0.5, 0.45), 1.2, 0.25),
+    "morning": (22.0, (1.0, 0.85, 0.7), 2.6, 0.3),
+    "noon": (65.0, (1.0, 0.97, 0.92), 3.0, 0.35),
+    "golden_hour": (14.0, (1.0, 0.65, 0.4), 2.8, 0.18),
+    "dusk": (6.0, (0.9, 0.5, 0.45), 1.2, 0.08),
 }
 
 
@@ -37,6 +50,8 @@ class Builder:
         self.objects = []  # (name, role, material kind) for meta.json
         self._materials = {}
         self.groups = {}
+        self.lights = []
+        self.uses = {"kits": {}}  # asset kits (and versions) this shot was built from
 
     # ---------------------------------------------------------------- helpers
 
@@ -69,6 +84,32 @@ class Builder:
         obj.pass_index = PASS_INDEX[role]
         obj.parent = self.groups[parent] if parent in self.groups else self.group(parent)
         self.objects.append({"name": obj.name, "role": role, "material": mat.name, "kind": kind})
+        return obj
+
+    def add_mesh(self, obj, role, kind, parent):
+        """Register a kit object that already carries its own material slots."""
+        obj.pass_index = PASS_INDEX[role]
+        obj.parent = self.group(parent)
+        self.objects.append({"name": obj.name, "role": role, "kind": kind,
+                             "material": [m.name for m in obj.data.materials]})
+        return obj
+
+    def assign_practical(self, obj):
+        """Emission on this object (lit windows, lamp heads) is a practical light."""
+        assign_lightgroup(obj, "practical")
+
+    def point_light(self, name, location, energy, color, group="practical"):
+        data = bpy.data.lights.new(name, "POINT")
+        data.energy = energy
+        data.color = color
+        data.shadow_soft_size = 0.15
+        obj = bpy.data.objects.new(name, data)
+        obj.location = location
+        self.scene.collection.objects.link(obj)
+        obj.parent = self.group("LIGHTS")
+        assign_lightgroup(obj, group)
+        self.lights.append({"name": name, "type": "POINT", "group": group, "energy": energy,
+                            "color": list(color)})
         return obj
 
     def _primitive(self, op, name, location, **kw):
@@ -105,52 +146,19 @@ class Builder:
         env = self.spec["environment"]
         rng = random.Random(env["seed"])
         extent = env["extent"]
+        if env["type"] == "city_block":
+            lit = LIT_FRACTION[self.spec["lighting"]["time_of_day"]]
+            info = city_kit.build_city(self, rng, extent, env["density"], lit)
+            self.uses["kits"][info["kit"]] = info["version"]
+            return
 
-        ground_kind = "concrete" if env["type"] == "city_block" else "ground"
-        ground_color = self.color(rng, hue=0.08) if env["type"] == "canyon" else self.color(rng, hue=0.6)
+        ground_kind = "ground"
+        ground_color = self.color(rng, hue=0.08)
         ground = self._primitive(bpy.ops.mesh.primitive_plane_add, "ground", (0, 0, 0), size=extent * 4)
-        if env["type"] == "canyon":
-            self._displace(ground, 1.5, 6.0, env["seed"], levels=5)
+        self._displace(ground, 1.5, 6.0, env["seed"], levels=5)
         self.add(ground, "ground", ground_kind, self.material(ground_kind, ground_color), "ENV")
 
-        if env["type"] == "city_block":
-            self._city(rng, extent, env["density"])
-        else:
-            self._canyon(rng, extent, env["density"])
-
-    def _city(self, rng, extent, density):
-        lot = 6.0
-        n = int(extent // lot)
-        palette = [self.color(rng) for _ in range(5)]
-        for ix in range(-n, n + 1):
-            for iy in range(-n, n + 1):
-                # Keep a clear plaza around the hero and streets every third lot.
-                if abs(ix) <= 3 and abs(iy) <= 3:
-                    continue
-                if ix % 3 == 0 or iy % 3 == 0 or rng.random() > density:
-                    continue
-                w, d = rng.uniform(3.0, 5.5), rng.uniform(3.0, 5.5)
-                h = rng.uniform(4.0, 28.0)
-                b = self._primitive(
-                    bpy.ops.mesh.primitive_cube_add, f"bldg_{ix}_{iy}", (ix * lot, iy * lot, h / 2)
-                )
-                b.scale = (w / 2, d / 2, h / 2)
-                bev = b.modifiers.new("bevel", "BEVEL")
-                bev.width = 0.08
-                bev.segments = 2
-                kind = rng.choice(["concrete", "painted", "painted", "metal"])
-                self.add(b, "environment", kind, self.material(kind, rng.choice(palette)), "ENV")
-                # Lit window band on some buildings: emissive, in the practical group.
-                if rng.random() < 0.3:
-                    band = self._primitive(
-                        bpy.ops.mesh.primitive_cube_add,
-                        f"windows_{ix}_{iy}",
-                        (ix * lot, iy * lot, rng.uniform(1.5, h - 0.5)),
-                    )
-                    band.scale = (w / 2 + 0.02, d / 2 + 0.02, 0.15)
-                    color = hsv(rng.choice([0.08, 0.12, 0.55, 0.9]), 0.5, 1.0)
-                    self.add(band, "practical", "emissive", self.material("emissive", color), "ENV")
-                    assign_lightgroup(band, "practical")
+        self._canyon(rng, extent, env["density"])
 
     def _canyon(self, rng, extent, density):
         count = int(30 * density)
@@ -287,7 +295,6 @@ class Builder:
         elev, sun_color, sun_strength, sky_strength = TIME_OF_DAY[lt["time_of_day"]]
         rot = math.radians(lt["sun_rotation_deg"])
         lights = self.group("LIGHTS")
-        self.lights = []
 
         def light(name, ltype, group, energy, color, location=None, rotation=None, **kw):
             data = bpy.data.lights.new(name, ltype)
@@ -343,7 +350,7 @@ class Builder:
         nt = world.node_tree
         nt.nodes.clear()
         bg = nt.nodes.new("ShaderNodeBackground")
-        bg.inputs["Strength"].default_value = strength
+        bg.inputs["Strength"].default_value = strength * (1.0 if self.style == "toon" else PHYSICAL_SKY_SCALE)
         out = nt.nodes.new("ShaderNodeOutputWorld")
         if self.style == "toon":
             # Flat graphic gradient sky.

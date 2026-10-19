@@ -20,7 +20,8 @@ provenance gates (phase 1) once they exist.
 - [x] **[Doug]** Confirm the gate list and what counts as a creative decision (confirmed by Doug 2026-10-18: asset approved, look locked, shot curated, comp finished)
 
 ## Phase 2: asset library (minimum for 500 clips, 50–100 distinct scenes)
-- [ ] Geometry-nodes modular city kit (facades, windows, roofs, street dressing)
+- [x] Modular city kit (facades, windows, roofs, street dressing): `blender/kits/city.py` v1, built with bmesh rather than geometry nodes; review sheet via `blender/kit_sheet.py`
+- [ ] **[Doug]** Approve or send back `city_kit` v1 (packet: updates/review/2026-10-19/)
 - [ ] Natural environment kit (terrain, rocks, scatter, foliage-like procedural plants)
 - [ ] Interior kit (rooms, furniture blocks, practical lights)
 - [ ] Hero asset generators (vehicles, machines, sculptural pieces) beyond primitives

@@ -95,9 +95,12 @@ def configure(scene, spec):
     scene.render.use_sequencer = False
     scene.render.film_transparent = False
 
-    # Scene-linear output, no view transform baked into anything: the EXRs
-    # are Linear Rec.709 (Blender's working space). Recorded in meta.json.
-    scene.view_settings.view_transform = "Standard"
+    # The EXRs are scene-linear Linear Rec.709 (Blender's working space): the
+    # File Output nodes write data, not a display image. The view transform
+    # only shapes the PNG preview; AgX keeps skies and practicals from
+    # clipping. qa.py's rebuild check would catch a transform leaking into
+    # the EXRs.
+    scene.view_settings.view_transform = "AgX"
     scene.view_settings.look = "None"
 
 

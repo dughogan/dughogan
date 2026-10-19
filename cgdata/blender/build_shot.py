@@ -89,6 +89,7 @@ def main():
         "objects": builder.objects,
         "lights": builder.lights,
         "light_groups": passes.LIGHT_GROUPS,
+        "uses": builder.uses,
         "exr_layers": written,
         "camera": builder.camera_track(),
     }

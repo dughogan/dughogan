@@ -214,6 +214,7 @@ def run(shot_dir, checksums=True):
             "channels_per_layer": channels if frames else {},
         },
         "light_groups": scene["light_groups"],
+        "uses": scene.get("uses", {}),
         "lights": scene["lights"],
         "objects": scene["objects"],
         "camera": scene["camera"],
