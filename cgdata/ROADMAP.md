@@ -13,9 +13,10 @@ Human approvals are the authorship record: each one is logged through the
 provenance gates (phase 1) once they exist.
 
 ## Phase 1: provenance
-- [ ] Review `dughogan/comfy_workflow_audit`: data model, signing/chaining, C2PA, delivery format
-- [ ] `cgdata/provenance.py`: gate events (asset approved, look locked, shot curated, comp finished) in Comfy Audit's format, hash-chained, referenced from meta.json
-- [ ] Review CLI: approve/reject with notes from a contact sheet, logged as a human event
+- [x] Review `dughogan/comfy_workflow_audit`: data model, signing/chaining, C2PA, delivery format (uses `core/history.py` as-is)
+- [x] `cgdata/provenance.py`: gate events (asset approved, look locked, shot curated, comp finished) in Comfy Audit's format, hash-chained, referenced from meta.json
+- [x] Review CLI: approve/reject with notes from a contact sheet, logged as a human event (`cgdata/review.py`)
+- [ ] **[Doug]** Decide the two authorship gaps ComfyAudit's record flags (see updates/2026-10-19.md)
 - [x] **[Doug]** Confirm the gate list and what counts as a creative decision (confirmed by Doug 2026-10-18: asset approved, look locked, shot curated, comp finished)
 
 ## Phase 2: asset library (minimum for 500 clips, 50–100 distinct scenes)

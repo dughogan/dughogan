@@ -70,6 +70,27 @@ Combined = Σ Combined_<lightgroup>
 
 Test renders pass both at ~0.02–0.03% mean error (half-float rounding).
 
+## Provenance (ComfyAudit)
+
+Every clip, asset kit and look gets a ComfyAudit shot history
+(`provenance.py`): hash-chained, signed and ledger-witnessed when
+`COMFYAUDIT_HISTORY_KEY` / `COMFYAUDIT_HISTORY_LEDGER` are set. Render and comp
+are machine entries that credit nobody. The four approval gates (asset
+approved, look locked, shot curated, comp finished) are a named person's
+decision, and each needs a note saying why. `run_batch` records the machine
+steps automatically and refuses to start if ComfyAudit isn't importable (set
+`COMFYAUDIT_PATH` to the folder containing `comfyaudit`, e.g.
+`C:\ai\ComfyUI\custom_nodes`).
+
+```bash
+python -m cgdata.review shots LIBRARY --gate shot_curated --as "Doug Hogan"   # interactive curation
+python -m cgdata.review asset LIBRARY city_kit_v1 --approve --note "..." --as "Doug Hogan"
+python -m cgdata.review status LIBRARY
+python -m cgdata.review record LIBRARY/cg/CG_000001 --out CG_000001_provenance.html
+```
+
+Tests: `COMFYAUDIT_PATH=... python -m pytest -q cgdata/tests`
+
 ## Comp (Nuke)
 
 `build_comp.py` rebuilds the beauty from light groups (each with its own

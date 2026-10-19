@@ -189,7 +189,9 @@ def run(shot_dir, checksums=True):
         if v > REBUILD_TOLERANCE:
             issues.append(f"{k} {v:.4f} exceeds tolerance {REBUILD_TOLERANCE}")
 
-    files = sorted(p for p in shot_dir.rglob("*") if p.is_file() and p.name != "meta.json")
+    # meta.json and the provenance history change after QA, so they aren't listed.
+    files = sorted(p for p in shot_dir.rglob("*") if p.is_file() and p.name != "meta.json"
+                   and "provenance" not in p.relative_to(shot_dir).parts)
     meta = {
         "meta_version": META_VERSION,
         "id": shot_id,
@@ -237,14 +239,19 @@ def run(shot_dir, checksums=True):
             "ai_training_permitted": True,
         },
         "files": [
-            {"path": str(p.relative_to(shot_dir)), "bytes": p.stat().st_size,
+            {"path": p.relative_to(shot_dir).as_posix(), "bytes": p.stat().st_size,
              **({"sha256": sha256(p)} if checksums else {})}
             for p in files
         ],
         "spec": spec,
         "created_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
     }
-    (shot_dir / "meta.json").write_text(json.dumps(meta, indent=2))
+    meta_path = shot_dir / "meta.json"
+    if meta_path.exists():  # a re-run keeps the provenance summary
+        old = json.loads(meta_path.read_text())
+        if "provenance" in old:
+            meta["provenance"] = old["provenance"]
+    meta_path.write_text(json.dumps(meta, indent=2))
     return meta
 
 

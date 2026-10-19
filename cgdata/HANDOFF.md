@@ -132,7 +132,9 @@ in the library with `qa.passed = false`.
 
 ## 7. What's next (full list in ROADMAP.md)
 
-1. **Provenance (phase 1):** first review `dughogan/comfy_workflow_audit`.
+1. **Provenance (phase 1): done 2026-10-19** (`provenance.py`, `review.py`,
+   tests). On your machine set `COMFYAUDIT_PATH=C:\ai\ComfyUI\custom_nodes`
+   before `run_batch`. Original plan, for reference: review `dughogan/comfy_workflow_audit`.
    The cloud session cloned it but never reviewed it. Then write
    `cgdata/provenance.py` to send the four gate events in Comfy Audit's
    format, hash-chained and referenced from `meta.json`, plus a small

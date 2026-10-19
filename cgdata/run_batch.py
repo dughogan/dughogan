@@ -22,7 +22,7 @@ import sys
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from cgdata import catalog, qa
+from cgdata import catalog, provenance, qa
 from cgdata.spec import QUALITY, make_spec
 
 ROOT = Path(__file__).resolve().parent
@@ -53,7 +53,11 @@ def main():
     ap.add_argument("--nuke", default=None, help="Nuke executable; omit to skip the comp stage")
     ap.add_argument("--stop-at", default=None, metavar="HH:MM",
                     help="local time after which no new shot is started (e.g. 07:00)")
+    ap.add_argument("--no-provenance", action="store_true",
+                    help="skip ComfyAudit history (tests only: clips without it can't be sold)")
     args = ap.parse_args()
+    if not args.no_provenance:
+        provenance.comfyaudit()  # fail now, not after a night of rendering
     deadline = stop_time(args.stop_at) if args.stop_at else None
 
     shots_dir = args.library / "cg"
@@ -73,7 +77,9 @@ def main():
         spec_path.write_text(json.dumps(spec, indent=2))
         shot_dir = shots_dir / spec["shot_id"]
 
+        changed = False
         if not (shot_dir / "scene.json").exists():
+            changed = True
             if args.blender:
                 cmd = [args.blender, "-b", "--factory-startup", "-P", build, "--"]
             else:
@@ -83,12 +89,23 @@ def main():
                 continue
 
         if args.nuke and not (shot_dir / "final").is_dir():
+            changed = True
             if run([args.nuke, "-t", ROOT / "nuke" / "build_comp.py", shot_dir]):
                 failed.append((spec["shot_id"], "comp"))
 
-        meta = qa.run(shot_dir)
+        # QA hashes every file, so it runs only when something new was made.
+        meta_path = shot_dir / "meta.json"
+        meta = qa.run(shot_dir) if changed or not meta_path.exists() else json.loads(meta_path.read_text())
         if not meta["qa"]["passed"]:
             failed.append((spec["shot_id"], "qa: " + "; ".join(meta["qa"]["issues"])))
+
+        if not args.no_provenance:
+            steps = provenance.recorded_steps(shot_dir)
+            if "render" not in steps:
+                provenance.record_render(shot_dir, meta)
+            if "comp" not in steps and meta["comp"]["rendered"]:
+                provenance.record_comp(shot_dir, meta)
+            provenance.refresh_meta(shot_dir)
 
     catalog.build(shots_dir, args.library / "catalog")
     done = sum(1 for p in shots_dir.glob("*/meta.json"))
