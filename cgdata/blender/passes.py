@@ -15,6 +15,14 @@ from materials import SHADER_AOVS
 
 LIGHT_GROUPS = ["key", "fill", "rim", "practical", "env"]
 
+DATA_VIEW_LAYER = "Data"
+DATA_SAMPLES = 32
+ATMOSPHERE_COLLECTION = "ATMOSPHERE"
+DATA_PASSES = ["use_pass_z", "use_pass_mist", "use_pass_normal", "use_pass_position",
+               "use_pass_vector", "use_pass_uv", "use_pass_object_index", "use_pass_material_index",
+               "use_pass_cryptomatte_object", "use_pass_cryptomatte_material",
+               "use_pass_cryptomatte_asset"]
+
 VIEW_LAYER_PASSES = [
     "use_pass_combined",
     "use_pass_z",
@@ -76,7 +84,6 @@ def configure(scene, spec):
         setattr(vl.cycles, attr, True)
     vl.cycles.denoising_store_passes = True
     vl.pass_cryptomatte_depth = 6
-    vl.pass_alpha_threshold = 0.0  # Z/Normal/etc. for every sample, not just opaque
 
     for name, aov_type in SHADER_AOVS:
         aov = vl.aovs.add()
@@ -85,6 +92,17 @@ def configure(scene, spec):
 
     for name in LIGHT_GROUPS:
         vl.lightgroups.add(name=name)
+
+    # The Data layer renders the geometric passes without the atmosphere
+    # collection: inside a fog volume most camera samples scatter before
+    # reaching a surface, which leaves Depth/Position/IDs as noise. Fewer
+    # samples are plenty for data passes.
+    data = scene.view_layers.new(DATA_VIEW_LAYER)
+    data.samples = DATA_SAMPLES
+    for attr in DATA_PASSES:
+        setattr(data, attr, True)
+    data.use_pass_combined = False
+    data.pass_cryptomatte_depth = 6
 
     img = scene.render.image_settings
     img.media_type = "IMAGE"
@@ -159,22 +177,42 @@ def _file_output(tree, directory, file_name, depth, x):
     return out
 
 
+def atmosphere_collection(scene):
+    """The collection volumes go in; excluded from the Data view layer."""
+    col = bpy.data.collections.get(ATMOSPHERE_COLLECTION)
+    if col is None:
+        col = bpy.data.collections.new(ATMOSPHERE_COLLECTION)
+        scene.collection.children.link(col)
+        lc = scene.view_layers[DATA_VIEW_LAYER].layer_collection.children[ATMOSPHERE_COLLECTION]
+        lc.exclude = True
+    return col
+
+
 def add_exr_outputs(scene, directory, shot_id):
     """Wire every enabled render pass into two multilayer EXRs per frame:
-    <shot_id>_light.####.exr (half) and <shot_id>_data.####.exr (float)."""
+    <shot_id>_light.####.exr (half) and <shot_id>_data.####.exr (float).
+    Geometric data passes come from the Data view layer (no atmosphere);
+    everything else, including the denoising data, from the beauty layer."""
     tree = bpy.data.node_groups.new("dataset_output", "CompositorNodeTree")
     scene.compositing_node_group = tree
     layers = tree.nodes.new("CompositorNodeRLayers")
     layers.scene = scene
+    layers.layer = scene.view_layers[0].name
+    data_layers = tree.nodes.new("CompositorNodeRLayers")
+    data_layers.scene = scene
+    data_layers.layer = DATA_VIEW_LAYER
+    data_layers.location = (0, -600)
     # Light layers keep an (always 1.0) alpha: Blender 5.2 ignores color_mode
     # on multilayer File Outputs, node-wide and per item (tested 2026-10-19).
     light = _file_output(tree, directory, f"{shot_id}_light.", "16", 500)
     data = _file_output(tree, directory, f"{shot_id}_data.", "32", 800)
 
     written = {"light": [], "data": []}
-    for sock in layers.outputs:
-        if not sock.enabled:
-            continue
+    from_data = [s for s in data_layers.outputs if s.enabled and s.name not in ("Image", "Alpha")]
+    data_names = {LAYER_NAMES.get(s.name, s.name) for s in from_data}
+    sockets = from_data + [s for s in layers.outputs
+                           if s.enabled and LAYER_NAMES.get(s.name, s.name) not in data_names]
+    for sock in sockets:
         name = LAYER_NAMES.get(sock.name, sock.name)
         if name is None:
             continue

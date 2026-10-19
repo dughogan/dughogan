@@ -15,7 +15,7 @@ from mathutils import Vector
 from kits import city as city_kit
 from kits import nature as nature_kit
 from materials import hsv, make_material
-from passes import assign_lightgroup
+from passes import assign_lightgroup, atmosphere_collection
 
 # Radius around the hero kept free of environment geometry for the camera.
 CLEAR_RADIUS = 18.0
@@ -274,6 +274,9 @@ class Builder:
         box.data.materials.append(mat)
         box.parent = self.group("ENV")
         box.visible_shadow = False
+        for col in list(box.users_collection):  # into the collection the Data layer excludes
+            col.objects.unlink(box)
+        atmosphere_collection(self.scene).objects.link(box)
         self.objects.append({"name": box.name, "role": "atmosphere", "material": mat.name, "kind": "volume"})
 
     # ----------------------------------------------------------------- lights

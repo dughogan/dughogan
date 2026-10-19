@@ -46,6 +46,14 @@ LIBRARY/cg/CG_000001/
 └── final/CG_000001_final.####.exr    finished comp (+ .png)
 ```
 
+### Export for LTX training
+
+`python -m cgdata.export LIBRARY` writes per-clip H.264 videos (target,
+beauty, depth, camera-space normals, segmentation, albedo, each light group)
+and IC-LoRA pair manifests (`export/pairs/*.jsonl`: caption, media_path,
+conditioning_path). Only clips that passed QA and were kept at the
+shot_curated gate are exported. Uses system ffmpeg, else `imageio-ffmpeg`.
+
 ### Passes (45 layers, verified in Blender 5.2)
 
 | Group | Layers |
@@ -57,6 +65,12 @@ LIBRARY/cg/CG_000001/
 | Geometry | Depth, Mist, Position, Normal, UV |
 | Motion | Vector (4ch: to-previous xy, to-next xy, pixels) |
 | IDs | IndexOB, IndexMA, CryptoObject/Material/Asset 00–02 (+ manifests in header) |
+
+Geometric passes (depth, mist, position, normal, vector, UV, IDs,
+Cryptomatte) come from a second view layer, "Data", that excludes the
+atmosphere collection: inside fog most camera samples scatter before
+reaching a surface, which turned depth into noise. The beauty layer keeps the
+volumetric light.
 | Denoising data | Albedo, SpecAlbedo, Normal, Roughness, Depth |
 
 Combined is rendered **without denoising**, so passes sum to it exactly. QA

@@ -6,3 +6,5 @@ pandas
 pyarrow
 # Optional: run the Blender stage without a Blender install (Python 3.13)
 # bpy==5.2.2
+# Optional: video export without a system ffmpeg
+# imageio-ffmpeg
