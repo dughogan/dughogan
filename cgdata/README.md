@@ -120,8 +120,10 @@ each render node; Nuke Non-commercial can't be used.
   without EGL.
 - Cycles has no separate subsurface passes (SSS is in Diffuse), and Shadow is
   EEVEE-only.
-- A File Output `VECTOR` item drops Vector's 4th component, so it is written
-  as RGBA.
+- A File Output `VECTOR` item defaults to 3 components; Vector is written with
+  `vector_socket_dimensions = 4` (channels X, Y, Z, W).
+- `color_mode = "RGB"` is ignored on multilayer File Outputs (node-wide and
+  per item), so light layers carry an always-1.0 alpha.
 - `ShaderNodeVolumePrincipled` (renamed from `ShaderNodePrincipledVolume`).
 
 ## Current limits / next steps
@@ -133,6 +135,6 @@ each render node; Nuke Non-commercial can't be used.
   library and a real toon look (outlines via Freestyle as an extra pass).
 - Storage: draft frames measured about 15 MB at 480×270, which projects to
   roughly 150–250 MB per 1080p frame. Clean high-sample frames compress
-  better. Light layers are stored RGBA; dropping the unused alpha saves
-  about 25%.
+  better. Light layers carry an unused alpha (~25% of their size) that
+  Blender 5.2 won't drop; stripping it would mean rewriting every EXR.
 - `rights.owner` in `meta.json` is Dugco (cleared with ComfyUI for outside work).

@@ -37,7 +37,7 @@ provenance gates (phase 1) once they exist.
 - [ ] Captions from the spec (scene, camera move, lens, lighting, style) + review queue for human edits
 - [ ] Export step: per-pass MP4/ProRes videos, /32 resolution, 8n+1 frames, IC-LoRA pair manifests
 - [ ] Pair sets: depth/normal/segmentation → final, beauty → finished comp, light group → relit, toon ↔ photoreal
-- [ ] Storage trims: RGB-only light layers
+- [x] Storage trims: native /32 resolutions (1920×1088); RGB-only light layers not possible in Blender 5.2 (documented)
 - [ ] **[Doug]** Run `build_comp.py` in real Nuke on one shot; send back `comp/*_comp.json` warnings
 
 ## Phase 4: benchmark and generate

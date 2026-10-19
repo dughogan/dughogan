@@ -166,6 +166,8 @@ def add_exr_outputs(scene, directory, shot_id):
     scene.compositing_node_group = tree
     layers = tree.nodes.new("CompositorNodeRLayers")
     layers.scene = scene
+    # Light layers keep an (always 1.0) alpha: Blender 5.2 ignores color_mode
+    # on multilayer File Outputs, node-wide and per item (tested 2026-10-19).
     light = _file_output(tree, directory, f"{shot_id}_light.", "16", 500)
     data = _file_output(tree, directory, f"{shot_id}_data.", "32", 800)
 
@@ -178,9 +180,10 @@ def add_exr_outputs(scene, directory, shot_id):
             continue
         kind = "data" if _is_data(name) else "light"
         out = data if kind == "data" else light
-        # Vector holds 4 components (prev xy, next xy); a VECTOR item drops one.
-        socket_type = "RGBA" if name == "Vector" else SOCKET_TYPES.get(sock.type, "RGBA")
-        item = out.file_output_items.new(socket_type, name)
+        item = out.file_output_items.new(SOCKET_TYPES.get(sock.type, "RGBA"), name)
+        if name == "Vector":
+            # 4 components (to-previous xy, to-next xy); items default to 3.
+            item.vector_socket_dimensions = 4
         tree.links.new(sock, out.inputs[item.name])
         written[kind].append(name)
 
