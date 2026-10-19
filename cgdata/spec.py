@@ -101,6 +101,20 @@ def make_spec(seed, quality="pilot", style=None, environment=None):
     return spec
 
 
+def make_style_pair(seed, quality="pilot", environment=None):
+    """The same shot twice, photoreal and toon. Style changes shading only;
+    layout, camera and lighting come from the same seeds (verified: depth
+    passes match exactly), so the two clips are exact style-transfer pairs."""
+    group = f"CG_{seed:06d}"
+    pair = []
+    for style, tag in (("photoreal", "pr"), ("toon", "tn")):
+        spec = make_spec(seed, quality, style=style, environment=environment)
+        spec["shot_id"] = f"{group}_{tag}"
+        spec["pair"] = {"group": group, "style": style}
+        pair.append(spec)
+    return pair
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--count", type=int, default=1)

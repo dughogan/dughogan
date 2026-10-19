@@ -33,11 +33,11 @@ provenance gates (phase 1) once they exist.
 - [ ] **[Doug]** Approve each kit from its turntable/contact sheet (art direction notes go into the next night's work)
 
 ## Phase 3: LTX-ready outputs
-- [ ] Same scene rendered in both styles (photoreal and toon pairs)
+- [x] Same scene rendered in both styles (`run_batch --style-pairs`; depth passes match exactly)
 - [x] Captions from the spec (scene, camera move, lens, lighting, style) + review queue for human edits (`captions.py`, `review captions`; edits logged as provenance notes)
 - [x] Export step: per-pass MP4 videos, /32 resolution, 8n+1 frames, IC-LoRA pair manifests (`export.py`)
 - [x] Pair sets: depth/normal/segmentation/albedo → final, beauty → finished comp, light group → relit
-- [ ] toon ↔ photoreal pairs (needs the dual-style render item above)
+- [x] toon ↔ photoreal pair manifests
 - [x] Storage trims: native /32 resolutions (1920×1088); RGB-only light layers not possible in Blender 5.2 (documented)
 - [ ] **[Doug]** Run `build_comp.py` in real Nuke on one shot; send back `comp/*_comp.json` warnings
 

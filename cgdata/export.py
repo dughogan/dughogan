@@ -14,7 +14,8 @@ resolution and 8n+1 frame count):
 Pair manifests, into LIBRARY/export/pairs/<set>.jsonl, one row per clip:
     {"id", "caption", "media_path" (target), "conditioning_path"}
 for sets depth, normal, segment, albedo, beauty (raw render -> finished comp)
-and relight_<group> (one light group -> full lighting). Paths are relative to
+relight_<group> (one light group -> full lighting), and, for clips rendered
+with --style-pairs, toon_to_photoreal / photoreal_to_toon. Paths are relative to
 LIBRARY/export. Map the columns to your LTX trainer's dataset config.
 
 Only clips that passed QA and were kept at the shot_curated gate are
@@ -134,7 +135,7 @@ def export_shot(shot_dir, out_root):
         shutil.copy(out / f"{sid}_beauty.mp4", out / f"{sid}_target.mp4")
         target_kind = "beauty"
     return {"id": sid, "target": target_kind, "groups": groups,
-            "caption": captions.for_shot(shot_dir)["long"]}
+            "caption": captions.for_shot(shot_dir)["long"], "pair": meta["spec"].get("pair")}
 
 
 def write_pairs(results, out_root):
@@ -156,6 +157,19 @@ def write_pairs(results, out_root):
             rows.setdefault(f"relight_{g}", []).append(
                 {"id": sid, "caption": r["caption"], "media_path": f"{sid}/{sid}_beauty.mp4",
                  "conditioning_path": f"{sid}/{sid}_lg_{g}.mp4"})
+    # Style-transfer pairs: the same shot in the other style as conditioning.
+    by_group = {}
+    for r in results:
+        if r.get("pair"):
+            by_group.setdefault(r["pair"]["group"], {})[r["pair"]["style"]] = r
+    for group in by_group.values():
+        if len(group) < 2:
+            continue
+        for src, dst in (("toon", "photoreal"), ("photoreal", "toon")):
+            a, b = group[src], group[dst]
+            rows.setdefault(f"{src}_to_{dst}", []).append(
+                {"id": b["id"], "caption": b["caption"], "media_path": f"{b['id']}/{b['id']}_target.mp4",
+                 "conditioning_path": f"{a['id']}/{a['id']}_target.mp4"})
     for set_name, items in rows.items():
         with open(pairs / f"{set_name}.jsonl", "w") as fh:
             for row in items:
