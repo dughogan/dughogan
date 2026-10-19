@@ -19,14 +19,14 @@ import bpy  # noqa: E402
 from mathutils import Vector  # noqa: E402
 
 import passes  # noqa: E402
-from kits import city  # noqa: E402
+from kits import city, nature  # noqa: E402
 from scene import Builder  # noqa: E402
 
 
 def parse_args():
     argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else sys.argv[1:]
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--kit", choices=["city"], default="city")
+    ap.add_argument("--kit", choices=["city", "nature"], default="city")
     ap.add_argument("--style", choices=["photoreal", "toon"], default="photoreal")
     ap.add_argument("--seed", type=int, default=1)
     ap.add_argument("--count", type=int, default=6)
@@ -38,6 +38,31 @@ def parse_args():
     ap.add_argument("--sky", type=float, default=0.3, help="sky strength")
     ap.add_argument("--out", type=Path, required=True)
     return ap.parse_args(argv)
+
+
+def _nature_lineup(b, rng, scene):
+    """Trees, shrubs, strata and boulder rocks, and a grass patch, in a row."""
+    m = city.Mesh()
+    x = 0.0
+    for h in (6.0, 9.0, 11.0):
+        nature.tree(m, rng, (x, 0, 0), h, 0, 1)
+        x += 7.0
+    for size in (1.0, 1.6):
+        nature.shrub(m, rng, (x, 0, 0), size, 1)
+        x += 3.5
+    nature.rock(m, rng, (x + 2, 0, 0), 3.0, 2, strata=True)
+    x += 8.0
+    nature.rock(m, rng, (x, 0, 0), 1.6, 2)
+    x += 4.0
+    for _ in range(120):
+        nature.grass_tuft(m, rng, (x + rng.uniform(-2, 2), rng.uniform(-2, 2), 0), rng.uniform(0.3, 0.6), 3)
+    x += 3.0
+    mats = [b.material("bark", nature.tone(b, rng, "bark")),
+            b.material("foliage", nature.tone(b, rng, "foliage")),
+            b.material("rock", nature.tone(b, rng, "canyon_rock")),
+            b.material("foliage", nature.tone(b, rng, "grass"))]
+    b.add_mesh(m.to_object("nature_kit", mats, scene.collection), "environment", "foliage", "ENV")
+    return x, 11.0
 
 
 def main():
@@ -57,7 +82,9 @@ def main():
     rng = random.Random(args.seed)
 
     x, tallest = 0.0, 0.0
-    for i in range(args.count):
+    if args.kit == "nature":
+        x, tallest = _nature_lineup(b, rng, scene)
+    for i in range(args.count if args.kit == "city" else 0):
         w, d = rng.uniform(7, 10), rng.uniform(7, 10)
         floors = [3, 5, 8, 4, 10, 6, 2, 12][i % 8]
         m = city.Mesh()

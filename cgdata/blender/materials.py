@@ -14,7 +14,7 @@ import bpy
 SHADER_AOVS = [("base_color", "COLOR"), ("roughness", "VALUE"), ("metallic", "VALUE")]
 
 KINDS = ["painted", "concrete", "rock", "metal", "glass", "sss", "emissive", "ground",
-         "brick", "window", "window_lit", "asphalt"]
+         "brick", "window", "window_lit", "asphalt", "bark", "foliage"]
 
 
 def hsv(h, s, v):
@@ -95,6 +95,8 @@ def _photoreal(name, kind, color):
         "window": dict(rough=0.04, metal=0.0, var=0.0, scale=1.0),
         "window_lit": dict(rough=0.04, metal=0.0, var=0.0, scale=1.0),
         "asphalt": dict(rough=0.9, metal=0.0, var=0.45, scale=25.0),
+        "bark": dict(rough=0.9, metal=0.0, var=0.55, scale=9.0),
+        "foliage": dict(rough=0.55, metal=0.0, var=0.35, scale=3.0),
     }[kind]
 
     if kind == "brick":
@@ -122,6 +124,11 @@ def _photoreal(name, kind, color):
     elif kind == "emissive":
         bsdf.inputs["Emission Color"].default_value = color
         bsdf.inputs["Emission Strength"].default_value = 12.0
+    elif kind == "foliage":
+        # thin leaves let light through: a little subsurface keeps them from reading as plastic
+        bsdf.inputs["Subsurface Weight"].default_value = 0.15
+        bsdf.inputs["Subsurface Radius"].default_value = (0.3, 0.6, 0.2)
+        bsdf.inputs["Subsurface Scale"].default_value = 0.05
     elif kind == "window_lit":
         # An interior light seen through glazing.
         bsdf.inputs["Emission Color"].default_value = color

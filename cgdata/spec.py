@@ -17,7 +17,7 @@ from pathlib import Path
 SPEC_VERSION = 1
 
 STYLES = ["photoreal", "toon"]
-ENVIRONMENTS = ["city_block", "canyon"]
+ENVIRONMENTS = ["city_block", "canyon", "meadow"]
 CAMERA_MOVES = ["dolly_in", "orbit", "truck", "crane"]
 TIMES_OF_DAY = ["morning", "noon", "golden_hour", "dusk"]
 HERO_TYPES = ["glass_sculpture", "chrome_sculpture", "sss_blob", "neon_totem", "stone_monolith"]

@@ -13,6 +13,7 @@ import bpy
 from mathutils import Vector
 
 from kits import city as city_kit
+from kits import nature as nature_kit
 from materials import hsv, make_material
 from passes import assign_lightgroup
 
@@ -132,6 +133,7 @@ class Builder:
         # shapes never repeat between objects or shots.
         offset = bpy.data.objects.new(f"{obj.name}_noise_offset", None)
         offset.location = (seed % 997, (seed // 997) % 991, 0)
+        offset.parent = obj  # moving the object must not change its shape
         self.scene.collection.objects.link(offset)
         disp = obj.modifiers.new("displace", "DISPLACE")
         disp.texture = tex
@@ -152,30 +154,8 @@ class Builder:
             self.uses["kits"][info["kit"]] = info["version"]
             return
 
-        ground_kind = "ground"
-        ground_color = self.color(rng, hue=0.08)
-        ground = self._primitive(bpy.ops.mesh.primitive_plane_add, "ground", (0, 0, 0), size=extent * 4)
-        self._displace(ground, 1.5, 6.0, env["seed"], levels=5)
-        self.add(ground, "ground", ground_kind, self.material(ground_kind, ground_color), "ENV")
-
-        self._canyon(rng, extent, env["density"])
-
-    def _canyon(self, rng, extent, density):
-        count = int(30 * density)
-        for i in range(count):
-            angle = rng.uniform(0, math.tau)
-            radius = rng.uniform(CLEAR_RADIUS + 3.0, extent)
-            loc = (math.cos(angle) * radius, math.sin(angle) * radius, 0)
-            h = rng.uniform(3.0, 18.0)
-            rock = self._primitive(
-                bpy.ops.mesh.primitive_ico_sphere_add, f"rock_{i:03d}", loc, subdivisions=2, radius=1.0
-            )
-            rock.scale = (rng.uniform(1.5, 4.0), rng.uniform(1.5, 4.0), h / 2)
-            rock.rotation_euler = (0, 0, rng.uniform(0, math.tau))
-            self._displace(rock, 0.6, 0.8, rng.randrange(1 << 20))
-            self._smooth(rock)
-            color = self.color(rng, hue=rng.uniform(0.02, 0.1))
-            self.add(rock, "environment", "rock", self.material("rock", color), "ENV")
+        info = nature_kit.build_nature(self, rng, extent, env["density"], env["type"])
+        self.uses["kits"][info["kit"]] = info["version"]
 
     # ------------------------------------------------------------------- hero
 
@@ -226,8 +206,17 @@ class Builder:
         self._smooth(obj)
         self.add(obj, "hero", kind, self.material(kind, color), "HERO")
         bpy.context.view_layer.update()
+        if t != "neon_totem":  # the totem's rings are placed relative to its base
+            self._settle(obj)
         self.hero_height = obj.location.z
         self.hero_size = max(obj.dimensions)
+
+    def _settle(self, obj):
+        """Rest an object on z=0 using its evaluated (displaced) bounds."""
+        ev = obj.evaluated_get(bpy.context.evaluated_depsgraph_get())
+        low = min((obj.matrix_world @ Vector(c)).z for c in ev.bound_box)
+        obj.location.z -= low
+        bpy.context.view_layer.update()
 
     # ------------------------------------------------------------------ props
 
@@ -413,12 +402,39 @@ class Builder:
 
         for attempt in range(8):
             data.lens = min(max(d0 * cam_spec["framing"] * sensor_h / self.hero_size, 14.0), 200.0)
-            self._key_camera(cam, d0, h0, az0)
+            path = self._key_camera(cam, d0, h0, az0)
             if self._camera_clear(cam):
                 break
             d0 *= 0.8  # occluded or inside geometry: push in and retry
         self.camera = cam
         self.camera_attempts = attempt + 1
+        self._clear_props_near(path)
+
+    def _clear_props_near(self, path, margin=2.5):
+        """Remove props the camera would pass through, or that sit on the
+        sightline to the hero (long lenses turn those into frame-filling blur)."""
+        props = self.groups.get("PROPS")
+        if not props:
+            return
+        target = Vector((0, 0, self.hero_height))
+        corridor = max(1.0, self.hero_size * 0.6)
+
+        def in_the_way(obj, p):
+            size = max(obj.dimensions) / 2
+            if (obj.location - p).length < margin + size:
+                return True
+            sight = target - p
+            t = (obj.location - p).dot(sight) / sight.length_squared
+            if not 0.0 < t < 0.85:
+                return False
+            return (obj.location - (p + sight * t)).length < corridor + size
+
+        removed = set()
+        for obj in list(props.children):
+            if any(in_the_way(obj, p) for p in path):
+                removed.add(obj.name)
+                bpy.data.objects.remove(obj, do_unlink=True)
+        self.objects = [o for o in self.objects if o["name"] not in removed]
 
     def _key_camera(self, cam, d0, h0, az0):
         cam_spec = self.spec["camera"]
@@ -428,6 +444,7 @@ class Builder:
         f0, f1 = r["frame_start"], r["frame_end"]
         span = max(f1 - f0, 1)
         cam.animation_data_clear()
+        path = []
         for f in range(f0, f1 + 1):
             t = (f - f0) / span
             t = t * t * (3 - 2 * t)  # ease in/out
@@ -444,6 +461,8 @@ class Builder:
             side = Vector((-math.sin(az), math.cos(az), 0))
             cam.location = pos + side * lateral
             cam.keyframe_insert("location", frame=f)
+            path.append(cam.location.copy())
+        return path
 
     def _camera_clear(self, cam):
         """True if the hero is unobstructed from the camera on every frame."""
