@@ -96,6 +96,10 @@ python -m cgdata.catalog D:\cgdata\LIBRARY\cg --out D:\cgdata\LIBRARY\catalog
 
 ## 5. Nightly render, 10pm–7am Central
 
+Ready-made: `cgdata\scripts\windows\nightly.bat` (edit the paths at the top)
+and `register_nightly.ps1` (run once, elevated; wakes the machine at 22:00).
+The manual version below is equivalent.
+
 `run_batch` is resumable: each night it skips finished shots and stops
 starting new ones at `--stop-at`. Save this as `D:\cgdata\nightly.bat`:
 ```bat

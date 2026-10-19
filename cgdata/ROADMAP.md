@@ -43,7 +43,7 @@ provenance gates (phase 1) once they exist.
 
 ## Phase 4: benchmark and generate
 - [ ] **[Doug]** Render machine details: OS, GPU model, storage path (Nuke: 1 license, so comps run one at a time; time zone: Central; renders run on Doug's local GPU via a local Claude session or a scheduled run_batch)
-- [ ] Machine-specific nightly scheduler (cron / Task Scheduler / Flamenco) using `run_batch --stop-at 07:00`
+- [x] Machine-specific nightly scheduler: `scripts/windows/nightly.bat` + `register_nightly.ps1` (Task Scheduler, wake to run; untested on Windows)
 - [ ] 20-clip benchmark: real s/frame, GB/frame, look review
 - [ ] **[Doug]** Approve the benchmark look → start the 500-clip pilot run (nightly until done)
 - [ ] Morning progress: clips done, QA failures, ETA
