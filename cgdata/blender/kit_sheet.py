@@ -19,14 +19,14 @@ import bpy  # noqa: E402
 from mathutils import Vector  # noqa: E402
 
 import passes  # noqa: E402
-from kits import city, interior, nature  # noqa: E402
+from kits import city, heroes, interior, nature  # noqa: E402
 from scene import Builder  # noqa: E402
 
 
 def parse_args():
     argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else sys.argv[1:]
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--kit", choices=["city", "nature", "interior"], default="city")
+    ap.add_argument("--kit", choices=["city", "nature", "interior", "heroes"], default="city")
     ap.add_argument("--style", choices=["photoreal", "toon"], default="photoreal")
     ap.add_argument("--seed", type=int, default=1)
     ap.add_argument("--count", type=int, default=6)
@@ -88,6 +88,22 @@ def _interior_lineup(b, rng, scene):
     return x, 2.2
 
 
+def _hero_lineup(b, rng, scene):
+    """One of each generated hero, in a row."""
+    x, tallest = 0.0, 0.0
+    for i, t in enumerate(heroes.GENERATORS):
+        obj = heroes.build(b, t, rng, 1.0, b.color(rng))
+        obj.rotation_euler = (0, 0, math.radians(-30))
+        bpy.context.view_layer.update()
+        b._settle(obj)
+        w = max(obj.dimensions[0], obj.dimensions[1])
+        obj.location.x = x + w / 2
+        tallest = max(tallest, obj.dimensions[2])
+        b.add_mesh(obj, "hero", t, "HERO")
+        x += w + 1.0
+    return x, tallest
+
+
 def main():
     args = parse_args()
     bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -109,6 +125,8 @@ def main():
         x, tallest = _nature_lineup(b, rng, scene)
     elif args.kit == "interior":
         x, tallest = _interior_lineup(b, rng, scene)
+    elif args.kit == "heroes":
+        x, tallest = _hero_lineup(b, rng, scene)
     for i in range(args.count if args.kit == "city" else 0):
         w, d = rng.uniform(7, 10), rng.uniform(7, 10)
         floors = [3, 5, 8, 4, 10, 6, 2, 12][i % 8]
@@ -136,6 +154,8 @@ def main():
     target = Vector((x / 2, 0, tallest * 0.45))
     if args.kit == "interior":  # small pieces: come in low and close
         cam.location = target + Vector((-x * 0.15, -x * 0.62, 1.4))
+    elif args.kit == "heroes":
+        cam.location = target + Vector((-x * 0.1, -x * 0.95, tallest * 0.9))
     else:
         cam.location = target + Vector((-x * 0.4, -x * 1.05, tallest * 0.25))
     cam.rotation_euler = (target - cam.location).to_track_quat("-Z", "Y").to_euler()

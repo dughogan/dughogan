@@ -40,6 +40,11 @@ HERO = {
     "sss_blob": "a translucent, waxy organic sculpture",
     "neon_totem": "a painted column ringed with glowing neon bands",
     "stone_monolith": "a carved stone monolith",
+    "vehicle": "a glossy compact car",
+    "robot_arm": "a heavy industrial robot arm on a plinth",
+    "torus_knot": "a polished metal torus-knot sculpture",
+    "crystal_cluster": "a cluster of clear crystals on a rock",
+    "twisted_column": "a twisting stacked-stone column",
 }
 LIGHT = {
     "morning": "soft morning light",
@@ -59,6 +64,14 @@ HUES = [(0.04, "red"), (0.1, "orange"), (0.18, "yellow"), (0.45, "green"), (0.55
 
 def hue_name(h):
     return next(name for limit, name in HUES if h % 1.0 < limit)
+
+
+def color_name(rgb):
+    """Plain-language name for a linear RGB color (neutrals included)."""
+    h, s, v = colorsys.rgb_to_hsv(*rgb[:3])
+    if s < 0.18:
+        return "black" if v < 0.08 else "white" if v > 0.7 else "silver" if v > 0.35 else "grey"
+    return hue_name(h)
 
 
 def lens_phrase(focal):
@@ -81,8 +94,10 @@ def generate(spec, scene, comp=None):
     pick = rng.choice
     env, style = spec["environment"]["type"], spec["style"]
     hero = HERO[spec["hero"]["type"]]
-    if spec["hero"]["type"] in ("sss_blob", "neon_totem"):
-        hero = hero.replace("a ", f"a {hue_name(spec['hero']['hue'])} ", 1)
+    if spec["hero"]["type"] in ("sss_blob", "neon_totem", "vehicle", "robot_arm"):
+        rgb = (scene.get("hero") or {}).get("color")
+        name = color_name(rgb) if rgb else hue_name(spec["hero"]["hue"])
+        hero = hero.replace("a ", f"{'an' if name[0] in 'aeiou' else 'a'} {name} ", 1)
     tod = spec["lighting"]["time_of_day"]
     light = LIGHT[tod]
     if tod == "dusk":

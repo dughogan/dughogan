@@ -13,6 +13,7 @@ import bpy
 from mathutils import Vector
 
 from kits import city as city_kit
+from kits import heroes as hero_kit
 from kits import interior as interior_kit
 from kits import nature as nature_kit
 from materials import hsv, make_material
@@ -172,7 +173,11 @@ class Builder:
         rng = random.Random(self.spec["seed"] * 31 + 7)
         s = hero["scale"]
         color = self.color(rng, hue=hero["hue"])
+        self.hero_color = list(color)  # generated heroes may repaint; captions read this
         t = hero["type"]
+        if t in hero_kit.GENERATORS:
+            self._build_generated_hero(t, rng, s, color)
+            return
         if t == "glass_sculpture":
             obj = self._primitive(
                 bpy.ops.mesh.primitive_torus_add, "hero", (0, 0, s), major_radius=s * 0.7, minor_radius=s * 0.25
@@ -216,7 +221,25 @@ class Builder:
         bpy.context.view_layer.update()
         if t != "neon_totem":  # the totem's rings are placed relative to its base
             self._settle(obj)
-        self.hero_height = obj.location.z
+        self._measure_hero(obj)
+
+    def _build_generated_hero(self, t, rng, scale, color):
+        """A hero from the hero kit (vehicles, machines, sculptural pieces)."""
+        obj = hero_kit.build(self, t, rng, 1.0 if t == "vehicle" else scale, color)
+        kind = hero_kit.GENERATORS[t][1][0]
+        self.add_mesh(obj, "hero", kind, "HERO")
+        if "emissive" in hero_kit.GENERATORS[t][1]:
+            self.assign_practical(obj)  # headlights, status lights
+        bpy.context.view_layer.update()
+        self._settle(obj)
+        self._measure_hero(obj)
+        self.uses["kits"][hero_kit.KIT] = hero_kit.VERSION
+
+    def _measure_hero(self, obj):
+        """Camera target height (bounds center) and size, from evaluated bounds."""
+        ev = obj.evaluated_get(bpy.context.evaluated_depsgraph_get())
+        zs = [(obj.matrix_world @ Vector(c)).z for c in ev.bound_box]
+        self.hero_height = (min(zs) + max(zs)) / 2
         self.hero_size = max(obj.dimensions)
 
     def _settle(self, obj):
@@ -352,8 +375,14 @@ class Builder:
         # Practicals are always motivated: each sits in a lantern with a
         # visible emissive globe (a bare floating point light reads as an
         # unexplained hot spot). Indoors the interior kit's lamps are the practicals.
+        cam = self.spec["camera"]
+        cam_az = math.radians(cam["azimuth_deg"])
+        keep_out = math.radians(70 + (90 * cam["travel"] if cam["move"] == "orbit" else 0))
         for i in range(0 if self.room else lt["practicals"]):
-            a = rng.uniform(0, math.tau)
+            while True:  # lanterns stay off the camera's side, out of the lens
+                a = rng.uniform(0, math.tau)
+                if abs((a - cam_az + math.pi) % math.tau - math.pi) > keep_out:
+                    break
             r = rng.uniform(4.0, min(10.0, self.clear_radius))
             hue = rng.choice([0.07, 0.1, 0.55, 0.85])
             color = hsv(hue, 0.6, 1.0)

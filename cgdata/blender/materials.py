@@ -14,7 +14,8 @@ import bpy
 SHADER_AOVS = [("base_color", "COLOR"), ("roughness", "VALUE"), ("metallic", "VALUE")]
 
 KINDS = ["painted", "concrete", "rock", "metal", "glass", "sss", "emissive", "ground",
-         "brick", "window", "window_lit", "asphalt", "bark", "foliage", "wood", "fabric"]
+         "brick", "window", "window_lit", "asphalt", "bark", "foliage", "wood", "fabric",
+         "carpaint", "rubber"]
 
 
 def hsv(h, s, v):
@@ -118,6 +119,8 @@ def _photoreal(name, kind, color):
         "foliage": dict(rough=0.55, metal=0.0, var=0.35, scale=3.0),
         "wood": dict(rough=0.45, metal=0.0, var=0.0, scale=1.0),
         "fabric": dict(rough=0.95, metal=0.0, var=0.2, scale=40.0),
+        "carpaint": dict(rough=0.3, metal=0.55, var=0.0, scale=1.0),
+        "rubber": dict(rough=0.75, metal=0.0, var=0.15, scale=30.0),
     }[kind]
 
     if kind == "brick":
@@ -147,6 +150,9 @@ def _photoreal(name, kind, color):
     elif kind == "emissive":
         bsdf.inputs["Emission Color"].default_value = color
         bsdf.inputs["Emission Strength"].default_value = 12.0
+    elif kind == "carpaint":
+        bsdf.inputs["Coat Weight"].default_value = 1.0  # clearcoat over metallic base
+        bsdf.inputs["Coat Roughness"].default_value = 0.03
     elif kind == "fabric":
         bsdf.inputs["Sheen Weight"].default_value = 0.6
     elif kind == "foliage":
@@ -204,7 +210,7 @@ def _toon(name, kind, color):
     mix = nt.nodes.new("ShaderNodeMixShader")
     # Matte surfaces stay matte in toon: a crisp toon highlight on floors and
     # walls mirrors every strong light as a hard hot spot.
-    mix.inputs["Fac"].default_value = {"metal": 0.35, "window": 0.5}.get(kind, 0.0)
+    mix.inputs["Fac"].default_value = {"metal": 0.35, "window": 0.5, "carpaint": 0.3}.get(kind, 0.0)
     nt.links.new(diffuse.outputs["BSDF"], mix.inputs[1])
     nt.links.new(gloss.outputs["BSDF"], mix.inputs[2])
     nt.links.new(mix.outputs["Shader"], out.inputs["Surface"])
