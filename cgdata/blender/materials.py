@@ -14,7 +14,7 @@ import bpy
 SHADER_AOVS = [("base_color", "COLOR"), ("roughness", "VALUE"), ("metallic", "VALUE")]
 
 KINDS = ["painted", "concrete", "rock", "metal", "glass", "sss", "emissive", "ground",
-         "brick", "window", "window_lit", "asphalt", "bark", "foliage"]
+         "brick", "window", "window_lit", "asphalt", "bark", "foliage", "wood", "fabric"]
 
 
 def hsv(h, s, v):
@@ -78,6 +78,25 @@ def _brick_color(nt, color):
     return tex.outputs["Color"]
 
 
+def _wood_color(nt, color):
+    """Plank grain: stretched wave bands broken up by noise."""
+    coord = nt.nodes.new("ShaderNodeTexCoord")
+    mapping = nt.nodes.new("ShaderNodeMapping")
+    mapping.inputs["Scale"].default_value = (1.0, 12.0, 1.0)
+    wave = nt.nodes.new("ShaderNodeTexWave")
+    wave.inputs["Scale"].default_value = 2.0
+    wave.inputs["Distortion"].default_value = 6.0
+    wave.inputs["Detail"].default_value = 3.0
+    nt.links.new(coord.outputs["Object"], mapping.inputs["Vector"])
+    nt.links.new(mapping.outputs["Vector"], wave.inputs["Vector"])
+    mix = nt.nodes.new("ShaderNodeMix")
+    mix.data_type = "RGBA"
+    mix.inputs["A"].default_value = color
+    mix.inputs["B"].default_value = tuple(c * 0.6 for c in color[:3]) + (1.0,)
+    nt.links.new(wave.outputs["Fac"], mix.inputs["Factor"])
+    return mix.outputs["Result"]
+
+
 def _photoreal(name, kind, color):
     mat, nt, out = _new_material(name)
     bsdf = nt.nodes.new("ShaderNodeBsdfPrincipled")
@@ -97,10 +116,14 @@ def _photoreal(name, kind, color):
         "asphalt": dict(rough=0.9, metal=0.0, var=0.45, scale=25.0),
         "bark": dict(rough=0.9, metal=0.0, var=0.55, scale=9.0),
         "foliage": dict(rough=0.55, metal=0.0, var=0.35, scale=3.0),
+        "wood": dict(rough=0.45, metal=0.0, var=0.0, scale=1.0),
+        "fabric": dict(rough=0.95, metal=0.0, var=0.2, scale=40.0),
     }[kind]
 
     if kind == "brick":
         base = _brick_color(nt, color)
+    elif kind == "wood":
+        base = _wood_color(nt, color)
     elif kind in ("window", "window_lit"):
         base = (0.02, 0.025, 0.03, 1.0)  # dark glazing; reflections do the work
     elif params["var"]:
@@ -124,6 +147,8 @@ def _photoreal(name, kind, color):
     elif kind == "emissive":
         bsdf.inputs["Emission Color"].default_value = color
         bsdf.inputs["Emission Strength"].default_value = 12.0
+    elif kind == "fabric":
+        bsdf.inputs["Sheen Weight"].default_value = 0.6
     elif kind == "foliage":
         # thin leaves let light through: a little subsurface keeps them from reading as plastic
         bsdf.inputs["Subsurface Weight"].default_value = 0.15
@@ -177,7 +202,9 @@ def _toon(name, kind, color):
     gloss.inputs["Smooth"].default_value = 0.0
 
     mix = nt.nodes.new("ShaderNodeMixShader")
-    mix.inputs["Fac"].default_value = {"metal": 0.35, "window": 0.5}.get(kind, 0.08)
+    # Matte surfaces stay matte in toon: a crisp toon highlight on floors and
+    # walls mirrors every strong light as a hard hot spot.
+    mix.inputs["Fac"].default_value = {"metal": 0.35, "window": 0.5}.get(kind, 0.0)
     nt.links.new(diffuse.outputs["BSDF"], mix.inputs[1])
     nt.links.new(gloss.outputs["BSDF"], mix.inputs[2])
     nt.links.new(mix.outputs["Shader"], out.inputs["Surface"])

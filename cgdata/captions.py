@@ -27,6 +27,9 @@ ENVIRONMENT = {
     "canyon": ["a desert canyon with layered sandstone rock formations",
                "a dry canyon floor among stacked red-rock outcrops",
                "a sandy canyon with weathered strata rocks and sparse shrubs"],
+    "interior": ["a sunlit loft interior with wooden floors, shelves and a sofa",
+                 "a furnished open-plan room with tall windows and floor lamps",
+                 "a lived-in apartment interior with bookshelves, rugs and plants"],
     "meadow": ["a grassy meadow of rolling hills with scattered trees",
                "an open meadow with tufted grass, shrubs and leafy trees",
                "rolling green hills dotted with trees and boulders"],
@@ -83,7 +86,8 @@ def generate(spec, scene, comp=None):
     tod = spec["lighting"]["time_of_day"]
     light = LIGHT[tod]
     if tod == "dusk":
-        light += ", lit by street lamps and windows" if env == "city_block" else " fading to blue"
+        light += {"city_block": ", lit by street lamps and windows",
+                  "interior": ", the room lit by its lamps"}.get(env, " fading to blue")
     focal = scene["camera"]["focal_mm"]
     shallow = scene["camera"]["fstop"] <= 2.8
     move = pick(MOVE[spec["camera"]["move"]])

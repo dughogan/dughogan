@@ -19,14 +19,14 @@ import bpy  # noqa: E402
 from mathutils import Vector  # noqa: E402
 
 import passes  # noqa: E402
-from kits import city, nature  # noqa: E402
+from kits import city, interior, nature  # noqa: E402
 from scene import Builder  # noqa: E402
 
 
 def parse_args():
     argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else sys.argv[1:]
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--kit", choices=["city", "nature"], default="city")
+    ap.add_argument("--kit", choices=["city", "nature", "interior"], default="city")
     ap.add_argument("--style", choices=["photoreal", "toon"], default="photoreal")
     ap.add_argument("--seed", type=int, default=1)
     ap.add_argument("--count", type=int, default=6)
@@ -65,6 +65,29 @@ def _nature_lineup(b, rng, scene):
     return x, 11.0
 
 
+def _interior_lineup(b, rng, scene):
+    """Furniture pieces in a row: shelving, sofa, table, chairs, lamp, rug, plant."""
+    wood = b.material("wood", (0.35, 0.22, 0.12, 1.0))
+    metal = b.material("metal", (0.15, 0.15, 0.16, 1.0))
+    fabric = b.material("fabric", b.color(rng))
+    books = b.material("painted", b.color(rng))
+    shade = b.material("emissive", (1.0, 0.82, 0.6, 1.0))
+    pieces = [(interior.shelving, [wood, books]), (interior.sofa, [fabric, metal]),
+              (interior.table, [wood, metal]), (interior.chair, [wood, metal]),
+              (interior.chair, [wood, metal]), (interior.floor_lamp, [metal, shade]),
+              (interior.rug, [b.material("fabric", b.color(rng))])]
+    x = 0.0
+    for i, (make, mats) in enumerate(pieces):
+        m = city.Mesh()
+        w = make(m, rng)
+        w = 0.6 if make is interior.floor_lamp else w
+        obj = m.to_object(f"piece_{i}", mats, scene.collection)
+        obj.location = (x + w / 2, 0, 0)
+        b.add_mesh(obj, "environment", "wood", "ENV")
+        x += w + 0.8
+    return x, 2.2
+
+
 def main():
     args = parse_args()
     bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -84,6 +107,8 @@ def main():
     x, tallest = 0.0, 0.0
     if args.kit == "nature":
         x, tallest = _nature_lineup(b, rng, scene)
+    elif args.kit == "interior":
+        x, tallest = _interior_lineup(b, rng, scene)
     for i in range(args.count if args.kit == "city" else 0):
         w, d = rng.uniform(7, 10), rng.uniform(7, 10)
         floors = [3, 5, 8, 4, 10, 6, 2, 12][i % 8]
@@ -109,7 +134,10 @@ def main():
     scene.collection.objects.link(cam)
     scene.camera = cam
     target = Vector((x / 2, 0, tallest * 0.45))
-    cam.location = target + Vector((-x * 0.4, -x * 1.05, tallest * 0.25))
+    if args.kit == "interior":  # small pieces: come in low and close
+        cam.location = target + Vector((-x * 0.15, -x * 0.62, 1.4))
+    else:
+        cam.location = target + Vector((-x * 0.4, -x * 1.05, tallest * 0.25))
     cam.rotation_euler = (target - cam.location).to_track_quat("-Z", "Y").to_euler()
 
     args.out.parent.mkdir(parents=True, exist_ok=True)

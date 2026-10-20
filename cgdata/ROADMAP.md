@@ -24,7 +24,8 @@ provenance gates (phase 1) once they exist.
 - [ ] **[Doug]** Approve or send back `city_kit` v1 (packet: updates/review/2026-10-19/)
 - [x] Natural environment kit (terrain, rocks, scatter, foliage-like procedural plants): `blender/kits/nature.py` v1, canyon + new meadow biome
 - [ ] **[Doug]** Approve or send back `nature_kit` v1 (packet: updates/review/2026-10-19/)
-- [ ] Interior kit (rooms, furniture blocks, practical lights)
+- [x] Interior kit (rooms, furniture blocks, practical lights): `blender/kits/interior.py` v1, new `interior` environment
+- [ ] **[Doug]** Approve or send back `interior_kit` v1 (packet: updates/review/2026-10-20/)
 - [ ] Hero asset generators (vehicles, machines, sculptural pieces) beyond primitives
 - [ ] Stylized character generator with rig, plus procedural walk/idle cycles
 - [ ] FX: Mantaflow smoke/fire and liquid sims, rigid-body destruction

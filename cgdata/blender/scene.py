@@ -13,6 +13,7 @@ import bpy
 from mathutils import Vector
 
 from kits import city as city_kit
+from kits import interior as interior_kit
 from kits import nature as nature_kit
 from materials import hsv, make_material
 from passes import assign_lightgroup, atmosphere_collection
@@ -53,6 +54,8 @@ class Builder:
         self.groups = {}
         self.lights = []
         self.uses = {"kits": {}}  # asset kits (and versions) this shot was built from
+        self.room = None          # set by the interior kit: half_w, half_d, height
+        self.clear_radius = CLEAR_RADIUS
 
     # ---------------------------------------------------------------- helpers
 
@@ -105,6 +108,7 @@ class Builder:
         data.color = color
         data.shadow_soft_size = 0.15
         obj = bpy.data.objects.new(name, data)
+        obj.visible_camera = False  # the visible cue is the emissive lamp head
         obj.location = location
         self.scene.collection.objects.link(obj)
         obj.parent = self.group("LIGHTS")
@@ -151,6 +155,10 @@ class Builder:
         if env["type"] == "city_block":
             lit = LIT_FRACTION[self.spec["lighting"]["time_of_day"]]
             info = city_kit.build_city(self, rng, extent, env["density"], lit)
+            self.uses["kits"][info["kit"]] = info["version"]
+            return
+        if env["type"] == "interior":
+            info = interior_kit.build_interior(self, rng, env["density"])
             self.uses["kits"][info["kit"]] = info["version"]
             return
 
@@ -221,6 +229,8 @@ class Builder:
     # ------------------------------------------------------------------ props
 
     def build_props(self):
+        if self.room:
+            return  # indoors, the interior kit's furniture is the set dressing
         props = self.spec["props"]
         rng = random.Random(props["seed"])
         palette = [self.color(rng) for _ in range(4)]
@@ -295,6 +305,7 @@ class Builder:
             for k, v in kw.items():
                 setattr(data, k, v)
             obj = bpy.data.objects.new(name, data)
+            obj.visible_camera = False  # lamps light the scene; they aren't props
             self.scene.collection.objects.link(obj)
             if location:
                 obj.location = location
@@ -310,28 +321,54 @@ class Builder:
             "key_sun", "SUN", "key", sun_strength * lt["key_intensity"], sun_color,
             rotation=(math.radians(90 - elev), 0, rot), angle=math.radians(0.6),
         )
-        # Fill: big soft area light roughly opposite the sun.
+        # Fill: big soft area light roughly opposite the sun. Indoors it is a
+        # ceiling softbox (anything outside would be blocked by the shell).
         fill_dir = rot + math.pi
-        light(
-            "fill_area", "AREA", "fill", 4000 * lt["key_intensity"] * lt["fill_ratio"], (0.75, 0.85, 1.0),
-            location=(math.sin(fill_dir) * 15, -math.cos(fill_dir) * 15, 8),
-            rotation=(math.radians(60), 0, fill_dir), size=10.0,
-        )
+        if self.room:
+            light(
+                "fill_area", "AREA", "fill", 800 * lt["key_intensity"] * lt["fill_ratio"], (1.0, 0.95, 0.88),
+                location=(math.sin(fill_dir) * 2, -math.cos(fill_dir) * 2, self.room["height"] - 0.15),
+                size=4.0,
+            )
+        else:
+            light(
+                "fill_area", "AREA", "fill", 4000 * lt["key_intensity"] * lt["fill_ratio"], (0.75, 0.85, 1.0),
+                location=(math.sin(fill_dir) * 15, -math.cos(fill_dir) * 15, 8),
+                rotation=(math.radians(60), 0, fill_dir), size=10.0,
+            )
         # Rim: behind the hero relative to camera.
         if lt["rim_intensity"] > 0.05:
             az = math.radians(self.spec["camera"]["azimuth_deg"]) + math.pi
-            loc = Vector((math.cos(az) * 6, math.sin(az) * 6, self.hero_height + 3))
-            rim = light("rim_spot", "SPOT", "rim", 2500 * lt["rim_intensity"], (1.0, 0.95, 0.9), location=loc,
-                        spot_size=math.radians(45))
+            reach = min(6.0, self.clear_radius - 0.5)
+            top = self.hero_height + 3 if not self.room else min(self.hero_height + 3, self.room["height"] - 0.3)
+            loc = Vector((math.cos(az) * reach, math.sin(az) * reach, top))
+            # A sized source (0.6 m): a near-point 2 kW spot mirrors in glossy
+            # floors as a pin-bright hot spot that defocuses into a blob.
+            rim = light("rim_spot", "SPOT", "rim", 2500 * lt["rim_intensity"] * (0.5 if self.room else 1.0),
+                        (1.0, 0.95, 0.9), location=loc, spot_size=math.radians(45), shadow_soft_size=0.6)
             direction = Vector((0, 0, self.hero_height)) - loc
             rim.rotation_euler = direction.to_track_quat("-Z", "Y").to_euler()
         # Practicals: small warm/cool point lights near the ground.
-        for i in range(lt["practicals"]):
+        # Practicals are always motivated: each sits in a lantern with a
+        # visible emissive globe (a bare floating point light reads as an
+        # unexplained hot spot). Indoors the interior kit's lamps are the practicals.
+        for i in range(0 if self.room else lt["practicals"]):
             a = rng.uniform(0, math.tau)
-            r = rng.uniform(3.0, 10.0)
+            r = rng.uniform(4.0, min(10.0, self.clear_radius))
             hue = rng.choice([0.07, 0.1, 0.55, 0.85])
-            light(f"practical_{i}", "POINT", "practical", rng.uniform(50, 300), hsv(hue, 0.6, 1.0)[:3],
-                  location=(math.cos(a) * r, math.sin(a) * r, rng.uniform(0.5, 3.0)), shadow_soft_size=0.1)
+            color = hsv(hue, 0.6, 1.0)
+            h = rng.uniform(1.2, 2.6)
+            pos = Vector((math.cos(a) * r, math.sin(a) * r, 0))
+            lantern = city_kit.Mesh()
+            lantern.cylinder((0, 0, 0), 0.05, h, 0, 8)
+            lantern.box((0, 0, h + 0.12), (0.22, 0.22, 0.24), 1)
+            obj = lantern.to_object(f"lantern_{i}", [self.material("metal", (0.12, 0.12, 0.12, 1.0)),
+                                                     self.material("emissive", color)], self.scene.collection)
+            obj.location = pos
+            self.add_mesh(obj, "practical", "emissive", "ENV")
+            self.assign_practical(obj)
+            light(f"practical_{i}", "POINT", "practical", rng.uniform(50, 300), color[:3],
+                  location=pos + Vector((0, 0, h + 0.12)), shadow_soft_size=0.1)
 
         self._world(elev, rot, sky_strength)
 
@@ -398,7 +435,7 @@ class Builder:
         sensor_h = cam_spec["sensor_mm"] * res_y / res_x
         travel = cam_spec["travel"]
         d_min = self.hero_size * 2.5
-        d_max = max(d_min, CLEAR_RADIUS / (1 + travel))
+        d_max = max(d_min, self.clear_radius / (1 + travel))
         d0 = d_min + (d_max - d_min) * cam_spec["distance_frac"]
         h0 = max(0.5, self.hero_height + cam_spec["height_offset"])
         az0 = math.radians(cam_spec["azimuth_deg"])
