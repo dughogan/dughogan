@@ -99,6 +99,8 @@ def make_spec(seed, quality="pilot", style=None, environment=None):
             "denoise_combined": False,
         },
     }
+    # Drawn last so adding FX didn't change any other value for existing seeds.
+    spec["fx"] = {"type": rng.choice(["none", "none", "collapse"]), "seed": rng.randrange(1 << 30)}
     return spec
 
 

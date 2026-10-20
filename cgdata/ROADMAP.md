@@ -30,7 +30,9 @@ provenance gates (phase 1) once they exist.
 - [ ] **[Doug]** Approve or send back `hero_kit` v1 (packet: updates/review/2026-10-20/)
 - [x] Stylized character generator with rig, plus procedural walk/idle cycles: `blender/kits/character.py` v1; joint tracks + **pose-control video** (new `pose` pair set)
 - [ ] **[Doug]** Approve or send back `character_kit` v1 (packet: updates/review/2026-10-20/)
-- [ ] FX: Mantaflow smoke/fire and liquid sims, rigid-body destruction
+- [x] FX: rigid-body destruction (`blender/kits/fx.py` v1: brick wall / crate stack / drum column struck by a projectile; 1 in 3 outdoor shots)
+- [ ] FX: Mantaflow smoke/fire and liquids: **blocked here**, the pip bpy 5.2 wheel can't bake fluids (`LevelsetGrid.setConst` missing); build and test on Doug's full Blender install
+- [ ] **[Doug]** Approve or send back `fx_kit` v1 (packet: updates/review/2026-10-20/)
 - [ ] Shader library expansion (wear, dirt, layered materials), photoreal + toon variants
 - [ ] Real toon look: ramp lighting, Freestyle line pass as an extra layer
 - [ ] **[Doug]** Approve each kit from its turntable/contact sheet (art direction notes go into the next night's work)

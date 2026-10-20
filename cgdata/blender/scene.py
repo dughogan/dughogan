@@ -14,6 +14,7 @@ from mathutils import Vector
 
 from kits import city as city_kit
 from kits import character as character_kit
+from kits import fx as fx_kit
 from kits import heroes as hero_kit
 from kits import interior as interior_kit
 from kits import nature as nature_kit
@@ -28,7 +29,7 @@ CLEAR_RADIUS = 18.0
 # sky-only test), so the photoreal sky is scaled down to sit under the key.
 PHYSICAL_SKY_SCALE = 0.2
 
-PASS_INDEX = {"hero": 1, "prop": 2, "environment": 3, "ground": 4, "practical": 5}
+PASS_INDEX = {"hero": 1, "prop": 2, "environment": 3, "ground": 4, "practical": 5, "fx": 6}
 
 # Fraction of windows / street lamps lit, per time of day.
 LIT_FRACTION = {"morning": 0.1, "noon": 0.05, "golden_hour": 0.25, "dusk": 0.5}
@@ -64,6 +65,7 @@ class Builder:
         self.lights = []
         self.uses = {"kits": {}}  # asset kits (and versions) this shot was built from
         self.hero_path = None     # a walking character's start and end (world)
+        self.fx = None            # FX event info, for scene.json
         self.room = None          # set by the interior kit: half_w, half_d, height
         self.clear_radius = CLEAR_RADIUS
 
@@ -270,6 +272,23 @@ class Builder:
         self.hero_height = height * 0.55
         self.hero_size = height
         self.uses["kits"][character_kit.KIT] = character_kit.VERSION
+
+    def build_fx(self):
+        fx = self.spec.get("fx") or {}
+        if fx.get("type") != "collapse" or self.room:
+            return  # no collapses indoors: debris would tangle with furniture
+        r = self.spec["render"]
+        rng = random.Random(fx.get("seed", self.spec["seed"] * 53 + 11))
+        self.fx = fx_kit.build_collapse(self, rng, (r["frame_start"], r["frame_end"]))
+        self.uses["kits"][fx_kit.KIT] = fx_kit.VERSION
+        # clear props the structure would stand in
+        fx_objs = [o for o in self.groups["FX"].children]
+        centre = sum((o.location for o in fx_objs), Vector()) / max(len(fx_objs), 1)
+        props = self.groups.get("PROPS")
+        for obj in list(props.children) if props else []:
+            if (obj.location - centre).length < 2.2 + max(obj.dimensions) / 2:
+                self.objects = [o for o in self.objects if o["name"] != obj.name]
+                bpy.data.objects.remove(obj, do_unlink=True)
 
     def skeleton_track(self):
         if not getattr(self, "rig", None):
@@ -630,4 +649,5 @@ class Builder:
         self.build_props()
         self.build_lights()
         self.build_camera()  # before the fog box, which would block ray casts
+        self.build_fx()
         self.build_atmosphere()

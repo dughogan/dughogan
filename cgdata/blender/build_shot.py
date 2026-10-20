@@ -24,6 +24,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import bpy  # noqa: E402
 
 import passes  # noqa: E402
+from kits import fx as fx_kit  # noqa: E402
 from scene import Builder  # noqa: E402
 
 
@@ -72,6 +73,7 @@ def main():
 
     builder = Builder(spec)
     builder.build()
+    fx_kit.bake(scene)  # rigid bodies; the bake is saved into the .blend
 
     render_dir = (shot_dir / "renders").resolve()
     written = passes.add_exr_outputs(scene, render_dir, spec["shot_id"])
@@ -93,6 +95,7 @@ def main():
         "hero": {"type": spec["hero"]["type"], "color": builder.hero_color,
                  "motion": getattr(builder, "hero_motion", None)},
         "skeleton": builder.skeleton_track(),
+        "fx": builder.fx,
         "exr_layers": written,
         "camera": builder.camera_track(),
     }

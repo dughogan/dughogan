@@ -119,13 +119,19 @@ def generate(spec, scene, comp=None):
         f"{_cap(light)}{', with light haze in the air' if fog else ''}; {move}, "
         f"filmed on a {lens_phrase(focal)}{' with shallow depth of field' if shallow else ''}.",
     ]
+    fx = scene.get("fx") or {}
+    if fx.get("type") == "collapse":
+        thing = {"brick_wall": "a brick wall", "crate_stack": "a stack of wooden crates",
+                 "drum_column": "a column of metal drums"}[fx["structure"]]
+        sentences.append(f"Nearby, {thing} is struck and collapses.")
     if comp and style == "photoreal" and comp.get("grain", {}).get("enabled"):
         sentences.append("Finished with subtle film grain, lens glow and a cinematic grade.")
     elif comp and style == "toon":
         sentences.append("Clean graphic finish with flat, saturated color.")
     tags = [style, env, spec["hero"]["type"], tod, spec["camera"]["move"],
             lens_phrase(focal).replace(" lens", ""), *(["shallow dof"] if shallow else []),
-            *(["haze"] if fog else []), "cg", "vfx"]
+            *(["haze"] if fog else []), *(["destruction"] if fx.get("type") == "collapse" else []),
+            "cg", "vfx"]
     return {"short": short, "long": " ".join(sentences), "tags": tags, "source": "generated"}
 
 
