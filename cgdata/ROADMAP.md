@@ -57,7 +57,7 @@ provenance gates (phase 1) once they exist.
 ## Phase 5: proof of benefit
 - [ ] LTX IC-LoRA training configs for 2–3 pair sets
 - [ ] **[Doug]** Train on LTX trainer (your GPUs), before/after eval clips
-- [ ] Pilot package: sample set, manifest, datasheet, provenance report, pitch sheet
+- [x] Pilot package: sample set, manifest, datasheet, provenance report, pitch sheet (`package.py`: stratified curated sample, style pairs kept together, generated DATASHEET and PITCH_DRAFT, per-clip ComfyAudit record, optional EXR samples)
 
 ## Later pilots
 - [ ] Keying module (plate / FG+alpha with spill / clean plate, screen light group for despill)

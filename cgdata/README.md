@@ -54,6 +54,14 @@ and IC-LoRA pair manifests (`export/pairs/*.jsonl`: caption, media_path,
 conditioning_path). Only clips that passed QA and were kept at the
 shot_curated gate are exported. Uses system ffmpeg, else `imageio-ffmpeg`.
 
+### Pilot package
+
+`python -m cgdata.package LIBRARY --out PILOT --samples 24 --with-exr 4`
+assembles a buyer-ready folder: a stratified sample of curated clips (style
+pairs kept together), filtered pair manifests, a generated DATASHEET.md, a
+PITCH_DRAFT.md with the numbers filled in, each clip's ComfyAudit provenance
+record and optional full-EXR samples.
+
 ### Passes (45 layers, verified in Blender 5.2)
 
 | Group | Layers |
