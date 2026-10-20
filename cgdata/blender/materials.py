@@ -98,6 +98,87 @@ def _wood_color(nt, color):
     return mix.outputs["Result"]
 
 
+# Weathering per material kind: (grime height in m, grime strength, edge wear,
+# roughness variation). Grime rises from the ground (where dirt collects) and
+# is broken up by noise; edge wear exposes a lighter under-layer on convex
+# edges; roughness variation stops surfaces reading as uniform plastic.
+WEATHER = {
+    "painted": (1.2, 0.45, 0.35, 0.25),
+    "concrete": (1.5, 0.55, 0.0, 0.2),
+    "brick": (1.0, 0.5, 0.0, 0.15),
+    "metal": (0.6, 0.35, 0.0, 0.3),
+    "wood": (0.5, 0.3, 0.2, 0.2),
+    "rock": (0.0, 0.0, 0.0, 0.25),
+    "asphalt": (0.0, 0.0, 0.0, 0.3),
+    "rubber": (0.3, 0.3, 0.0, 0.2),
+}
+GRIME = (0.08, 0.07, 0.05, 1.0)
+
+
+def _weather(nt, kind, base, rough):
+    """Layer grime, edge wear and roughness variation over a base color.
+    Returns (color_socket, roughness_socket)."""
+    height, strength, wear, rough_var = WEATHER[kind]
+    coord = nt.nodes.new("ShaderNodeNewGeometry")
+    noise = nt.nodes.new("ShaderNodeTexNoise")
+    noise.inputs["Scale"].default_value = 3.0
+    noise.inputs["Detail"].default_value = 8.0
+    nt.links.new(coord.outputs["Position"], noise.inputs["Vector"])
+
+    color = base
+    if strength:
+        sep = nt.nodes.new("ShaderNodeSeparateXYZ")
+        nt.links.new(coord.outputs["Position"], sep.inputs["Vector"])
+        ground = nt.nodes.new("ShaderNodeMapRange")  # 1 at the ground -> 0 at `height`
+        ground.inputs["From Min"].default_value = 0.0
+        ground.inputs["From Max"].default_value = height
+        ground.inputs["To Min"].default_value = 1.0
+        ground.inputs["To Max"].default_value = 0.0
+        nt.links.new(sep.outputs["Z"], ground.inputs["Value"])
+        mask = nt.nodes.new("ShaderNodeMath")
+        mask.operation = "MULTIPLY"
+        nt.links.new(ground.outputs["Result"], mask.inputs[0])
+        nt.links.new(noise.outputs["Fac"], mask.inputs[1])
+        amount = nt.nodes.new("ShaderNodeMath")
+        amount.operation = "MULTIPLY"
+        amount.use_clamp = True
+        amount.inputs[1].default_value = strength * 1.6
+        nt.links.new(mask.outputs["Value"], amount.inputs[0])
+        mix = nt.nodes.new("ShaderNodeMix")
+        mix.data_type = "RGBA"
+        mix.inputs["B"].default_value = GRIME
+        if isinstance(color, bpy.types.NodeSocket):
+            nt.links.new(color, mix.inputs["A"])
+        else:
+            mix.inputs["A"].default_value = color
+        nt.links.new(amount.outputs["Value"], mix.inputs["Factor"])
+        color = mix.outputs["Result"]
+    if wear:
+        edge = nt.nodes.new("ShaderNodeNewGeometry")
+        ramp = nt.nodes.new("ShaderNodeValToRGB")  # pointiness > 0.5 is convex
+        ramp.color_ramp.elements[0].position = 0.52
+        ramp.color_ramp.elements[1].position = 0.6
+        nt.links.new(edge.outputs["Pointiness"], ramp.inputs["Fac"])
+        worn = nt.nodes.new("ShaderNodeMix")
+        worn.data_type = "RGBA"
+        worn.inputs["B"].default_value = (0.55, 0.52, 0.48, 1.0)  # primer / bare material
+        if isinstance(color, bpy.types.NodeSocket):
+            nt.links.new(color, worn.inputs["A"])
+        else:
+            worn.inputs["A"].default_value = color
+        scale = nt.nodes.new("ShaderNodeMath")
+        scale.operation = "MULTIPLY"
+        scale.inputs[1].default_value = wear
+        nt.links.new(ramp.outputs["Color"], scale.inputs[0])
+        nt.links.new(scale.outputs["Value"], worn.inputs["Factor"])
+        color = worn.outputs["Result"]
+    r = nt.nodes.new("ShaderNodeMapRange")
+    r.inputs["To Min"].default_value = max(0.0, rough - rough_var / 2)
+    r.inputs["To Max"].default_value = min(1.0, rough + rough_var / 2)
+    nt.links.new(noise.outputs["Fac"], r.inputs["Value"])
+    return color, r.outputs["Result"]
+
+
 def _photoreal(name, kind, color):
     mat, nt, out = _new_material(name)
     bsdf = nt.nodes.new("ShaderNodeBsdfPrincipled")
@@ -133,11 +214,17 @@ def _photoreal(name, kind, color):
         base = _noise_color(nt, color, params["var"], params["scale"])
     else:
         base = color
+    rough = params["rough"]
+    if kind in WEATHER:
+        base, rough = _weather(nt, kind, base, params["rough"])
     if isinstance(base, bpy.types.NodeSocket):
         nt.links.new(base, bsdf.inputs["Base Color"])
     else:
         bsdf.inputs["Base Color"].default_value = base
-    bsdf.inputs["Roughness"].default_value = params["rough"]
+    if isinstance(rough, bpy.types.NodeSocket):
+        nt.links.new(rough, bsdf.inputs["Roughness"])
+    else:
+        bsdf.inputs["Roughness"].default_value = rough
     bsdf.inputs["Metallic"].default_value = params["metal"]
 
     if kind == "glass":
@@ -166,7 +253,7 @@ def _photoreal(name, kind, color):
         bsdf.inputs["Emission Strength"].default_value = 1.2
 
     nt.links.new(bsdf.outputs["BSDF"], out.inputs["Surface"])
-    _aov_outputs(nt, base, params["rough"], params["metal"])
+    _aov_outputs(nt, base, rough, params["metal"])  # AOVs carry the varying values
     return mat
 
 

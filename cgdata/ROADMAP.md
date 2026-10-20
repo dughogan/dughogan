@@ -33,7 +33,7 @@ provenance gates (phase 1) once they exist.
 - [x] FX: rigid-body destruction (`blender/kits/fx.py` v1: brick wall / crate stack / drum column struck by a projectile; 1 in 3 outdoor shots)
 - [ ] FX: Mantaflow smoke/fire and liquids: **blocked here**, the pip bpy 5.2 wheel can't bake fluids (`LevelsetGrid.setConst` missing); build and test on Doug's full Blender install
 - [ ] **[Doug]** Approve or send back `fx_kit` v1 (packet: updates/review/2026-10-20/)
-- [ ] Shader library expansion (wear, dirt, layered materials), photoreal + toon variants
+- [x] Shader library expansion (wear, dirt, layered materials): ground-up grime, edge wear, roughness variation on photoreal painted/concrete/brick/metal/wood/rock/asphalt/rubber; new car paint (clearcoat), rubber, wood, fabric
 - [ ] Real toon look: ramp lighting, Freestyle line pass as an extra layer
 - [ ] **[Doug]** Approve each kit from its turntable/contact sheet (art direction notes go into the next night's work)
 
