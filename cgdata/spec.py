@@ -21,7 +21,7 @@ ENVIRONMENTS = ["city_block", "canyon", "meadow", "interior"]
 CAMERA_MOVES = ["dolly_in", "orbit", "truck", "crane"]
 TIMES_OF_DAY = ["morning", "noon", "golden_hour", "dusk"]
 HERO_TYPES = ["glass_sculpture", "chrome_sculpture", "sss_blob", "neon_totem", "stone_monolith",
-              "vehicle", "robot_arm", "torus_knot", "crystal_cluster", "twisted_column"]
+              "vehicle", "robot_arm", "torus_knot", "crystal_cluster", "twisted_column", "character"]
 
 # Render presets. "pilot" is for buyer samples; "draft" is for pipeline testing.
 # Frame counts are 8n+1 (97 = 8*12+1) and resolutions are multiples of 32

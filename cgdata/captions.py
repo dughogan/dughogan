@@ -45,6 +45,7 @@ HERO = {
     "torus_knot": "a polished metal torus-knot sculpture",
     "crystal_cluster": "a cluster of clear crystals on a rock",
     "twisted_column": "a twisting stacked-stone column",
+    "character": "a stylized figure",
 }
 LIGHT = {
     "morning": "soft morning light",
@@ -98,6 +99,9 @@ def generate(spec, scene, comp=None):
         rgb = (scene.get("hero") or {}).get("color")
         name = color_name(rgb) if rgb else hue_name(spec["hero"]["hue"])
         hero = hero.replace("a ", f"{'an' if name[0] in 'aeiou' else 'a'} {name} ", 1)
+    if spec["hero"]["type"] == "character":
+        motion = (scene.get("hero") or {}).get("motion")
+        hero += {"walk": " walking", "idle": " standing and looking around"}.get(motion, "")
     tod = spec["lighting"]["time_of_day"]
     light = LIGHT[tod]
     if tod == "dusk":
@@ -111,7 +115,7 @@ def generate(spec, scene, comp=None):
 
     short = f"{_cap(look)}: {hero} in {pick(ENVIRONMENT[env])}, {LIGHT[tod]}."
     sentences = [
-        f"A {look} shot of {hero} standing in {pick(ENVIRONMENT[env])}.",
+        f"A {look} shot of {hero}{'' if spec['hero']['type'] == 'character' else ' standing'} in {pick(ENVIRONMENT[env])}.",
         f"{_cap(light)}{', with light haze in the air' if fog else ''}; {move}, "
         f"filmed on a {lens_phrase(focal)}{' with shallow depth of field' if shallow else ''}.",
     ]

@@ -13,6 +13,7 @@ import bpy
 from mathutils import Vector
 
 from kits import city as city_kit
+from kits import character as character_kit
 from kits import heroes as hero_kit
 from kits import interior as interior_kit
 from kits import nature as nature_kit
@@ -45,6 +46,13 @@ TIME_OF_DAY = {
 }
 
 
+def _dist_to_segment(p, a, b):
+    a, b = Vector((a.x, a.y, 0)), Vector((b.x, b.y, 0))
+    ab = b - a
+    t = 0.0 if ab.length_squared == 0 else max(0.0, min(1.0, (p - a).dot(ab) / ab.length_squared))
+    return (p - (a + ab * t)).length
+
+
 class Builder:
     def __init__(self, spec):
         self.spec = spec
@@ -55,6 +63,7 @@ class Builder:
         self.groups = {}
         self.lights = []
         self.uses = {"kits": {}}  # asset kits (and versions) this shot was built from
+        self.hero_path = None     # a walking character's start and end (world)
         self.room = None          # set by the interior kit: half_w, half_d, height
         self.clear_radius = CLEAR_RADIUS
 
@@ -92,9 +101,11 @@ class Builder:
         return obj
 
     def add_mesh(self, obj, role, kind, parent):
-        """Register a kit object that already carries its own material slots."""
+        """Register a kit object that already carries its own material slots.
+        parent=None keeps the object's existing parent (e.g. a rig bone)."""
         obj.pass_index = PASS_INDEX[role]
-        obj.parent = self.group(parent)
+        if parent is not None:
+            obj.parent = self.group(parent)
         self.objects.append({"name": obj.name, "role": role, "kind": kind,
                              "material": [m.name for m in obj.data.materials]})
         return obj
@@ -175,6 +186,9 @@ class Builder:
         color = self.color(rng, hue=hero["hue"])
         self.hero_color = list(color)  # generated heroes may repaint; captions read this
         t = hero["type"]
+        if t == "character":
+            self._build_character(rng)
+            return
         if t in hero_kit.GENERATORS:
             self._build_generated_hero(t, rng, s, color)
             return
@@ -235,6 +249,35 @@ class Builder:
         self._measure_hero(obj)
         self.uses["kits"][hero_kit.KIT] = hero_kit.VERSION
 
+    def _build_character(self, rng):
+        """A rigged character hero that walks through the frame or idles."""
+        arm, parts, height = character_kit.build_character(self, rng, self.style == "toon")
+        for part in parts:
+            self.add_mesh(part, "hero", "character", None)  # stays parented to its bone
+        arm.parent = self.group("HERO")
+        r = self.spec["render"]
+        seeded = rng.choice(["walk", "walk", "idle"])
+        self.hero_motion = self.spec["hero"].get("motion") or seeded
+        frames = (r["frame_start"], r["frame_end"])
+        if self.hero_motion == "walk" and character_kit.walk_length(height, frames) > 1.6 * self.clear_radius:
+            self.hero_motion = "idle"  # no room to walk at a natural pace
+        arm.rotation_euler = (0, 0, rng.uniform(0, math.tau))  # walk heading
+        bpy.context.view_layer.update()
+        ends = character_kit.animate(arm, rng, frames, self.hero_motion, height)
+        if ends:
+            self.hero_path = [arm.matrix_world @ e for e in ends]
+        self.rig = arm
+        self.hero_height = height * 0.55
+        self.hero_size = height
+        self.uses["kits"][character_kit.KIT] = character_kit.VERSION
+
+    def skeleton_track(self):
+        if not getattr(self, "rig", None):
+            return None
+        r = self.spec["render"]
+        return {"bones": list(character_kit.SKELETON), "limbs": character_kit.LIMBS,
+                "frames": character_kit.joint_track(self.rig, self.scene, (r["frame_start"], r["frame_end"]))}
+
     def _measure_hero(self, obj):
         """Camera target height (bounds center) and size, from evaluated bounds."""
         ev = obj.evaluated_get(bpy.context.evaluated_depsgraph_get())
@@ -261,6 +304,8 @@ class Builder:
             angle = rng.uniform(0, math.tau)
             radius = rng.uniform(3.5, 9.0)
             x, y = math.cos(angle) * radius, math.sin(angle) * radius
+            if self.hero_path and _dist_to_segment(Vector((x, y, 0)), *self.hero_path) < 1.5:
+                continue  # keep the walk path clear
             shape = rng.choice(["crate", "barrel", "ball", "pillar"])
             size = rng.uniform(0.4, 1.2)
             if shape == "crate":
@@ -448,6 +493,14 @@ class Builder:
 
         target = bpy.data.objects.new("cam_target", None)
         target.location = (0, 0, self.hero_height)
+        self.cam_target = target
+        if self.hero_path:  # follow a walking character (pan with them)
+            a, b = self.hero_path
+            f0, f1 = r["frame_start"], r["frame_end"]
+            for f in range(f0, f1 + 1):
+                p = a.lerp(b, (f - f0) / max(f1 - f0, 1))
+                target.location = (p.x, p.y, self.hero_height)
+                target.keyframe_insert("location", frame=f)
         self.scene.collection.objects.link(target)
         track = cam.constraints.new("TRACK_TO")
         track.target = target
@@ -559,7 +612,7 @@ class Builder:
                 "frame": f,
                 "matrix_world": [list(row) for row in m],
                 "focal_mm": cam.data.lens,
-                "focus_distance": (m.translation - Vector((0, 0, self.hero_height))).length,
+                "focus_distance": (m.translation - self.cam_target.matrix_world.translation).length,
             })
         self.scene.frame_set(self.scene.frame_start)
         return {

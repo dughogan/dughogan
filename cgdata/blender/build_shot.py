@@ -90,7 +90,9 @@ def main():
         "lights": builder.lights,
         "light_groups": passes.LIGHT_GROUPS,
         "uses": builder.uses,
-        "hero": {"type": spec["hero"]["type"], "color": builder.hero_color},
+        "hero": {"type": spec["hero"]["type"], "color": builder.hero_color,
+                 "motion": getattr(builder, "hero_motion", None)},
+        "skeleton": builder.skeleton_track(),
         "exr_layers": written,
         "camera": builder.camera_track(),
     }

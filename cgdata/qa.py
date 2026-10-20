@@ -216,6 +216,7 @@ def run(shot_dir, checksums=True):
         },
         "light_groups": scene["light_groups"],
         "uses": scene.get("uses", {}),
+        "skeleton": scene.get("skeleton"),
         "lights": scene["lights"],
         "objects": scene["objects"],
         "camera": scene["camera"],

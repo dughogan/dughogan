@@ -28,7 +28,8 @@ provenance gates (phase 1) once they exist.
 - [ ] **[Doug]** Approve or send back `interior_kit` v1 (packet: updates/review/2026-10-20/)
 - [x] Hero asset generators (vehicles, machines, sculptural pieces) beyond primitives: `blender/kits/heroes.py` v1 (vehicle, robot_arm, torus_knot, crystal_cluster, twisted_column)
 - [ ] **[Doug]** Approve or send back `hero_kit` v1 (packet: updates/review/2026-10-20/)
-- [ ] Stylized character generator with rig, plus procedural walk/idle cycles
+- [x] Stylized character generator with rig, plus procedural walk/idle cycles: `blender/kits/character.py` v1; joint tracks + **pose-control video** (new `pose` pair set)
+- [ ] **[Doug]** Approve or send back `character_kit` v1 (packet: updates/review/2026-10-20/)
 - [ ] FX: Mantaflow smoke/fire and liquid sims, rigid-body destruction
 - [ ] Shader library expansion (wear, dirt, layered materials), photoreal + toon variants
 - [ ] Real toon look: ramp lighting, Freestyle line pass as an extra layer

@@ -11,9 +11,10 @@ resolution and 8n+1 frame count):
     <id>_segment.mp4       Cryptomatte object IDs as stable flat colors (4:4:4)
     <id>_albedo.mp4        diffuse color
     <id>_lg_<group>.mp4    each light group alone
+    <id>_pose.mp4          OpenPose-style skeleton, for clips with a rigged character
 Pair manifests, into LIBRARY/export/pairs/<set>.jsonl, one row per clip:
     {"id", "caption", "media_path" (target), "conditioning_path"}
-for sets depth, normal, segment, albedo, beauty (raw render -> finished comp)
+for sets depth, normal, segment, albedo, pose (character clips), beauty (raw render -> finished comp)
 relight_<group> (one light group -> full lighting), and, for clips rendered
 with --style-pairs, toon_to_photoreal / photoreal_to_toon. Paths are relative to
 LIBRARY/export. Map the columns to your LTX trainer's dataset config.
@@ -83,6 +84,35 @@ def camera_normals(world_normal, matrix_world):
     return ((np.clip(cam, -1, 1) * 0.5 + 0.5) * 255 + 0.5).astype(np.uint8)
 
 
+def pose_image(joints, matrix_world, focal_mm, sensor_mm, width, height):
+    """OpenPose-style stick figure: each bone projected through the camera and
+    drawn as a colored limb with joint dots, on black."""
+    from PIL import ImageDraw
+    cam = np.array(matrix_world, dtype=np.float64)
+    world_to_cam = np.linalg.inv(cam)
+    scale = focal_mm / sensor_mm * width  # horizontal sensor fit
+
+    def project(p):
+        x, y, z, _ = world_to_cam @ np.array([*p, 1.0])
+        if z >= -1e-3:  # behind the camera
+            return None
+        return (width / 2 + x / -z * scale, height / 2 - y / -z * scale)
+
+    img = Image.new("RGB", (width, height))
+    draw = ImageDraw.Draw(img)
+    line = max(2, width // 240)
+    from cgdata.blender_constants import POSE_LIMBS
+    for bone, color in POSE_LIMBS:
+        if bone not in joints:
+            continue
+        a, b = (project(p) for p in joints[bone])
+        if a and b:
+            draw.line([a, b], fill=tuple(color), width=line)
+            for p in (a, b):
+                draw.ellipse([p[0] - line, p[1] - line, p[0] + line, p[1] + line], fill=tuple(color))
+    return np.asarray(img)
+
+
 def export_shot(shot_dir, out_root):
     shot_dir, out_root = Path(shot_dir), Path(out_root)
     meta = json.loads((shot_dir / "meta.json").read_text())
@@ -90,12 +120,15 @@ def export_shot(shot_dir, out_root):
     f0, f1 = meta["frame_range"]
     cam_frames = {c["frame"]: c["matrix_world"] for c in meta["camera"]["frames"]}
     groups = meta["light_groups"]
+    skeleton = meta.get("skeleton")
+    cam = meta["camera"]
+    focals = {c["frame"]: c["focal_mm"] for c in cam["frames"]}
     out = out_root / sid
     out.mkdir(parents=True, exist_ok=True)
 
     with tempfile.TemporaryDirectory() as tmp:
         tmp = Path(tmp)
-        for name in CONDITIONS + [f"lg_{g}" for g in groups]:
+        for name in CONDITIONS + [f"lg_{g}" for g in groups] + (["pose"] if skeleton else []):
             (tmp / name).mkdir()
 
         # Depth range over the whole clip, so brightness is stable in time.
@@ -119,6 +152,10 @@ def export_shot(shot_dir, out_root):
             }
             for g in groups:
                 maps[f"lg_{g}"] = to_srgb8(L[f"Combined_{g}"][..., :3])
+            if skeleton:
+                h, w = maps["depth"].shape[:2]
+                maps["pose"] = pose_image(skeleton["frames"][str(f)], cam_frames[f], focals[f],
+                                          cam["sensor_mm"], w, h)
             for name, img in maps.items():
                 Image.fromarray(img).save(tmp / name / f"{f:04d}.png", compress_level=1)
 
@@ -134,7 +171,7 @@ def export_shot(shot_dir, out_root):
     else:
         shutil.copy(out / f"{sid}_beauty.mp4", out / f"{sid}_target.mp4")
         target_kind = "beauty"
-    return {"id": sid, "target": target_kind, "groups": groups,
+    return {"id": sid, "target": target_kind, "groups": groups, "pose": bool(skeleton),
             "caption": captions.for_shot(shot_dir)["long"], "pair": meta["spec"].get("pair")}
 
 
@@ -153,6 +190,10 @@ def write_pairs(results, out_root):
             rows.setdefault(set_name, []).append(
                 {"id": sid, "caption": r["caption"], "media_path": target,
                  "conditioning_path": f"{sid}/{sid}_{cond}.mp4"})
+        if r.get("pose"):
+            rows.setdefault("pose", []).append(
+                {"id": sid, "caption": r["caption"], "media_path": target,
+                 "conditioning_path": f"{sid}/{sid}_pose.mp4"})
         for g in r["groups"]:
             rows.setdefault(f"relight_{g}", []).append(
                 {"id": sid, "caption": r["caption"], "media_path": f"{sid}/{sid}_beauty.mp4",
