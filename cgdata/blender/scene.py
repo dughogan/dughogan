@@ -526,7 +526,11 @@ class Builder:
         track.track_axis = "TRACK_NEGATIVE_Z"
         track.up_axis = "UP_Y"
 
-        data.dof.use_dof = True
+        # Rendered sharp: depth of field is added in comp (ZDefocus) from clean
+        # depth, like motion blur. In-camera DOF would blur twice in comp and
+        # average depth/IDs/normals across the lens. Focus object and f-stop are
+        # still set, so the .blend and the camera track carry the lens.
+        data.dof.use_dof = False
         data.dof.focus_object = target
         data.dof.aperture_fstop = cam_spec["fstop"]
 

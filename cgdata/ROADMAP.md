@@ -34,7 +34,8 @@ provenance gates (phase 1) once they exist.
 - [ ] FX: Mantaflow smoke/fire and liquids: **blocked here**, the pip bpy 5.2 wheel can't bake fluids (`LevelsetGrid.setConst` missing); build and test on Doug's full Blender install
 - [ ] **[Doug]** Approve or send back `fx_kit` v1 (packet: updates/review/2026-10-20/)
 - [x] Shader library expansion (wear, dirt, layered materials): ground-up grime, edge wear, roughness variation on photoreal painted/concrete/brick/metal/wood/rock/asphalt/rubber; new car paint (clearcoat), rubber, wood, fabric
-- [ ] Real toon look: ramp lighting, Freestyle line pass as an extra layer
+- [x] Real toon look: three-tone cel shading; ink lines computed from the data passes (`lines.py`: Cryptomatte outlines, normal creases, inverse-depth silhouettes), inked onto toon targets and exported as a `lineart` pair set. (Freestyle renders empty without a GPU context here, so lines don't depend on it)
+- [ ] **[Doug]** Approve or send back the toon look (packet: updates/review/2026-10-20/)
 - [ ] **[Doug]** Approve each kit from its turntable/contact sheet (art direction notes go into the next night's work)
 
 ## Phase 3: LTX-ready outputs

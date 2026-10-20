@@ -282,11 +282,21 @@ def _toon(name, kind, color):
 
     if kind == "window":
         color = (0.08, 0.12, 0.2, 1.0)  # graphic dark-blue glazing
-    diffuse = nt.nodes.new("ShaderNodeBsdfToon")
-    diffuse.component = "DIFFUSE"
-    diffuse.inputs["Color"].default_value = color
-    diffuse.inputs["Size"].default_value = 0.5
-    diffuse.inputs["Smooth"].default_value = 0.02
+    # Three-tone cel shading from two stacked Toon BSDFs: a narrow lit band
+    # and a wide mid band add up to lit / mid / shadow.
+    lit = nt.nodes.new("ShaderNodeBsdfToon")
+    lit.component = "DIFFUSE"
+    lit.inputs["Color"].default_value = tuple(c * 0.6 for c in color[:3]) + (1.0,)
+    lit.inputs["Size"].default_value = 0.45
+    lit.inputs["Smooth"].default_value = 0.02
+    mid = nt.nodes.new("ShaderNodeBsdfToon")
+    mid.component = "DIFFUSE"
+    mid.inputs["Color"].default_value = tuple(c * 0.4 for c in color[:3]) + (1.0,)
+    mid.inputs["Size"].default_value = 0.9
+    mid.inputs["Smooth"].default_value = 0.02
+    diffuse = nt.nodes.new("ShaderNodeAddShader")
+    nt.links.new(lit.outputs["BSDF"], diffuse.inputs[0])
+    nt.links.new(mid.outputs["BSDF"], diffuse.inputs[1])
 
     gloss = nt.nodes.new("ShaderNodeBsdfToon")
     gloss.component = "GLOSSY"
@@ -298,7 +308,7 @@ def _toon(name, kind, color):
     # Matte surfaces stay matte in toon: a crisp toon highlight on floors and
     # walls mirrors every strong light as a hard hot spot.
     mix.inputs["Fac"].default_value = {"metal": 0.35, "window": 0.5, "carpaint": 0.3}.get(kind, 0.0)
-    nt.links.new(diffuse.outputs["BSDF"], mix.inputs[1])
+    nt.links.new(diffuse.outputs["Shader"], mix.inputs[1])
     nt.links.new(gloss.outputs["BSDF"], mix.inputs[2])
     nt.links.new(mix.outputs["Shader"], out.inputs["Surface"])
     _aov_outputs(nt, color, 0.5, 1.0 if kind == "metal" else 0.0)

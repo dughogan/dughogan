@@ -10,11 +10,12 @@ resolution and 8n+1 frame count):
     <id>_normal.mp4        camera-space normals (OpenGL: +X red, +Y green, +Z blue)
     <id>_segment.mp4       Cryptomatte object IDs as stable flat colors (4:4:4)
     <id>_albedo.mp4        diffuse color
+    <id>_lineart.mp4       ink lines from the data passes (black on white; see lines.py)
     <id>_lg_<group>.mp4    each light group alone
     <id>_pose.mp4          OpenPose-style skeleton, for clips with a rigged character
 Pair manifests, into LIBRARY/export/pairs/<set>.jsonl, one row per clip:
     {"id", "caption", "media_path" (target), "conditioning_path"}
-for sets depth, normal, segment, albedo, pose (character clips), beauty (raw render -> finished comp)
+for sets depth, normal, segment, albedo, lineart, pose (character clips), beauty (raw render -> finished comp)
 relight_<group> (one light group -> full lighting), and, for clips rendered
 with --style-pairs, toon_to_photoreal / photoreal_to_toon. Paths are relative to
 LIBRARY/export. Map the columns to your LTX trainer's dataset config.
@@ -34,9 +35,9 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
-from cgdata import captions, provenance, qa
+from cgdata import captions, lines, provenance, qa
 
-CONDITIONS = ["depth", "normal", "segment", "albedo"]
+CONDITIONS = ["depth", "normal", "segment", "albedo", "lineart"]
 
 
 def ffmpeg_exe():
@@ -125,10 +126,13 @@ def export_shot(shot_dir, out_root):
     focals = {c["frame"]: c["focal_mm"] for c in cam["frames"]}
     out = out_root / sid
     out.mkdir(parents=True, exist_ok=True)
+    final = shot_dir / "final"
+    has_comp = final.is_dir() and any(final.glob("*.png"))
+    ink_target = meta["style"] == "toon" and not has_comp  # outlines are a comp-stage look
 
     with tempfile.TemporaryDirectory() as tmp:
         tmp = Path(tmp)
-        for name in CONDITIONS + [f"lg_{g}" for g in groups] + (["pose"] if skeleton else []):
+        for name in CONDITIONS + [f"lg_{g}" for g in groups] + (["pose"] if skeleton else []) + ["target"]:
             (tmp / name).mkdir()
 
         # Depth range over the whole clip, so brightness is stable in time.
@@ -144,8 +148,10 @@ def export_shot(shot_dir, out_root):
             D = qa.read_layers(shot_dir / "renders" / f"{sid}_data.{f:04d}.exr")
             d = np.clip(D["Depth"][..., 0], near, far)
             inv = (1.0 / d - inv_far) / max(inv_near - inv_far, 1e-9)
+            ink = lines.line_art(D)
             maps = {
                 "depth": np.repeat((np.clip(inv, 0, 1) * 255 + 0.5).astype(np.uint8)[..., None], 3, -1),
+                "lineart": np.repeat(((1 - ink) * 255).astype(np.uint8)[..., None], 3, -1),
                 "normal": camera_normals(D["Normal"], cam_frames[f]),
                 "segment": segment_colors(D["CryptoObject00"]),
                 "albedo": to_srgb8(L["DiffCol"][..., :3]),
@@ -156,18 +162,22 @@ def export_shot(shot_dir, out_root):
                 h, w = maps["depth"].shape[:2]
                 maps["pose"] = pose_image(skeleton["frames"][str(f)], cam_frames[f], focals[f],
                                           cam["sensor_mm"], w, h)
+            if ink_target:
+                preview = np.asarray(Image.open(shot_dir / "preview" / f"{sid}.{f:04d}.png").convert("RGB"))
+                maps["target"] = lines.ink(preview, ink)
             for name, img in maps.items():
                 Image.fromarray(img).save(tmp / name / f"{f:04d}.png", compress_level=1)
 
         for name in maps:
             encode(tmp / name, "%04d.png", f0, fps, out / f"{sid}_{name}.mp4",
-                   "yuv444p" if name == "segment" else "yuv420p")
+                   "yuv444p" if name in ("segment", "lineart") else "yuv420p")
 
     encode(shot_dir / "preview", f"{sid}.%04d.png", f0, fps, out / f"{sid}_beauty.mp4")
-    final = shot_dir / "final"
-    if final.is_dir() and any(final.glob("*.png")):
+    if has_comp:
         encode(final, f"{sid}_final.%04d.png", f0, fps, out / f"{sid}_target.mp4")
         target_kind = "comp"
+    elif ink_target:
+        target_kind = "beauty_inked"  # written above, from the inked preview frames
     else:
         shutil.copy(out / f"{sid}_beauty.mp4", out / f"{sid}_target.mp4")
         target_kind = "beauty"

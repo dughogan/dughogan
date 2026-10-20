@@ -66,6 +66,10 @@ shot_curated gate are exported. Uses system ffmpeg, else `imageio-ffmpeg`.
 | Motion | Vector (4ch: to-previous xy, to-next xy, pixels) |
 | IDs | IndexOB, IndexMA, CryptoObject/Material/Asset 00–02 (+ manifests in header) |
 
+Renders are sharp: depth of field is added in comp (ZDefocus) from clean
+depth, like motion blur, using the focus distance and f-stop recorded per
+frame in the camera track.
+
 Geometric passes (depth, mist, position, normal, vector, UV, IDs,
 Cryptomatte) come from a second view layer, "Data", that excludes the
 atmosphere collection: inside fog most camera samples scatter before
