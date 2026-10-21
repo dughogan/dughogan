@@ -18,8 +18,9 @@ from kits import fx as fx_kit
 from kits import heroes as hero_kit
 from kits import interior as interior_kit
 from kits import nature as nature_kit
-from materials import hsv, make_material
-from passes import assign_lightgroup, atmosphere_collection
+from kits import stage as stage_kit
+from materials import hsv, make_material, screen_material
+from passes import assign_lightgroup, atmosphere_collection, setup_keying
 
 # Radius around the hero kept free of environment geometry for the camera.
 CLEAR_RADIUS = 18.0
@@ -67,6 +68,7 @@ class Builder:
         self.hero_path = None     # a walking character's start and end (world)
         self.fx = None            # FX event info, for scene.json
         self.room = None          # set by the interior kit: half_w, half_d, height
+        self.studio = None        # set by the stage kit (green/blue-screen shots)
         self.clear_radius = CLEAR_RADIUS
 
     # ---------------------------------------------------------------- helpers
@@ -111,6 +113,13 @@ class Builder:
         self.objects.append({"name": obj.name, "role": role, "kind": kind,
                              "material": [m.name for m in obj.data.materials]})
         return obj
+
+    def screen_material(self, studio):
+        color = stage_kit.SCREENS[studio["screen"]]
+        mat = screen_material(f"screen_{studio['screen']}", color, studio["unevenness"])
+        mat.pass_index = len(self._materials) + 1
+        self._materials[("screen", studio["screen"])] = mat
+        return mat
 
     def assign_practical(self, obj):
         """Emission on this object (lit windows, lamp heads) is a practical light."""
@@ -170,6 +179,10 @@ class Builder:
             lit = LIT_FRACTION[self.spec["lighting"]["time_of_day"]]
             info = city_kit.build_city(self, rng, extent, env["density"], lit)
             self.uses["kits"][info["kit"]] = info["version"]
+            return
+        if env["type"] == "greenscreen":
+            stage_kit.plan(self, rng)  # the cyc itself is built once the camera is placed
+            self.uses["kits"][stage_kit.KIT] = stage_kit.VERSION
             return
         if env["type"] == "interior":
             info = interior_kit.build_interior(self, rng, env["density"])
@@ -275,8 +288,8 @@ class Builder:
 
     def build_fx(self):
         fx = self.spec.get("fx") or {}
-        if fx.get("type") != "collapse" or self.room:
-            return  # no collapses indoors: debris would tangle with furniture
+        if fx.get("type") != "collapse" or self.room or self.studio:
+            return  # no collapses indoors (debris would tangle with furniture) or on stage
         r = self.spec["render"]
         rng = random.Random(fx.get("seed", self.spec["seed"] * 53 + 11))
         self.fx = fx_kit.build_collapse(self, rng, (r["frame_start"], r["frame_end"]))
@@ -314,8 +327,8 @@ class Builder:
     # ------------------------------------------------------------------ props
 
     def build_props(self):
-        if self.room:
-            return  # indoors, the interior kit's furniture is the set dressing
+        if self.room or self.studio:
+            return  # indoors the furniture is the set dressing; on stage, nothing
         props = self.spec["props"]
         rng = random.Random(props["seed"])
         palette = [self.color(rng) for _ in range(4)]
@@ -356,7 +369,7 @@ class Builder:
 
     def build_atmosphere(self):
         atm = self.spec["atmosphere"]
-        if not atm["fog"]:
+        if not atm["fog"] or self.studio:
             return
         extent = self.spec["environment"]["extent"]
         box = self._primitive(bpy.ops.mesh.primitive_cube_add, "fog_volume", (0, 0, extent / 2), size=extent * 2.5)
@@ -384,6 +397,8 @@ class Builder:
         elev, sun_color, sun_strength, sky_strength = TIME_OF_DAY[lt["time_of_day"]]
         rot = math.radians(lt["sun_rotation_deg"])
         lights = self.group("LIGHTS")
+        if self.studio:
+            return self._studio_lights(lt, rng)
 
         def light(name, ltype, group, energy, color, location=None, rotation=None, **kw):
             data = bpy.data.lights.new(name, ltype)
@@ -464,6 +479,64 @@ class Builder:
                   location=pos + Vector((0, 0, h + 0.12)), shadow_soft_size=0.1)
 
         self._world(elev, rot, sky_strength)
+
+    def _studio_lights(self, lt, rng):
+        """Stage lighting: area key and fill on the camera side, the rim spot
+        behind the subject (in front of the screen), a dim neutral world.
+        The screen's own light comes from its material (the "screen" group)."""
+        cam_az = math.radians(self.spec["camera"]["azimuth_deg"])
+        side = rng.choice([-1, 1])
+        target = Vector((0, 0, self.hero_height))
+
+        def area(name, group, az, dist, rise, size, energy, color):
+            data = bpy.data.lights.new(name, "AREA")
+            data.energy, data.color, data.size = energy, color, size
+            obj = bpy.data.objects.new(name, data)
+            obj.visible_camera = False
+            self.scene.collection.objects.link(obj)
+            obj.location = Vector((math.cos(az) * dist, math.sin(az) * dist, self.hero_height + rise))
+            obj.rotation_euler = (target - obj.location).to_track_quat("-Z", "Y").to_euler()
+            obj.parent = self.group("LIGHTS")
+            assign_lightgroup(obj, group)
+            self.lights.append({"name": name, "type": "AREA", "group": group, "energy": energy,
+                                "color": list(color)})
+
+        # Energies give roughly the outdoor sun's irradiance (about 3 W/m^2)
+        # at the subject: area watts ~ 3 * pi * distance^2.
+        reach = max(self.hero_size * 2.0, 5.0)
+        area("key_area", "key", cam_az + side * math.radians(rng.uniform(25, 65)), reach,
+             rng.uniform(1.0, 3.5), rng.uniform(1.5, 3.0), 300 * lt["key_intensity"] * (reach / 5) ** 2,
+             (1.0, 0.96, 0.9))
+        area("fill_area", "fill", cam_az - side * math.radians(rng.uniform(30, 70)), reach * 1.2,
+             rng.uniform(0.0, 1.5), 4.0, 300 * lt["key_intensity"] * lt["fill_ratio"] * (reach / 5) ** 2,
+             (0.9, 0.95, 1.0))
+        if lt["rim_intensity"] > 0.05:
+            az = cam_az + math.pi + rng.uniform(-0.6, 0.6)
+            dist = min(self.studio["back"] - 0.8, 4.0)
+            data = bpy.data.lights.new("rim_spot", "SPOT")
+            data.energy = 500 * lt["rim_intensity"]
+            data.spot_size = math.radians(50)
+            data.shadow_soft_size = 0.6
+            rim = bpy.data.objects.new("rim_spot", data)
+            rim.visible_camera = False
+            self.scene.collection.objects.link(rim)
+            rim.location = Vector((math.cos(az) * dist, math.sin(az) * dist, self.hero_height + 2.5))
+            rim.rotation_euler = (target - rim.location).to_track_quat("-Z", "Y").to_euler()
+            rim.parent = self.group("LIGHTS")
+            assign_lightgroup(rim, "rim")
+            self.lights.append({"name": "rim_spot", "type": "SPOT", "group": "rim",
+                                "energy": data.energy, "color": [1.0, 1.0, 1.0]})
+        world = bpy.data.worlds.new("world")
+        self.scene.world = world
+        world.use_nodes = True
+        nt = world.node_tree
+        nt.nodes.clear()
+        bg = nt.nodes.new("ShaderNodeBackground")
+        out = nt.nodes.new("ShaderNodeOutputWorld")
+        nt.links.new(bg.outputs["Background"], out.inputs["Surface"])
+        bg.inputs["Color"].default_value = (0.5, 0.5, 0.5, 1.0)
+        bg.inputs["Strength"].default_value = 0.03  # the dark stage beyond the lights
+        world.lightgroup = "env"
 
     def _world(self, elev, rot, strength):
         world = bpy.data.worlds.new("world")
@@ -655,3 +728,7 @@ class Builder:
         self.build_camera()  # before the fog box, which would block ray casts
         self.build_fx()
         self.build_atmosphere()
+        if self.studio:
+            stage_kit.build_stage(self, random.Random(self.spec["environment"]["seed"] + 1))
+            stage_kit.move_subject(self)
+            setup_keying(self.scene, stage_kit.SCREEN_COLLECTION, stage_kit.SUBJECT_COLLECTION)

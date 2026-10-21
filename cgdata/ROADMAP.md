@@ -60,5 +60,6 @@ provenance gates (phase 1) once they exist.
 - [x] Pilot package: sample set, manifest, datasheet, provenance report, pitch sheet (`package.py`: stratified curated sample, style pairs kept together, generated DATASHEET and PITCH_DRAFT, per-clip ComfyAudit record, optional EXR samples)
 
 ## Later pilots
-- [ ] Keying module (plate / FG+alpha with spill / clean plate, screen light group for despill)
+- [x] Keying module (plate / FG+alpha with spill / clean plate, screen light group for despill): `blender/kits/stage.py` v1, `--environment greenscreen` (ids `KY_*`), Key_* EXR layers, `key_*` videos and pair sets
+- [ ] **[Doug]** Approve or send back `stage_kit` v1 / the keying layers (packet: updates/review/2026-10-21/)
 - [ ] Lens flare renderer (lens prescriptions, ghosts, diffraction starburst, video-consistent)

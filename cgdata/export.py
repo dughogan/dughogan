@@ -13,11 +13,20 @@ resolution and 8n+1 frame count):
     <id>_lineart.mp4       ink lines from the data passes (black on white; see lines.py)
     <id>_lg_<group>.mp4    each light group alone
     <id>_pose.mp4          OpenPose-style skeleton, for clips with a rigged character
+  keying clips (green/blue-screen stage, ids KY_*) also get:
+    <id>_key_plate.mp4     the plate (Combined, same transform as the key layers)
+    <id>_key_alpha.mp4     exact alpha (glass and other transmissive surfaces fractional)
+    <id>_key_fg.mp4        despilled foreground, premultiplied on black
+    <id>_key_fg_spill.mp4  foreground with the screen's spill, premultiplied
+    <id>_key_clean.mp4     clean plate (subject removed)
+    <id>_key_shadow.mp4    the subject's shadow on the screen (1 - plate/clean outside the subject)
 Pair manifests, into LIBRARY/export/pairs/<set>.jsonl, one row per clip:
     {"id", "caption", "media_path" (target), "conditioning_path"}
 for sets depth, normal, segment, albedo, lineart, pose (character clips), beauty (raw render -> finished comp)
 relight_<group> (one light group -> full lighting), and, for clips rendered
-with --style-pairs, toon_to_photoreal / photoreal_to_toon. Paths are relative to
+with --style-pairs, toon_to_photoreal / photoreal_to_toon; keying clips add
+key_alpha, key_fg, key_clean, key_shadow (each conditioned on key_plate) and
+key_despill (key_fg_spill -> key_fg). Paths are relative to
 LIBRARY/export. Map the columns to your LTX trainer's dataset config.
 
 Only clips that passed QA and were kept at the shot_curated gate are
@@ -38,6 +47,44 @@ from PIL import Image
 from cgdata import captions, lines, provenance, qa
 
 CONDITIONS = ["depth", "normal", "segment", "albedo", "lineart"]
+KEY_VIDEOS = ["key_plate", "key_alpha", "key_fg", "key_fg_spill", "key_clean", "key_shadow"]
+# keying pair sets: name -> (media video, conditioning video)
+KEY_SETS = {"key_alpha": ("key_alpha", "key_plate"), "key_fg": ("key_fg", "key_plate"),
+            "key_clean": ("key_clean", "key_plate"), "key_shadow": ("key_shadow", "key_plate"),
+            "key_despill": ("key_fg", "key_fg_spill")}
+
+
+def box_blur(a, r):
+    """Separable (2r+1)^2 box blur of a 2D array, edges clamped."""
+    k = 2 * r + 1
+    for axis in (0, 1):
+        pad = [(r + 1, r) if i == axis else (0, 0) for i in range(2)]
+        c = np.cumsum(np.pad(a, pad, mode="edge"), axis=axis, dtype=np.float64)
+        a = (np.take(c, range(k, c.shape[axis]), axis=axis)
+             - np.take(c, range(0, c.shape[axis] - k), axis=axis)) / k
+    return a.astype(np.float32)
+
+
+def key_maps(L):
+    """Keying videos from the plate and the Key_* layers (see kits/stage.py).
+    The alpha comes from Key_FG_nospill: in Key_FG, glass refracts the
+    (camera-invisible) screen and so reads opaque."""
+    fg = L["Key_FG_nospill"]
+    alpha = np.clip(fg[..., 3], 0, 1)
+    plate, clean = L["Combined"][..., :3], L["Key_Clean"][..., :3]
+    # The ratio of two noisy renders doubles the noise, so both are smoothed
+    # first (the matte is soft anyway) and faint values are gated to zero.
+    r = max(2, plate.shape[1] // 320)
+    lp, lc = (box_blur(qa.luminance(x), r) for x in (plate, clean))
+    shadow = np.clip(1 - lp / np.maximum(lc, 1e-4), 0, 1)
+    shadow = np.where(shadow < 0.04, 0.0, shadow) * (alpha <= 1e-3)  # glass isn't shadow
+
+    def gray(a):
+        return np.repeat((a * 255 + 0.5).astype(np.uint8)[..., None], 3, -1)
+
+    return {"key_plate": to_srgb8(plate), "key_alpha": gray(alpha), "key_fg": to_srgb8(fg[..., :3]),
+            "key_fg_spill": to_srgb8(L["Key_FG"][..., :3]), "key_clean": to_srgb8(clean),
+            "key_shadow": gray(shadow)}
 
 
 def ffmpeg_exe():
@@ -129,10 +176,12 @@ def export_shot(shot_dir, out_root):
     final = shot_dir / "final"
     has_comp = final.is_dir() and any(final.glob("*.png"))
     ink_target = meta["style"] == "toon" and not has_comp  # outlines are a comp-stage look
+    keying = "Key_FG_nospill" in meta["exr"]["light"]["layers"]
+    lit = set()  # light groups that light anything (no practicals on a stage, say)
 
     with tempfile.TemporaryDirectory() as tmp:
         tmp = Path(tmp)
-        for name in CONDITIONS + [f"lg_{g}" for g in groups] + (["pose"] if skeleton else []) + ["target"]:
+        for name in CONDITIONS + [f"lg_{g}" for g in groups] + (["pose"] if skeleton else []) + ["target"] + (KEY_VIDEOS if keying else []):
             (tmp / name).mkdir()
 
         # Depth range over the whole clip, so brightness is stable in time.
@@ -158,6 +207,10 @@ def export_shot(shot_dir, out_root):
             }
             for g in groups:
                 maps[f"lg_{g}"] = to_srgb8(L[f"Combined_{g}"][..., :3])
+                if maps[f"lg_{g}"].any():
+                    lit.add(g)
+            if keying:
+                maps.update(key_maps(L))
             if skeleton:
                 h, w = maps["depth"].shape[:2]
                 maps["pose"] = pose_image(skeleton["frames"][str(f)], cam_frames[f], focals[f],
@@ -170,7 +223,7 @@ def export_shot(shot_dir, out_root):
 
         for name in maps:
             encode(tmp / name, "%04d.png", f0, fps, out / f"{sid}_{name}.mp4",
-                   "yuv444p" if name in ("segment", "lineart") else "yuv420p")
+                   "yuv444p" if name in ("segment", "lineart", "key_alpha", "key_shadow") else "yuv420p")
 
     encode(shot_dir / "preview", f"{sid}.%04d.png", f0, fps, out / f"{sid}_beauty.mp4")
     if has_comp:
@@ -181,7 +234,7 @@ def export_shot(shot_dir, out_root):
     else:
         shutil.copy(out / f"{sid}_beauty.mp4", out / f"{sid}_target.mp4")
         target_kind = "beauty"
-    return {"id": sid, "target": target_kind, "groups": groups, "pose": bool(skeleton),
+    return {"id": sid, "target": target_kind, "groups": [g for g in groups if g in lit], "pose": bool(skeleton), "keying": keying,
             "caption": captions.for_shot(shot_dir)["long"], "pair": meta["spec"].get("pair")}
 
 
@@ -204,6 +257,11 @@ def write_pairs(results, out_root):
             rows.setdefault("pose", []).append(
                 {"id": sid, "caption": r["caption"], "media_path": target,
                  "conditioning_path": f"{sid}/{sid}_pose.mp4"})
+        if r.get("keying"):
+            for set_name, (media, cond) in KEY_SETS.items():
+                rows.setdefault(set_name, []).append(
+                    {"id": sid, "caption": r["caption"], "media_path": f"{sid}/{sid}_{media}.mp4",
+                     "conditioning_path": f"{sid}/{sid}_{cond}.mp4"})
         for g in r["groups"]:
             rows.setdefault(f"relight_{g}", []).append(
                 {"id": sid, "caption": r["caption"], "media_path": f"{sid}/{sid}_beauty.mp4",

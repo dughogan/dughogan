@@ -18,6 +18,9 @@ SPEC_VERSION = 1
 
 STYLES = ["photoreal", "toon"]
 ENVIRONMENTS = ["city_block", "canyon", "meadow", "interior"]
+# Keying shots (green/blue-screen stage) are asked for explicitly with
+# --environment greenscreen; they are never drawn at random.
+KEYING_ENVIRONMENTS = ["greenscreen"]
 CAMERA_MOVES = ["dolly_in", "orbit", "truck", "crane"]
 TIMES_OF_DAY = ["morning", "noon", "golden_hour", "dusk"]
 HERO_TYPES = ["glass_sculpture", "chrome_sculpture", "sss_blob", "neon_totem", "stone_monolith",
@@ -44,7 +47,8 @@ def make_spec(seed, quality="pilot", style=None, environment=None):
 
     spec = {
         "spec_version": SPEC_VERSION,
-        "shot_id": f"CG_{seed:06d}",
+        # keying clips get their own prefix so seed ranges never collide
+        "shot_id": f"{'KY' if environment in KEYING_ENVIRONMENTS else 'CG'}_{seed:06d}",
         "seed": seed,
         "style": style,
         "environment": {
@@ -108,10 +112,10 @@ def make_style_pair(seed, quality="pilot", environment=None):
     """The same shot twice, photoreal and toon. Style changes shading only;
     layout, camera and lighting come from the same seeds (verified: depth
     passes match exactly), so the two clips are exact style-transfer pairs."""
-    group = f"CG_{seed:06d}"
     pair = []
     for style, tag in (("photoreal", "pr"), ("toon", "tn")):
         spec = make_spec(seed, quality, style=style, environment=environment)
+        group = spec["shot_id"]
         spec["shot_id"] = f"{group}_{tag}"
         spec["pair"] = {"group": group, "style": style}
         pair.append(spec)
@@ -124,7 +128,7 @@ def main():
     ap.add_argument("--seed", type=int, default=1)
     ap.add_argument("--quality", choices=sorted(QUALITY), default="pilot")
     ap.add_argument("--style", choices=STYLES)
-    ap.add_argument("--environment", choices=ENVIRONMENTS)
+    ap.add_argument("--environment", choices=ENVIRONMENTS + KEYING_ENVIRONMENTS)
     ap.add_argument("--out", type=Path, required=True)
     args = ap.parse_args()
 

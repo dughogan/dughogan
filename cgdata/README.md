@@ -54,6 +54,37 @@ and IC-LoRA pair manifests (`export/pairs/*.jsonl`: caption, media_path,
 conditioning_path). Only clips that passed QA and were kept at the
 shot_curated gate are exported. Uses system ffmpeg, else `imageio-ffmpeg`.
 
+### Keying clips (green/blue screen)
+
+`run_batch --environment greenscreen` (or `spec --environment greenscreen`)
+renders clips on a procedural cyclorama stage instead of a location; their
+ids are `KY_xxxxxx`, so seed ranges never collide with `CG_` clips, and the
+stage is never drawn at random. The stage (`blender/kits/stage.py`) is a
+green or blue screen with uneven lighting, optional tracking markers and
+real floor shadows, sized from the placed camera so it fills every frame of
+the move. Lighting is studio: area key and fill on the camera side and a rim
+spot in front of the screen. There are no props, fog or FX on the stage.
+
+Extra view layers give exact keying ground truth, written into the light EXR
+as RGBA layers:
+
+| Layer | What it is |
+|---|---|
+| `Combined` | the plate: subject in front of the screen, with spill |
+| `Key_FG` | screen invisible to camera but still lighting the subject: foreground with spill |
+| `Key_FG_nospill` | screen removed: the despilled foreground; **its alpha is the matte** (glass is fractional) |
+| `Key_Clean` | subject removed: the clean plate |
+| `Combined_screen` | light group: the screen's own emission and the spill it throws |
+
+`Key_FG`'s alpha reads opaque through glass, because glass refracts the
+camera-invisible screen behind it; use `Key_FG_nospill`'s alpha. Keying
+layers render at full samples, so a keying clip costs about four renders
+per frame. Export adds `key_plate`, `key_alpha`, `key_fg`, `key_fg_spill`,
+`key_clean` and `key_shadow` videos, and the pair sets `key_alpha`,
+`key_fg`, `key_clean`, `key_shadow` (each conditioned on the plate) and
+`key_despill`. The shadow matte is `1 - plate/clean` outside the subject,
+smoothed before the ratio.
+
 ### Pilot package
 
 `python -m cgdata.package LIBRARY --out PILOT --samples 24 --with-exr 4`

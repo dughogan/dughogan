@@ -30,6 +30,9 @@ ENVIRONMENT = {
     "interior": ["a sunlit loft interior with wooden floors, shelves and a sofa",
                  "a furnished open-plan room with tall windows and floor lamps",
                  "a lived-in apartment interior with bookshelves, rugs and plants"],
+    # keying phrases carry their own preposition
+    "greenscreen": ["on a {screen} screen studio stage", "in front of a {screen} screen on a film stage",
+                    "on a {screen} screen cyclorama in a studio"],
     "meadow": ["a grassy meadow of rolling hills with scattered trees",
                "an open meadow with tufted grass, shrubs and leafy trees",
                "rolling green hills dotted with trees and boulders"],
@@ -52,6 +55,7 @@ LIGHT = {
     "noon": "bright midday sun with crisp shadows",
     "golden_hour": "warm golden-hour light with long shadows",
     "dusk": "dusk light",
+    "studio": "soft studio key and fill lights",
 }
 MOVE = {
     "dolly_in": ["the camera slowly dollies in", "a slow push-in toward it"],
@@ -102,7 +106,8 @@ def generate(spec, scene, comp=None):
     if spec["hero"]["type"] == "character":
         motion = (scene.get("hero") or {}).get("motion")
         hero += {"walk": " walking", "idle": " standing and looking around"}.get(motion, "")
-    tod = spec["lighting"]["time_of_day"]
+    studio = scene.get("studio")
+    tod = "studio" if studio else spec["lighting"]["time_of_day"]
     light = LIGHT[tod]
     if tod == "dusk":
         light += {"city_block": ", lit by street lamps and windows",
@@ -110,12 +115,15 @@ def generate(spec, scene, comp=None):
     focal = scene["camera"]["focal_mm"]
     shallow = scene["camera"]["fstop"] <= 2.8
     move = pick(MOVE[spec["camera"]["move"]])
-    fog = spec["atmosphere"]["fog"]
+    fog = spec["atmosphere"]["fog"] and not studio  # no fog on the stage
     look = pick(STYLE[style])
 
-    short = f"{_cap(look)}: {hero} in {pick(ENVIRONMENT[env])}, {LIGHT[tod]}."
+    screen = (studio or {}).get("screen", "")
+    where = pick(ENVIRONMENT[env]).format(screen=screen)
+    where = where if studio else "in " + where
+    short = f"{_cap(look)}: {hero} {where}, {LIGHT[tod]}."
     sentences = [
-        f"A {look} shot of {hero}{'' if spec['hero']['type'] == 'character' else ' standing'} in {pick(ENVIRONMENT[env])}.",
+        f"A {look} shot of {hero}{'' if spec['hero']['type'] == 'character' else ' standing'} {where}.",
         f"{_cap(light)}{', with light haze in the air' if fog else ''}; {move}, "
         f"filmed on a {lens_phrase(focal)}{' with shallow depth of field' if shallow else ''}.",
     ]
@@ -130,7 +138,7 @@ def generate(spec, scene, comp=None):
         sentences.append("Clean graphic finish with flat, saturated color.")
     tags = [style, env, spec["hero"]["type"], tod, spec["camera"]["move"],
             lens_phrase(focal).replace(" lens", ""), *(["shallow dof"] if shallow else []),
-            *(["haze"] if fog else []), *(["destruction"] if fx.get("type") == "collapse" else []),
+            *(["haze"] if fog else []), *([f"{screen} screen", "keying"] if studio else []), *(["destruction"] if fx.get("type") == "collapse" else []),
             "cg", "vfx"]
     return {"short": short, "long": " ".join(sentences), "tags": tags, "source": "generated"}
 

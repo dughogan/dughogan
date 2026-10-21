@@ -14,6 +14,12 @@ import bpy
 from materials import SHADER_AOVS
 
 LIGHT_GROUPS = ["key", "fill", "rim", "practical", "env"]
+SCREEN_GROUP = "screen"  # green/blue-screen emission, keying shots only
+
+KEYING_ENVIRONMENTS = {"greenscreen"}
+# Keying ground truth, rendered as extra view layers (see kits/stage.py).
+# Each is written into the light EXR as an RGBA layer with real alpha.
+KEY_LAYERS = ["Key_FG", "Key_FG_nospill", "Key_Clean"]
 
 DATA_VIEW_LAYER = "Data"
 DATA_SAMPLES = 32
@@ -57,6 +63,14 @@ VIEW_LAYER_PASSES = [
 CYCLES_LAYER_PASSES = ["use_pass_volume_direct", "use_pass_volume_indirect"]
 
 
+def is_keying(spec):
+    return spec["environment"]["type"] in KEYING_ENVIRONMENTS
+
+
+def light_groups(spec):
+    return LIGHT_GROUPS + ([SCREEN_GROUP] if is_keying(spec) else [])
+
+
 def configure(scene, spec):
     r = spec["render"]
     scene.render.engine = "CYCLES"
@@ -90,7 +104,7 @@ def configure(scene, spec):
         aov.name = name
         aov.type = aov_type
 
-    for name in LIGHT_GROUPS:
+    for name in light_groups(spec):
         vl.lightgroups.add(name=name)
 
     # The Data layer renders the geometric passes without the atmosphere
@@ -188,6 +202,29 @@ def atmosphere_collection(scene):
     return col
 
 
+def setup_keying(scene, screen_collection, subject_collection):
+    """Keying view layers. Film is transparent for the whole shot (the screen
+    fills the plate, so the plate's alpha is 1 anyway); glass and other
+    transmissive surfaces get fractional alpha, as a real key would."""
+    scene.render.film_transparent = True
+    scene.cycles.film_transparent_glass = True
+    for name in KEY_LAYERS:
+        vl = scene.view_layers.new(name)
+        vl.use_pass_combined = True
+        vl.use_pass_z = False
+        screen = vl.layer_collection.children[screen_collection]
+        subject = vl.layer_collection.children[subject_collection]
+        if name == "Key_FG":
+            screen.indirect_only = True   # unseen, but still spills onto the subject
+        elif name == "Key_FG_nospill":
+            screen.exclude = True
+        else:  # Key_Clean
+            subject.exclude = True
+        atm = vl.layer_collection.children.get(ATMOSPHERE_COLLECTION)
+        if atm is not None:
+            atm.exclude = True
+
+
 def add_exr_outputs(scene, directory, shot_id):
     """Wire every enabled render pass into two multilayer EXRs per frame:
     <shot_id>_light.####.exr (half) and <shot_id>_data.####.exr (float).
@@ -225,6 +262,16 @@ def add_exr_outputs(scene, directory, shot_id):
         tree.links.new(sock, out.inputs[item.name])
         written[kind].append(name)
 
+    # Keying layers: the beauty (with alpha) of each extra view layer.
+    for i, name in enumerate(n for n in KEY_LAYERS if n in scene.view_layers):
+        rl = tree.nodes.new("CompositorNodeRLayers")
+        rl.scene = scene
+        rl.layer = name
+        rl.location = (0, -1200 - 300 * i)
+        item = light.file_output_items.new("RGBA", name)
+        tree.links.new(rl.outputs["Image"], light.inputs[item.name])
+        written["light"].append(name)
+
     # Group output drives the regular render output (the PNG preview).
     tree.interface.new_socket("Image", in_out="OUTPUT", socket_type="NodeSocketColor")
     group_out = tree.nodes.new("NodeGroupOutput")
@@ -234,6 +281,6 @@ def add_exr_outputs(scene, directory, shot_id):
 
 
 def assign_lightgroup(obj, group):
-    if group not in LIGHT_GROUPS:
+    if group not in LIGHT_GROUPS + [SCREEN_GROUP]:
         raise ValueError(f"unknown light group {group!r}")
     obj.lightgroup = group

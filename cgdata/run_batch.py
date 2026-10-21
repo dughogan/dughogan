@@ -23,7 +23,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 from cgdata import catalog, provenance, qa
-from cgdata.spec import QUALITY, make_spec, make_style_pair
+from cgdata.spec import ENVIRONMENTS, KEYING_ENVIRONMENTS, QUALITY, make_spec, make_style_pair
 
 ROOT = Path(__file__).resolve().parent
 
@@ -55,6 +55,8 @@ def main():
                     help="local time after which no new shot is started (e.g. 07:00)")
     ap.add_argument("--style-pairs", action="store_true",
                     help="render every seed twice, photoreal and toon (exact style-transfer pairs)")
+    ap.add_argument("--environment", choices=ENVIRONMENTS + KEYING_ENVIRONMENTS,
+                    help="force one environment (greenscreen: keying clips, ids KY_xxxxxx)")
     ap.add_argument("--no-provenance", action="store_true",
                     help="skip ComfyAudit history (tests only: clips without it can't be sold)")
     args = ap.parse_args()
@@ -74,7 +76,8 @@ def main():
             stopped_early = True
             print(f"run_batch: reached --stop-at {args.stop_at}; resuming next run at seed {seed}")
             break
-        specs = make_style_pair(seed, args.quality) if args.style_pairs else [make_spec(seed, args.quality)]
+        specs = (make_style_pair(seed, args.quality, args.environment) if args.style_pairs
+                 else [make_spec(seed, args.quality, environment=args.environment)])
         for spec in specs:
             process(spec, args, spec_dir, shots_dir, build, failed)
 

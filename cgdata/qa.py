@@ -96,6 +96,15 @@ def check_frame(layers, expected):
         lg = sum(rgb(layers[k]) for k in groups)
         result["lightgroup_rebuild_error"] = rel_error(lg, combined)
 
+    if "Key_FG_nospill" in layers:
+        # keying: the subject is in frame, and the screen fills the plate
+        result["key_alpha_coverage"] = float(np.clip(layers["Key_FG_nospill"][..., 3], 0, 1).mean())
+        # outside the subject only: refraction rays through glass can leave
+        # the stage and reach the (transparent) world
+        outside = layers["Key_FG_nospill"][..., 3] <= 0
+        plate_a = layers["Combined"][..., 3][outside]
+        result["plate_alpha_min"] = float(plate_a.min()) if plate_a.size else 1.0
+
     lum = luminance(combined)
     result["mean_luminance"] = float(lum.mean())
     result["clipped_fraction"] = float((lum > 1.0).mean())
@@ -180,6 +189,10 @@ def run(shot_dir, checksums=True):
             issues.append(f"frame {f}: missing layers {res['missing_layers']}")
         if res["nonfinite_pixels"]:
             issues.append(f"frame {f}: NaN/Inf in {sorted(res['nonfinite_pixels'])}")
+        if res.get("key_alpha_coverage") == 0.0:
+            issues.append(f"frame {f}: keying subject not in frame")
+        if res.get("plate_alpha_min", 1.0) < 0.99:
+            issues.append(f"frame {f}: screen doesn't fill the plate")
         if f == mid:
             (shot_dir / "qa").mkdir(exist_ok=True)
             contact_sheet(layers, shot_dir / "qa" / f"{shot_id}_passes.png")
@@ -217,6 +230,7 @@ def run(shot_dir, checksums=True):
         "light_groups": scene["light_groups"],
         "uses": scene.get("uses", {}),
         "skeleton": scene.get("skeleton"),
+        "studio": scene.get("studio"),
         "lights": scene["lights"],
         "objects": scene["objects"],
         "camera": scene["camera"],

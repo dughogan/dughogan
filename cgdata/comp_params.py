@@ -13,7 +13,8 @@ LIGHT_GROUPS = ["key", "fill", "rim", "practical", "env"]
 def make_comp_params(spec):
     rng = random.Random(spec["seed"] * 101 + 13)
     toon = spec["style"] == "toon"
-    fog = spec["atmosphere"]["fog"]
+    keying = spec["environment"]["type"] == "greenscreen"
+    fog = spec["atmosphere"]["fog"] and not keying  # no atmosphere on the stage
 
     def gain(lo, hi):
         return round(rng.uniform(lo, hi), 3)
@@ -30,7 +31,7 @@ def make_comp_params(spec):
             "env": gain(0.7, 1.2),
         },
         "haze": {
-            "enabled": (not toon) and (fog or rng.random() < 0.5),
+            "enabled": (not toon) and (fog or rng.random() < 0.5) and not keying,
             "density": round(rng.uniform(0.005, 0.03), 4),
             "color": [round(c, 3) for c in (rng.uniform(0.5, 0.7), rng.uniform(0.55, 0.75), rng.uniform(0.65, 0.9))],
         },
@@ -64,4 +65,7 @@ def make_comp_params(spec):
             "size": round(rng.uniform(1.0, 2.5), 2),
         },
     }
+    if keying:
+        # The screen stays as shot: a keyer is trained on the plate as it is.
+        params["light_group_gain"]["screen"] = 1.0
     return params

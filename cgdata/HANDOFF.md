@@ -163,8 +163,9 @@ in the library with `qa.passed = false`.
    manifest, datasheet, provenance report and pitch sheet.
 
 **Later pilots:**
-- a keying module: plate, foreground + alpha with spill, clean plate, and a
-  separate screen light group for exact despill targets
+- a keying module: **v1 built 2026-10-21** (`blender/kits/stage.py`,
+  `run_batch --environment greenscreen`, clip ids `KY_*`; see README
+  "Keying clips"). Waiting on your look review.
 - a lens flare renderer: real lens designs, ghosts, diffraction, consistent
   across video frames
 

@@ -26,7 +26,7 @@ import sys
 import nuke
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
-from cgdata.comp_params import LIGHT_GROUPS, make_comp_params  # noqa: E402
+from cgdata.comp_params import make_comp_params  # noqa: E402
 
 WARNINGS = []
 
@@ -137,7 +137,7 @@ def build(shot_dir, render=True):
 
     # --- relight: sum of graded light groups --------------------------------
     stream = None
-    for group in LIGHT_GROUPS:
+    for group in params["light_group_gain"]:  # LIGHT_GROUPS, plus "screen" on keying shots
         layer = "Combined_" + group
         if not _layer_channels(light, layer):
             WARNINGS.append("light group %r not in render" % group)

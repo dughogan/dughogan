@@ -15,7 +15,7 @@ SHADER_AOVS = [("base_color", "COLOR"), ("roughness", "VALUE"), ("metallic", "VA
 
 KINDS = ["painted", "concrete", "rock", "metal", "glass", "sss", "emissive", "ground",
          "brick", "window", "window_lit", "asphalt", "bark", "foliage", "wood", "fabric",
-         "carpaint", "rubber"]
+         "carpaint", "rubber", "screen"]
 
 
 def hsv(h, s, v):
@@ -315,8 +315,44 @@ def _toon(name, kind, color):
     return mat
 
 
+def screen_material(name, color, unevenness):
+    """A green/blue screen backing: matte paint, lit unevenly (a broad noise
+    blotch on both the paint and its self-illumination), the same in both
+    styles because keying data needs a physical screen. The emission stands
+    in for the stage's screen lights and goes to the "screen" light group."""
+    mat, nt, out = _new_material(name)
+    coord = nt.nodes.new("ShaderNodeTexCoord")
+    tex = nt.nodes.new("ShaderNodeTexNoise")
+    tex.inputs["Scale"].default_value = 0.08  # blotches meters across
+    tex.inputs["Detail"].default_value = 2.0
+    nt.links.new(coord.outputs["Object"], tex.inputs["Vector"])
+    shade = nt.nodes.new("ShaderNodeMapRange")
+    shade.inputs["To Min"].default_value = 1.0 - unevenness
+    shade.inputs["To Max"].default_value = 1.0
+    shade.inputs["From Min"].default_value = 0.3
+    shade.inputs["From Max"].default_value = 0.7
+    nt.links.new(tex.outputs["Fac"], shade.inputs["Value"])
+    base = nt.nodes.new("ShaderNodeMix")
+    base.data_type = "RGBA"
+    base.blend_type = "MULTIPLY"
+    base.inputs["Factor"].default_value = 1.0
+    base.inputs["A"].default_value = color
+    nt.links.new(shade.outputs["Result"], base.inputs["B"])
+    bsdf = nt.nodes.new("ShaderNodeBsdfPrincipled")
+    nt.links.new(base.outputs["Result"], bsdf.inputs["Base Color"])
+    nt.links.new(base.outputs["Result"], bsdf.inputs["Emission Color"])
+    bsdf.inputs["Emission Strength"].default_value = 0.35
+    bsdf.inputs["Roughness"].default_value = 0.9
+    bsdf.inputs["Metallic"].default_value = 0.0
+    nt.links.new(bsdf.outputs["BSDF"], out.inputs["Surface"])
+    _aov_outputs(nt, base.outputs["Result"], 0.9, 0.0)
+    return mat
+
+
 def make_material(name, style, kind, color):
     if kind not in KINDS:
         raise ValueError(f"unknown material kind {kind!r}")
+    if kind == "screen":
+        return screen_material(name, color, 0.15)
     builder = _toon if style == "toon" else _photoreal
     return builder(name, kind, color)
