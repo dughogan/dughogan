@@ -22,7 +22,7 @@ import sys
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from cgdata import catalog, provenance, qa
+from cgdata import catalog, flares, provenance, qa
 from cgdata.spec import ENVIRONMENTS, KEYING_ENVIRONMENTS, QUALITY, make_spec, make_style_pair
 
 ROOT = Path(__file__).resolve().parent
@@ -57,6 +57,8 @@ def main():
                     help="render every seed twice, photoreal and toon (exact style-transfer pairs)")
     ap.add_argument("--environment", choices=ENVIRONMENTS + KEYING_ENVIRONMENTS,
                     help="force one environment (greenscreen: keying clips, ids KY_xxxxxx)")
+    ap.add_argument("--flares", action="store_true",
+                    help="also render the lens flare layer for photoreal clips (cgdata.flares)")
     ap.add_argument("--no-provenance", action="store_true",
                     help="skip ComfyAudit history (tests only: clips without it can't be sold)")
     args = ap.parse_args()
@@ -110,6 +112,10 @@ def process(spec, args, spec_dir, shots_dir, build, failed):
         changed = True
         if run([args.nuke, "-t", ROOT / "nuke" / "build_comp.py", shot_dir]):
             failed.append((spec["shot_id"], "comp"))
+
+    if args.flares and spec["style"] == "photoreal" and not (shot_dir / "flare.json").exists():
+        changed = True
+        flares.render_shot(shot_dir)
 
     # QA hashes every file, so it runs only when something new was made.
     meta_path = shot_dir / "meta.json"

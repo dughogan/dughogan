@@ -62,4 +62,5 @@ provenance gates (phase 1) once they exist.
 ## Later pilots
 - [x] Keying module (plate / FG+alpha with spill / clean plate, screen light group for despill): `blender/kits/stage.py` v1, `--environment greenscreen` (ids `KY_*`), Key_* EXR layers, `key_*` videos and pair sets
 - [ ] **[Doug]** Approve or send back `stage_kit` v1 / the keying layers (packet: updates/review/2026-10-21/)
-- [ ] Lens flare renderer (lens prescriptions, ghosts, diffraction starburst, video-consistent)
+- [x] Lens flare renderer v1 (`flares.py`): spectral FFT-aperture starburst, aperture ghosts with coating tints, veiling halo, sun from scene direction + visibility ray cast, video-consistent; `run_batch --flares`, `flare_removal` / `flare_addition` pair sets. Parametric lens model, **not yet real lens prescriptions** (ray-traced ghosts would be v2)
+- [ ] **[Doug]** Look review of the flares (packet: updates/review/2026-10-21/); Luka's dataset as a reference would help calibrate

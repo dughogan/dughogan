@@ -85,6 +85,34 @@ per frame. Export adds `key_plate`, `key_alpha`, `key_fg`, `key_fg_spill`,
 `key_despill`. The shadow matte is `1 - plate/clean` outside the subject,
 smoothed before the ratio.
 
+### Lens flares
+
+`run_batch --flares` (or `python -m cgdata.flares <shot dirs>`) adds a lens
+flare layer to photoreal clips after rendering, as
+`renders/<id>_flare.####.exr` plus `flare.json`. The render is not touched:
+
+| Layer | What it is |
+|---|---|
+| `Flare` | the stray light the lens scatters: diffraction starburst, veiling halo, ghosts |
+| `Sun` | the sun's own disc (the render has none; the sun lamp is the key light), when Blender's ray cast finds it unblocked from the lens |
+
+The clean plate is `Combined + Sun` and the flared plate is
+`Combined + Sun + Flare`. The lens is seeded per clip, and it is a
+**parametric model, not a ray trace through a real lens prescription**:
+- **Starburst:** the PSF of an n-blade aperture (rounded blades, dust),
+  computed as |FFT(pupil)|² at seven wavelengths, so spike count follows
+  the blade count and the spikes fringe spectrally. It is designed at
+  1920 px width and resampled, so a lens looks the same at any resolution.
+- **Ghosts:** aperture-shaped discs on the line through frame centre, with
+  coating tints, rims and slight dispersion.
+
+Sources are taken from the frame itself (everything above luminance 3)
+plus the sun, so flares track their sources from frame to frame; a sun just
+outside the frame still throws glare and ghosts in. Export adds
+`flare_clean`, `flare_plate` and `flare_only` videos and the
+`flare_removal` / `flare_addition` pair sets for clips whose flare is
+visible. Cost: about 2 s per 1920×1088 frame on CPU.
+
 ### Pilot package
 
 `python -m cgdata.package LIBRARY --out PILOT --samples 24 --with-exr 4`

@@ -159,6 +159,17 @@ def sha256(path, chunk=1 << 20):
     return h.hexdigest()
 
 
+def _flare_summary(shot_dir):
+    path = Path(shot_dir) / "flare.json"
+    if not path.exists():
+        return None
+    info = json.loads(path.read_text())
+    return {"file": info["file"], "layers": info["layers"], "visible": info["visible"],
+            "sun_frames": sum(f["sun"] for f in info["frames"]),
+            "sun_in_view_frames": sum(f.get("sun_in_view", False) for f in info["frames"]),
+            "lens": info["lens"]}
+
+
 def run(shot_dir, checksums=True):
     shot_dir = Path(shot_dir)
     spec = json.loads((shot_dir / "spec.json").read_text())
@@ -231,6 +242,7 @@ def run(shot_dir, checksums=True):
         "uses": scene.get("uses", {}),
         "skeleton": scene.get("skeleton"),
         "studio": scene.get("studio"),
+        "flare": _flare_summary(shot_dir),
         "lights": scene["lights"],
         "objects": scene["objects"],
         "camera": scene["camera"],

@@ -166,8 +166,10 @@ in the library with `qa.passed = false`.
 - a keying module: **v1 built 2026-10-21** (`blender/kits/stage.py`,
   `run_batch --environment greenscreen`, clip ids `KY_*`; see README
   "Keying clips"). Waiting on your look review.
-- a lens flare renderer: real lens designs, ghosts, diffraction, consistent
-  across video frames
+- a lens flare renderer: **v1 built 2026-10-21** (`flares.py`,
+  `run_batch --flares`; see README "Lens flares"). Parametric lens model;
+  ray tracing real lens prescriptions would be v2. Waiting on your look
+  review.
 
 Estimated time to a pilot with proof of benefit: **6–8 weeks.**
 

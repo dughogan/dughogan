@@ -20,13 +20,18 @@ resolution and 8n+1 frame count):
     <id>_key_fg_spill.mp4  foreground with the screen's spill, premultiplied
     <id>_key_clean.mp4     clean plate (subject removed)
     <id>_key_shadow.mp4    the subject's shadow on the screen (1 - plate/clean outside the subject)
+  clips with a visible lens flare layer (cgdata.flares) also get:
+    <id>_flare_clean.mp4   Combined + Sun (no flare)
+    <id>_flare_plate.mp4   the same with the flare added
+    <id>_flare_only.mp4    the flare alone, on black
 Pair manifests, into LIBRARY/export/pairs/<set>.jsonl, one row per clip:
     {"id", "caption", "media_path" (target), "conditioning_path"}
 for sets depth, normal, segment, albedo, lineart, pose (character clips), beauty (raw render -> finished comp)
 relight_<group> (one light group -> full lighting), and, for clips rendered
 with --style-pairs, toon_to_photoreal / photoreal_to_toon; keying clips add
 key_alpha, key_fg, key_clean, key_shadow (each conditioned on key_plate) and
-key_despill (key_fg_spill -> key_fg). Paths are relative to
+key_despill (key_fg_spill -> key_fg); flare clips add flare_removal
+(flare_plate -> flare_clean) and flare_addition (the reverse). Paths are relative to
 LIBRARY/export. Map the columns to your LTX trainer's dataset config.
 
 Only clips that passed QA and were kept at the shot_curated gate are
@@ -47,6 +52,7 @@ from PIL import Image
 from cgdata import captions, lines, provenance, qa
 
 CONDITIONS = ["depth", "normal", "segment", "albedo", "lineart"]
+FLARE_VIDEOS = ["flare_clean", "flare_plate", "flare_only"]
 KEY_VIDEOS = ["key_plate", "key_alpha", "key_fg", "key_fg_spill", "key_clean", "key_shadow"]
 # keying pair sets: name -> (media video, conditioning video)
 KEY_SETS = {"key_alpha": ("key_alpha", "key_plate"), "key_fg": ("key_fg", "key_plate"),
@@ -177,11 +183,12 @@ def export_shot(shot_dir, out_root):
     has_comp = final.is_dir() and any(final.glob("*.png"))
     ink_target = meta["style"] == "toon" and not has_comp  # outlines are a comp-stage look
     keying = "Key_FG_nospill" in meta["exr"]["light"]["layers"]
+    flare = (meta.get("flare") or {}).get("visible", False)
     lit = set()  # light groups that light anything (no practicals on a stage, say)
 
     with tempfile.TemporaryDirectory() as tmp:
         tmp = Path(tmp)
-        for name in CONDITIONS + [f"lg_{g}" for g in groups] + (["pose"] if skeleton else []) + ["target"] + (KEY_VIDEOS if keying else []):
+        for name in CONDITIONS + [f"lg_{g}" for g in groups] + (["pose"] if skeleton else []) + ["target"] + (KEY_VIDEOS if keying else []) + (FLARE_VIDEOS if flare else []):
             (tmp / name).mkdir()
 
         # Depth range over the whole clip, so brightness is stable in time.
@@ -211,6 +218,11 @@ def export_shot(shot_dir, out_root):
                     lit.add(g)
             if keying:
                 maps.update(key_maps(L))
+            if flare:
+                X = qa.read_layers(shot_dir / "renders" / f"{sid}_flare.{f:04d}.exr")
+                clean = L["Combined"][..., :3] + X["Sun"]
+                maps.update({"flare_clean": to_srgb8(clean), "flare_plate": to_srgb8(clean + X["Flare"]),
+                             "flare_only": to_srgb8(X["Flare"])})
             if skeleton:
                 h, w = maps["depth"].shape[:2]
                 maps["pose"] = pose_image(skeleton["frames"][str(f)], cam_frames[f], focals[f],
@@ -235,6 +247,7 @@ def export_shot(shot_dir, out_root):
         shutil.copy(out / f"{sid}_beauty.mp4", out / f"{sid}_target.mp4")
         target_kind = "beauty"
     return {"id": sid, "target": target_kind, "groups": [g for g in groups if g in lit], "pose": bool(skeleton), "keying": keying,
+            "flare": flare and {"sun": meta["flare"].get("sun_in_view_frames", 0) > 0},
             "caption": captions.for_shot(shot_dir)["long"], "pair": meta["spec"].get("pair")}
 
 
@@ -262,6 +275,15 @@ def write_pairs(results, out_root):
                 rows.setdefault(set_name, []).append(
                     {"id": sid, "caption": r["caption"], "media_path": f"{sid}/{sid}_{media}.mp4",
                      "conditioning_path": f"{sid}/{sid}_{cond}.mp4"})
+        if r.get("flare"):
+            what = "the sun" if r["flare"]["sun"] else "bright lights"
+            flared = f"{r['caption']} Lens flare from {what}: a diffraction starburst, glare and ghosts."
+            rows.setdefault("flare_removal", []).append(
+                {"id": sid, "caption": r["caption"], "media_path": f"{sid}/{sid}_flare_clean.mp4",
+                 "conditioning_path": f"{sid}/{sid}_flare_plate.mp4"})
+            rows.setdefault("flare_addition", []).append(
+                {"id": sid, "caption": flared, "media_path": f"{sid}/{sid}_flare_plate.mp4",
+                 "conditioning_path": f"{sid}/{sid}_flare_clean.mp4"})
         for g in r["groups"]:
             rows.setdefault(f"relight_{g}", []).append(
                 {"id": sid, "caption": r["caption"], "media_path": f"{sid}/{sid}_beauty.mp4",

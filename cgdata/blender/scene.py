@@ -70,6 +70,7 @@ class Builder:
         self.room = None          # set by the interior kit: half_w, half_d, height
         self.studio = None        # set by the stage kit (green/blue-screen shots)
         self.clear_radius = CLEAR_RADIUS
+        self.sun = None           # the key sun lamp (outdoor and interior shots)
 
     # ---------------------------------------------------------------- helpers
 
@@ -419,7 +420,7 @@ class Builder:
             return obj
 
         # Key: the sun.
-        light(
+        self.sun = light(
             "key_sun", "SUN", "key", sun_strength * lt["key_intensity"], sun_color,
             rotation=(math.radians(90 - elev), 0, rot), angle=math.radians(0.6),
         )
@@ -697,6 +698,18 @@ class Builder:
         self.scene.frame_set(self.scene.frame_start)
         return True
 
+    def _sun_visible(self, origin, direction):
+        """True if nothing but the atmosphere box blocks the sun from origin."""
+        depsgraph = bpy.context.evaluated_depsgraph_get()
+        for _ in range(8):
+            hit, loc, _n, _i, obj, _m = self.scene.ray_cast(depsgraph, origin, direction)
+            if not hit:
+                return True
+            if obj.name != "fog_volume":
+                return False
+            origin = loc + direction * 1e-3
+        return False
+
     def camera_track(self):
         """Per-frame camera world matrix and lens, for meta.json and Nuke."""
         cam = self.camera
@@ -704,14 +717,24 @@ class Builder:
         for f in range(self.scene.frame_start, self.scene.frame_end + 1):
             self.scene.frame_set(f)
             m = cam.matrix_world
-            frames.append({
+            entry = {
                 "frame": f,
                 "matrix_world": [list(row) for row in m],
                 "focal_mm": cam.data.lens,
                 "focus_distance": (m.translation - self.cam_target.matrix_world.translation).length,
-            })
+            }
+            if self.sun:  # for lens flares: is the sun's disc unblocked from the lens?
+                to_sun = (self.sun.matrix_world.to_3x3() @ Vector((0, 0, 1))).normalized()
+                entry["sun_visible"] = self._sun_visible(m.translation.copy(), to_sun)
+            frames.append(entry)
         self.scene.frame_set(self.scene.frame_start)
+        sun = None
+        if self.sun:
+            to_sun = (self.sun.matrix_world.to_3x3() @ Vector((0, 0, 1))).normalized()
+            sun = {"direction": list(to_sun), "strength": self.sun.data.energy,
+                   "color": list(self.sun.data.color), "angle_deg": math.degrees(self.sun.data.angle)}
         return {
+            "sun": sun,
             "sensor_mm": cam.data.sensor_width,
             "focal_mm": cam.data.lens,
             "placement_attempts": self.camera_attempts,
