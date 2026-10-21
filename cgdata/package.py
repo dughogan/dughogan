@@ -87,6 +87,9 @@ def datasheet(library, ids, metas, pair_counts):
     frames = first["frame_range"][1] - first["frame_range"][0] + 1
     ltx_ok = (frames - 1) % 8 == 0 and all(v % 32 == 0 for v in first["resolution"])
     comps = sum(1 for m in metas if m["comp"]["rendered"])
+    flare_note = ("- Lens flare layers come from a parametric lens model (FFT aperture starburst,\n"
+                  "  aperture ghosts), not from ray tracing real lens designs.\n"
+                  if any(m.get("flare") for m in metas) else "")
     return f"""# Datasheet: cgdata pilot
 
 Generated {date.today().isoformat()} from {len(ids)} clips ({seconds / 60:.1f} minutes).
@@ -132,7 +135,7 @@ assets, scans, textures or people are used.
 ## Known limits
 - Draft-quality renders are noisy; pilot renders use 512 samples.
 - Mantaflow smoke/fire is not yet included.
-- Licence terms: placeholder pending Dugco's counsel.
+{flare_note}- Licence terms: placeholder pending Dugco's counsel.
 """
 
 
