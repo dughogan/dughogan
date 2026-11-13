@@ -65,4 +65,4 @@ B.F.A. in Visual Effects & Film & Television, Savannah College of Art and Design
 
 ---
 
-<p align="center">Based in Dallas, TX &nbsp;·&nbsp; <a href="https://www.doughogan.com">doughogan.com</a></p>
+<p align="center">Based in Baton Rouge, LA &nbsp;·&nbsp; <a href="https://www.doughogan.com">doughogan.com</a></p>
