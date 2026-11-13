@@ -34,7 +34,6 @@ Most of what I publish here is tooling for ComfyUI and Nuke that came out of rea
 | [nuke-alphagen-ofx](https://github.com/dughogan/nuke-alphagen-ofx) | A Nuke OFX plug-in (beta) that brings LTX Alpha-Gen and SAM into Nuke through a Comfy backend. |
 | [nuke_mcp](https://github.com/dughogan/nuke_mcp) | An MCP server and tools for Nuke: control Nuke with prompts instead of clicks. |
 | [comfy_nuke_nodes](https://github.com/dughogan/comfy_nuke_nodes) | ComfyUI nodes that mimic Nuke workflows and core nodes. |
-| [ComfyUI_Sharp_Video](https://github.com/dughogan/ComfyUI_Sharp_Video) | Built on ml-sharp: processes video and batch-produces `.ply` frames to play as a sequence. |
 | [comfyui_qwen_camera_angle_prompter](https://github.com/dughogan/comfyui_qwen_camera_angle_prompter) | Control camera zoom, yaw and pitch with Qwen Image Edit. |
 | [switch_which](https://github.com/dughogan/switch_which) | Switch between dynamically generated inputs from a single knob. |
 | [comfyui_waitingMusak](https://github.com/dughogan/comfyui_waitingMusak) | Your GPU is working hard. You are on hold. Elevator music for ComfyUI, plus a completion ding. |
