@@ -24,19 +24,34 @@ These days most of my time goes into bridging art and advanced technology: build
 
 ## Open source
 
-Most of what I publish here is tooling for ComfyUI and Nuke that came out of real shots.
+Most of what I publish is tooling for ComfyUI and Nuke that came out of real shots.
+
+### DUGCO Tools
+
+<a href="https://github.com/dughogan/DUGCO_Tools"><img src="https://raw.githubusercontent.com/dughogan/DUGCO_Tools/main/docs/images/banner.jpg" alt="DUGCO Tools: production tools for Comfy, free and open source" width="100%"></a>
+
+**[DUGCO Tools](https://github.com/dughogan/DUGCO_Tools)** is where my ComfyUI tools live now: one pack of custom nodes, workflows and demo videos, free and open source. Tools that used to have their own repositories have moved in.
+
+| Tool | What it does |
+| --- | --- |
+| [Pass Viewer](https://github.com/dughogan/DUGCO_Tools#pass-viewer) | Step through every VFX pass of a shot inside one node. |
+| [Multi-Pass EXR Exporter](https://github.com/dughogan/DUGCO_Tools#multi-pass-exr-exporter) | Write all of your passes into one multi-channel EXR per frame. |
+| [Film Finish](https://github.com/dughogan/DUGCO_Tools#film-finish) | Make AI renders read as 35mm film. |
+| [Plate Relight](https://github.com/dughogan/DUGCO_Tools#plate-relight) | Relight and clean up real footage without replacing the plate's pixels. |
+| [Track Path To Shot](https://github.com/dughogan/DUGCO_Tools#track-path-to-shot) | Draw a route on frame 1 and it sticks to the surface for the whole shot. |
+| [Comfy Workflow Tracker](https://github.com/dughogan/DUGCO_Tools#comfy-workflow-tracker) | Audit a workflow's models and licences, record a shot's life, package it for legal. |
+| [Frame Tools](https://github.com/dughogan/DUGCO_Tools#frame-tools) | Repeat video latent frames, and keep every Nth image. |
+| [waitingMusak](https://github.com/dughogan/DUGCO_Tools#waitingmusak) | Your GPU is working hard. You are on hold. Elevator music while a workflow runs, and a phone-friendly render monitor. |
+
+### Also on GitHub
 
 | Project | What it is |
 | --- | --- |
-| **[DUGCO_Tools](https://github.com/dughogan/DUGCO_Tools)** | My growing pack of ComfyUI nodes and workflows for VFX and finishing: a pass viewer, a multi-pass EXR exporter, a film finish and more, with demo videos. |
-| [comfy_workflow_audit](https://github.com/dughogan/comfy_workflow_audit) | Evaluates whether a ComfyUI workflow can be used in production. |
-| [comfyui-plate-relight](https://github.com/dughogan/comfyui-plate-relight) | VFX nodes: relight a plate while keeping its pixels, temporal deflicker for AI passes, add light from passes with cast shadows. |
 | [nuke-alphagen-ofx](https://github.com/dughogan/nuke-alphagen-ofx) | A Nuke OFX plug-in (beta) that brings LTX Alpha-Gen and SAM into Nuke through a Comfy backend. |
 | [nuke_mcp](https://github.com/dughogan/nuke_mcp) | An MCP server and tools for Nuke: control Nuke with prompts instead of clicks. |
 | [comfy_nuke_nodes](https://github.com/dughogan/comfy_nuke_nodes) | ComfyUI nodes that mimic Nuke workflows and core nodes. |
 | [comfyui_qwen_camera_angle_prompter](https://github.com/dughogan/comfyui_qwen_camera_angle_prompter) | Control camera zoom, yaw and pitch with Qwen Image Edit. |
 | [switch_which](https://github.com/dughogan/switch_which) | Switch between dynamically generated inputs from a single knob. |
-| [comfyui_waitingMusak](https://github.com/dughogan/comfyui_waitingMusak) | Your GPU is working hard. You are on hold. Elevator music for ComfyUI, plus a completion ding. |
 
 ## Teaching
 
